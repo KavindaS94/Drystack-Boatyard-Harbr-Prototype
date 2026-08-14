@@ -158,7 +158,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
     const current = stateRef.current;
     const reservation = current.reservations.find((item) => item.id === reservationId);
     if (!reservation) throw new Error(`Unknown reservation ${reservationId}`);
-    const lines = draftFromJob(reservation, current.products, false);
+    const lines = draftFromJob(reservation, current.products, true);
     const id = newId("inv");
     setState((prev) => ({
       ...prev,
