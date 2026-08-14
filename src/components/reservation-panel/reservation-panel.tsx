@@ -70,7 +70,9 @@ export function ReservationPanel() {
         </div>
       </dl>
 
-      {berth.kind === "wet" ? <WetPanel boatyardLabel={state.settings.boatyardLabel} /> : null}
+      {berth.kind === "wet" ? (
+        <WetPanel reservationId={reservation.id} boatyardLabel={state.settings.boatyardLabel} />
+      ) : null}
       {berth.kind === "boatyard" ? <JobPanel reservationId={reservation.id} /> : null}
       {berth.kind === "dry_storage" ? (
         <DryStoragePanel vesselId={vessel.id} storageStatus={vessel.storageStatus} />
