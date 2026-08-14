@@ -1,10 +1,8 @@
 import { CalendarGrid } from "../components/calendar/calendar-grid";
 import { KindFilter } from "../components/calendar/kind-filter";
-import { useMarina } from "../store/marina-store";
+import { ReservationPanel } from "../components/reservation-panel/reservation-panel";
 
 export function CalendarScreen() {
-  const { state } = useMarina();
-
   return (
     <div className="flex items-start gap-6">
       <div className="min-w-0 flex-1 space-y-4">
@@ -14,13 +12,8 @@ export function CalendarScreen() {
         </div>
         <CalendarGrid />
       </div>
-      <aside className="sticky top-0 w-72 shrink-0 rounded-lg border border-neutral-200 bg-white p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Reservation</p>
-        {state.selectedReservationId ? (
-          <p className="mt-2 text-sm text-neutral-900">Selected: {state.selectedReservationId}</p>
-        ) : (
-          <p className="mt-2 text-sm text-neutral-500">Click a booking bar</p>
-        )}
+      <aside className="sticky top-0 max-h-[calc(100vh-6.5rem)] w-80 shrink-0 overflow-y-auto rounded-lg border border-neutral-200 bg-white p-4">
+        <ReservationPanel />
       </aside>
     </div>
   );
