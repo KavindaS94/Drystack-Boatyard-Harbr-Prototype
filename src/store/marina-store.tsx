@@ -177,18 +177,29 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       if (input.mode === "move") {
         return {
           ...prev,
+          selectedReservationId: wet.id,
           reservations: prev.reservations.map((item) =>
-            item.id === wet.id ? { ...item, berthId: input.yardBerthId, job } : item
+            item.id === wet.id
+              ? {
+                  ...item,
+                  berthId: input.yardBerthId,
+                  startDate: input.start,
+                  endDate: input.end,
+                  job,
+                }
+              : item
           ),
         };
       }
 
+      const yardReservationId = newId("res");
       return {
         ...prev,
+        selectedReservationId: yardReservationId,
         reservations: [
           ...prev.reservations,
           {
-            id: newId("res"),
+            id: yardReservationId,
             berthId: input.yardBerthId,
             customerId: wet.customerId,
             vesselId: wet.vesselId,

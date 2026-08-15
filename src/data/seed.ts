@@ -212,7 +212,7 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-h2-riviera",
-    berthId: "berth-h2",
+    berthId: "berth-h3",
     customerId: "cust-bridger",
     vesselId: "ves-riviera",
     startDate: "2026-08-11",
