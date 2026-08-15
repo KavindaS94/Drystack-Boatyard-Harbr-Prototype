@@ -73,7 +73,9 @@ export function ReservationPanel() {
       {berth.kind === "wet" ? (
         <WetPanel reservationId={reservation.id} boatyardLabel={state.settings.boatyardLabel} />
       ) : null}
-      {berth.kind === "boatyard" ? <JobPanel reservationId={reservation.id} /> : null}
+      {berth.kind === "boatyard" && state.settings.boatyardEnabled ? (
+        <JobPanel reservationId={reservation.id} />
+      ) : null}
       {berth.kind === "dry_storage" ? (
         <DryStoragePanel vesselId={vessel.id} storageStatus={vessel.storageStatus} />
       ) : null}
