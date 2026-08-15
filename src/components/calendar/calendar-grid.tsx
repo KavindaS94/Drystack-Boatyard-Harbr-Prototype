@@ -76,7 +76,13 @@ export function CalendarGrid() {
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
   const weekEnd = days[6];
 
-  const visibleBerths = state.berths.filter((berth) => state.kindFilter.includes(berth.kind));
+  const { settings, kindFilter } = state;
+  const visibleBerths = state.berths.filter((berth) => {
+    if (!kindFilter.includes(berth.kind)) return false;
+    if (berth.kind === "boatyard" && !settings.boatyardEnabled) return false;
+    if (berth.kind === "dry_storage" && !settings.dryStorageEnabled) return false;
+    return true;
+  });
   const pierGroups = groupByPier(visibleBerths);
 
   return (
