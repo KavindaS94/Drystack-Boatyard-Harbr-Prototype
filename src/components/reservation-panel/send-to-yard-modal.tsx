@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMarina, type SendToYardInput } from "../../store/marina-store";
 
 interface SendToYardModalProps {
@@ -50,7 +51,7 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
     onClose();
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation">
       <div
         role="dialog"
@@ -131,7 +132,7 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
           </label>
 
           <fieldset className="space-y-2">
-            <legend className="text-xs font-medium text-neutral-500">Wet berth</legend>
+            <legend className="text-xs font-medium text-neutral-500">Berth</legend>
             <label className="flex items-start gap-2 text-sm text-neutral-800">
               <input
                 type="radio"
@@ -141,7 +142,7 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
                 onChange={() => setMode("keep_wet")}
                 className="mt-0.5"
               />
-              <span className="font-medium">Keep wet berth</span>
+              <span className="font-medium">Keep berth</span>
             </label>
             <label className="flex items-start gap-2 text-sm text-neutral-800">
               <input
@@ -152,7 +153,7 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
                 onChange={() => setMode("move")}
                 className="mt-0.5"
               />
-              <span className="font-medium">Move (free wet berth)</span>
+              <span className="font-medium">Move (free berth)</span>
             </label>
           </fieldset>
 
@@ -178,12 +179,13 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
             type="button"
             disabled={!canConfirm}
             onClick={onConfirm}
-            className="flex-1 rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+            className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-neutral-300"
           >
             Confirm
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

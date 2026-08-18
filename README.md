@@ -4,6 +4,10 @@ Frontend-only prototype for **boatyard** and **dry storage**. It is **not** the 
 
 All data in this app is **fake**. Nothing here writes to production, talks to the Harbr API, or changes marina records.
 
+## How it works
+
+New here? Read **[HOW-IT-WORKS.md](./HOW-IT-WORKS.md)** — a plain, step-by-step walkthrough of every screen.
+
 ## How to run
 
 From this directory (`harbr-yard-prototype`, sibling of `harbr-app`):
@@ -27,11 +31,12 @@ Requires Node 22+ (or Node 20.12+). `pnpm` is the package manager.
 Walk these four scripts. All data is fake.
 
 1. **Yard-only job** — open H4 Sea Sprite (antifoul) → Job → log hours/materials on tablet (no $) → Office creates draft → banner **This invoice → Holding**.
-2. **Wet → yard** — open A12 (wet) → Send to hardstand → pick H2 + Travel lift + **Keep wet berth** *or* **Move (free wet)** → Job + T&Cs Sent/Signed → lift done blocked until Signed.
-3. **Busy Saturday** — Launch board, ~50 tasks → mark launch done → status stored → launched → set departed → mark retrieve done → stored.
-4. **Settings** — rename Hardstand / Dry storage; add a job type colour; add a product with bank Holding.
+2. **Berth → hardstand** — open A12 (Berth) → Send to Hardstand → pick a spot + Travel lift + **Keep berth** *or* **Move (free berth)** → Job + T&Cs Sent/Signed → lift done blocked until Signed.
+3. **Afloat job** — open B3 (Berth) Corsair → Job with **Work location: Afloat** → log hours → Create draft (no lift needed).
+4. **Busy Saturday** — Launch board, ~50 tasks → mark launch done → status stored → launched → set departed → mark retrieve done → stored.
+5. **Settings** — rename Hardstand / Dry stack; add a job type colour; add a product with bank Holding.
 
-The same four scripts are in a collapsible **Demo scripts** block on Calendar.
+A collapsible **Demo scripts** block on the Calendar lists the main ones too.
 
 ## Requirements
 

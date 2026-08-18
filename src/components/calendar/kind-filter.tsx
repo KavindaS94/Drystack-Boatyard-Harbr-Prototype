@@ -24,7 +24,7 @@ export function KindFilter() {
 
   const chips: KindChip[] = [
     { id: "all", label: "All", kinds: enabledKinds },
-    { id: "wet", label: "Wet berth", kinds: ["wet"] },
+    { id: "wet", label: "Berth", kinds: ["wet"] },
     ...(settings.boatyardEnabled
       ? [{ id: "boatyard", label: kindLabel("boatyard", settings), kinds: ["boatyard"] as SpaceKind[] }]
       : []),
@@ -34,7 +34,7 @@ export function KindFilter() {
   ];
 
   return (
-    <div className="inline-flex flex-wrap gap-1 rounded-md border border-neutral-200 bg-neutral-100 p-0.5">
+    <div className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-neutral-100 p-0.5">
       {chips.map((chip) => {
         const isActive = sameKinds(kindFilter, chip.kinds);
         return (
@@ -44,8 +44,8 @@ export function KindFilter() {
             onClick={() => setKindFilter(chip.kinds)}
             className={
               isActive
-                ? "rounded px-3 py-1 text-sm font-medium bg-white text-neutral-900 shadow-sm"
-                : "rounded px-3 py-1 text-sm font-medium text-neutral-600 hover:text-neutral-900"
+                ? "rounded-md px-3 py-1 text-sm font-medium bg-white text-primary shadow-sm"
+                : "rounded-md px-3 py-1 text-sm font-medium text-neutral-600 hover:text-neutral-900"
             }
           >
             {chip.label}

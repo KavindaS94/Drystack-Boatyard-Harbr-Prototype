@@ -76,14 +76,14 @@ export function JobTypesTab() {
               data-job-type-row={jobType.id}
               className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left ${
                 editingId === jobType.id
-                  ? "border-neutral-900 bg-neutral-50"
-                  : "border-neutral-200 hover:bg-neutral-50"
+                  ? "border-primary bg-neutral-50"
+                  : "border-border hover:bg-neutral-50"
               }`}
             >
               <span className="h-4 w-4 shrink-0 rounded-sm" style={{ backgroundColor: jobType.colour }} />
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium text-neutral-900">{jobType.name}</span>
-                <span className="block text-xs text-neutral-500">
+                <span className="block text-xs text-muted-foreground">
                   {jobType.defaultDurationDays} day{jobType.defaultDurationDays === 1 ? "" : "s"}
                   {jobType.requiresTc ? " · Requires T&Cs" : ""}
                 </span>
@@ -94,7 +94,7 @@ export function JobTypesTab() {
       </ul>
 
       <form
-        className="space-y-3 rounded-md border border-neutral-200 p-3"
+        className="space-y-3 rounded-md border border-border p-3"
         onSubmit={(event) => {
           event.preventDefault();
           onSave();
@@ -104,27 +104,27 @@ export function JobTypesTab() {
           {editingId ? "Edit job type" : "Add job type"}
         </h2>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Name</span>
+          <span className="text-xs font-medium text-muted-foreground">Name</span>
           <input
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
             data-job-type-name
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-500">Colour</span>
+            <span className="text-xs font-medium text-muted-foreground">Colour</span>
             <input
               type="color"
               value={form.colour}
               onChange={(event) => setForm((prev) => ({ ...prev, colour: event.target.value }))}
               data-job-type-colour
-              className="h-9 w-full rounded-md border border-neutral-200 bg-white"
+              className="h-9 w-full rounded-md border border-border bg-white"
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-500">Duration (days)</span>
+            <span className="text-xs font-medium text-muted-foreground">Duration (days)</span>
             <input
               type="number"
               min={1}
@@ -132,17 +132,17 @@ export function JobTypesTab() {
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, defaultDurationDays: Number(event.target.value) || 1 }))
               }
-              className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
             />
           </label>
         </div>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Checklist (one line each)</span>
+          <span className="text-xs font-medium text-muted-foreground">Checklist (one line each)</span>
           <textarea
             rows={3}
             value={form.checklistText}
             onChange={(event) => setForm((prev) => ({ ...prev, checklistText: event.target.value }))}
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
         <label className="flex items-center gap-2 text-sm text-neutral-800">
@@ -154,7 +154,7 @@ export function JobTypesTab() {
           Requires T&Cs
         </label>
         <fieldset className="space-y-1">
-          <legend className="text-xs font-medium text-neutral-500">Products</legend>
+          <legend className="text-xs font-medium text-muted-foreground">Products</legend>
           {state.products.map((product) => (
             <label key={product.id} className="flex items-center gap-2 text-sm text-neutral-800">
               <input
@@ -171,7 +171,7 @@ export function JobTypesTab() {
             <button
               type="button"
               onClick={resetForm}
-              className="flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-800"
+              className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-medium text-neutral-800"
             >
               Cancel
             </button>
@@ -179,7 +179,7 @@ export function JobTypesTab() {
           <button
             type="submit"
             data-job-type-save
-            className="flex-1 rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover"
           >
             {editingId ? "Save" : "Add"}
           </button>

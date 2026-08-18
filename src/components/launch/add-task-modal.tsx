@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMarina } from "../../store/marina-store";
 import type { Berth, Customer, Reservation, Vessel } from "../../types/domain";
 
@@ -67,7 +68,7 @@ export function AddTaskModal({ date, onClose }: AddTaskModalProps) {
     onClose();
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation">
       <div
         role="dialog"
@@ -95,7 +96,7 @@ export function AddTaskModal({ date, onClose }: AddTaskModalProps) {
                 setQuery(event.target.value);
                 setSelectedCustomerId(null);
               }}
-              placeholder="Customer with dry-storage reservation"
+              placeholder="Customer with dry stack reservation"
               data-add-task-search
               className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
             />
@@ -103,7 +104,7 @@ export function AddTaskModal({ date, onClose }: AddTaskModalProps) {
 
           <ul className="max-h-40 overflow-y-auto rounded-md border border-neutral-200" data-add-task-results>
             {matches.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-neutral-500">No dry-storage customers match.</li>
+              <li className="px-3 py-2 text-sm text-neutral-500">No dry stack customers match.</li>
             ) : (
               matches.map((item) => (
                 <li key={item.reservation.id}>
@@ -173,12 +174,13 @@ export function AddTaskModal({ date, onClose }: AddTaskModalProps) {
             disabled={!canSave}
             onClick={onSave}
             data-add-task-save
-            className="flex-1 rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+            className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-neutral-300"
           >
             Save
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

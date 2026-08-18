@@ -20,6 +20,7 @@ function checklistFromType(jobType: JobType): Job["checklist"] {
 function jobFromType(jobType: JobType, previous?: Job): Job {
   return {
     typeId: jobType.id,
+    location: previous?.location ?? "hardstand",
     liftTime: previous?.liftTime,
     launchTime: previous?.launchTime,
     tcStatus: previous?.tcStatus ?? "not_sent",
@@ -185,7 +186,7 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
           type="button"
           disabled={job.status === "done" || markDoneBlocked}
           onClick={() => applyJob({ ...job, status: "done" })}
-          className="w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-neutral-300"
         >
           Mark job done
         </button>

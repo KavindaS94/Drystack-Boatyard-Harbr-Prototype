@@ -1,1 +1,71 @@
 @import "tailwindcss";
+
+/*
+ * Harbr design tokens.
+ * Copied from the real app's design-system (packages/design-system/styles/globals.css)
+ * so this prototype reads as Harbr: brand purple, lavender sidebar, soft neutrals,
+ * and the same corner radius. Kept token-only — screens use these via Tailwind utilities
+ * (bg-primary, bg-sidebar, text-muted-foreground, rounded-lg, ...).
+ */
+:root {
+  /* Harbr brand */
+  --harbr-primary: #9079ec;
+  --harbr-primary-hover: #7d6ae8;
+  --harbr-primary-light: #a693f0;
+  --harbr-primary-lighter: #f3f1fc;
+
+  /* Neutrals + surfaces */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+  --ring: var(--harbr-primary);
+  --radius: 0.625rem;
+
+  /* Lavender sidebar (Harbr signature) */
+  --sidebar: hsl(252, 75%, 99%);
+  --sidebar-accent: hsl(252, 75%, 95%);
+  --sidebar-border: oklch(0.922 0 0);
+}
+
+@theme inline {
+  --color-primary: var(--harbr-primary);
+  --color-primary-foreground: oklch(0.985 0 0);
+  --color-primary-hover: var(--harbr-primary-hover);
+  --color-primary-lighter: var(--harbr-primary-lighter);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}

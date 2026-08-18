@@ -6,7 +6,7 @@ export function WordsTab() {
 
   return (
     <div className="max-w-xl space-y-6" data-settings-tab="words">
-      <section className="space-y-3 rounded-md border border-neutral-200 p-3">
+      <section className="space-y-3 rounded-md border border-border p-3">
         <h2 className="text-sm font-semibold text-neutral-900">Modules</h2>
         <label className="flex items-center gap-2 text-sm text-neutral-800">
           <input
@@ -24,33 +24,33 @@ export function WordsTab() {
             onChange={(event) => updateSettings({ dryStorageEnabled: event.target.checked })}
             data-dry-storage-enabled
           />
-          Dry storage
+          Dry stack
         </label>
       </section>
 
-      <section className="space-y-3 rounded-md border border-neutral-200 p-3">
+      <section className="space-y-3 rounded-md border border-border p-3">
         <h2 className="text-sm font-semibold text-neutral-900">Words</h2>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Boatyard label</span>
+          <span className="text-xs font-medium text-muted-foreground">Boatyard label</span>
           <input
             value={settings.boatyardLabel}
             onChange={(event) => updateSettings({ boatyardLabel: event.target.value })}
             data-boatyard-label
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Dry storage label</span>
+          <span className="text-xs font-medium text-muted-foreground">Dry stack label</span>
           <input
             value={settings.dryStorageLabel}
             onChange={(event) => updateSettings({ dryStorageLabel: event.target.value })}
             data-dry-storage-label
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
       </section>
 
-      <section className="space-y-3 rounded-md border border-neutral-200 p-3">
+      <section className="space-y-3 rounded-md border border-border p-3">
         <h2 className="text-sm font-semibold text-neutral-900">Yard tablet</h2>
         <label className="flex items-center gap-2 text-sm text-neutral-800">
           <input

@@ -32,7 +32,7 @@ export function LaunchBoardScreen() {
             type="button"
             onClick={() => setIsAddOpen(true)}
             data-add-task
-            className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover"
           >
             Add task
           </button>

@@ -61,19 +61,19 @@ export function TaskTypesTab() {
               data-task-type-row={taskType.id}
               className={`flex w-full flex-col items-start rounded-md border px-3 py-2 text-left ${
                 editingId === taskType.id
-                  ? "border-neutral-900 bg-neutral-50"
-                  : "border-neutral-200 hover:bg-neutral-50"
+                  ? "border-primary bg-neutral-50"
+                  : "border-border hover:bg-neutral-50"
               }`}
             >
               <span className="text-sm font-medium text-neutral-900">{taskType.name}</span>
-              <span className="text-xs capitalize text-neutral-500">{taskType.kind}</span>
+              <span className="text-xs capitalize text-muted-foreground">{taskType.kind}</span>
             </button>
           </li>
         ))}
       </ul>
 
       <form
-        className="space-y-3 rounded-md border border-neutral-200 p-3"
+        className="space-y-3 rounded-md border border-border p-3"
         onSubmit={(event) => {
           event.preventDefault();
           onSave();
@@ -83,22 +83,22 @@ export function TaskTypesTab() {
           {editingId ? "Edit task type" : "Add task type"}
         </h2>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Name</span>
+          <span className="text-xs font-medium text-muted-foreground">Name</span>
           <input
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
             data-task-type-name
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Kind</span>
+          <span className="text-xs font-medium text-muted-foreground">Kind</span>
           <select
             value={form.kind}
             onChange={(event) =>
               setForm((prev) => ({ ...prev, kind: event.target.value as TaskType["kind"] }))
             }
-            className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border bg-white px-2 py-1.5 text-sm"
           >
             {KINDS.map((kind) => (
               <option key={kind} value={kind}>
@@ -108,12 +108,12 @@ export function TaskTypesTab() {
           </select>
         </label>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Checklist (one line each)</span>
+          <span className="text-xs font-medium text-muted-foreground">Checklist (one line each)</span>
           <textarea
             rows={3}
             value={form.checklistText}
             onChange={(event) => setForm((prev) => ({ ...prev, checklistText: event.target.value }))}
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
         <div className="flex gap-2">
@@ -121,7 +121,7 @@ export function TaskTypesTab() {
             <button
               type="button"
               onClick={resetForm}
-              className="flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-800"
+              className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-medium text-neutral-800"
             >
               Cancel
             </button>
@@ -129,7 +129,7 @@ export function TaskTypesTab() {
           <button
             type="submit"
             data-task-type-save
-            className="flex-1 rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover"
           >
             {editingId ? "Save" : "Add"}
           </button>

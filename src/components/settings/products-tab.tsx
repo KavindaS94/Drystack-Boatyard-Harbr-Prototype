@@ -34,7 +34,7 @@ export function ProductsTab() {
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-neutral-200 text-xs font-medium uppercase tracking-wide text-neutral-500">
+            <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <th className="px-2 py-2 font-medium">Name</th>
               <th className="px-2 py-2 font-medium">Price</th>
               <th className="px-2 py-2 font-medium">Bank account</th>
@@ -42,12 +42,12 @@ export function ProductsTab() {
           </thead>
           <tbody>
             {state.products.map((product) => (
-              <tr key={product.id} className="border-b border-neutral-100" data-product-row={product.id}>
+              <tr key={product.id} className="border-b border-border hover:bg-muted/50" data-product-row={product.id}>
                 <td className="px-2 py-2">
                   <input
                     value={product.name}
                     onChange={(event) => patchProduct(product, { name: event.target.value })}
-                    className="w-full rounded-md border border-neutral-200 px-2 py-1 text-sm"
+                    className="w-full rounded-md border border-border px-2 py-1 text-sm"
                   />
                 </td>
                 <td className="px-2 py-2">
@@ -59,7 +59,7 @@ export function ProductsTab() {
                     onChange={(event) =>
                       patchProduct(product, { unitPrice: Number(event.target.value) || 0 })
                     }
-                    className="w-28 rounded-md border border-neutral-200 px-2 py-1 text-sm"
+                    className="w-28 rounded-md border border-border px-2 py-1 text-sm"
                   />
                 </td>
                 <td className="px-2 py-2">
@@ -68,7 +68,7 @@ export function ProductsTab() {
                     onChange={(event) =>
                       patchProduct(product, { bankAccount: event.target.value as BankAccount })
                     }
-                    className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm"
+                    className="rounded-md border border-border bg-white px-2 py-1 text-sm"
                   >
                     {BANKS.map((bank) => (
                       <option key={bank} value={bank}>
@@ -84,38 +84,38 @@ export function ProductsTab() {
       </div>
 
       <form
-        className="grid max-w-xl gap-3 rounded-md border border-neutral-200 p-3 sm:grid-cols-[1fr_6rem_8rem_auto]"
+        className="grid max-w-xl gap-3 rounded-md border border-border p-3 sm:grid-cols-[1fr_6rem_8rem_auto]"
         onSubmit={(event) => {
           event.preventDefault();
           onAdd();
         }}
       >
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Name</span>
+          <span className="text-xs font-medium text-muted-foreground">Name</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
             data-product-name
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Price</span>
+          <span className="text-xs font-medium text-muted-foreground">Price</span>
           <input
             type="number"
             min={0}
             step="0.01"
             value={unitPrice}
             onChange={(event) => setUnitPrice(event.target.value)}
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Bank</span>
+          <span className="text-xs font-medium text-muted-foreground">Bank</span>
           <select
             value={bankAccount}
             onChange={(event) => setBankAccount(event.target.value as BankAccount)}
-            className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+            className="w-full rounded-md border border-border bg-white px-2 py-1.5 text-sm"
           >
             {BANKS.map((bank) => (
               <option key={bank} value={bank}>
@@ -128,7 +128,7 @@ export function ProductsTab() {
           <button
             type="submit"
             data-product-save
-            className="w-full rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+            className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
           >
             Add
           </button>

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { Job, JobType, Reservation, SpaceKind } from "../../types/domain";
 
 export interface BookingBarProps {
@@ -20,26 +21,42 @@ export function bookingBarLabel(vesselName: string, job?: Job, jobTypeName?: str
   return parts.join(" · ");
 }
 
-function contrastText(hex: string): string {
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const raw = hex.replace("#", "");
-  const r = Number.parseInt(raw.slice(0, 2), 16);
-  const g = Number.parseInt(raw.slice(2, 4), 16);
-  const b = Number.parseInt(raw.slice(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.55 ? "#171717" : "#ffffff";
+  return {
+    r: Number.parseInt(raw.slice(0, 2), 16),
+    g: Number.parseInt(raw.slice(2, 4), 16),
+    b: Number.parseInt(raw.slice(4, 6), 16),
+  };
 }
 
-function barTone(berthKind: SpaceKind, jobType?: JobType): { className: string; style?: { backgroundColor: string; color: string } } {
+/**
+ * Harbr renders booking bars as soft pastels: a light tint fill, a mid-tone border,
+ * and darker text of the same hue (see the real STATUS_COLORS). We mirror that here —
+ * job bars derive their pastel from the job-type colour so the colour still codes the job,
+ * and wet / dry-storage bars use Harbr's green / blue pastels.
+ */
+function barTone(berthKind: SpaceKind, jobType?: JobType): CSSProperties {
   if (jobType) {
+    const { r, g, b } = hexToRgb(jobType.colour);
     return {
-      className: "",
-      style: { backgroundColor: jobType.colour, color: contrastText(jobType.colour) },
+      backgroundColor: `rgba(${r}, ${g}, ${b}, 0.14)`,
+      border: `1px solid rgba(${r}, ${g}, ${b}, 0.55)`,
+      color: `rgb(${Math.round(r * 0.5)}, ${Math.round(g * 0.5)}, ${Math.round(b * 0.5)})`,
     };
   }
   if (berthKind === "wet") {
-    return { className: "bg-emerald-100 text-emerald-950" };
+    return {
+      backgroundColor: "hsl(142, 76%, 94%)",
+      border: "1px solid hsl(142, 76%, 78%)",
+      color: "hsl(142, 76%, 30%)",
+    };
   }
-  return { className: "bg-slate-200 text-slate-800" };
+  return {
+    backgroundColor: "hsl(210, 100%, 94%)",
+    border: "1px solid hsl(210, 100%, 78%)",
+    color: "hsl(210, 100%, 32%)",
+  };
 }
 
 export function BookingBar({
@@ -61,13 +78,15 @@ export function BookingBar({
       title={label}
       data-reservation-id={reservation.id}
       onClick={() => onSelect(reservation.id)}
-      className={`absolute top-1 bottom-1 truncate rounded px-2 text-left text-xs font-medium shadow-sm ${tone.className} ${
-        selected ? "z-10 ring-2 ring-neutral-900 ring-offset-1" : "hover:brightness-95"
+      className={`absolute top-1.5 bottom-1.5 truncate rounded-[4px] px-2 text-left text-xs font-medium transition-shadow ${
+        selected
+          ? "z-10 ring-2 ring-[hsl(252,75%,70%)] ring-offset-1"
+          : "hover:brightness-[0.97] hover:shadow-sm"
       }`}
       style={{
         left: `calc(${(startOffset / 7) * 100}% + 3px)`,
         width: `calc(${(span / 7) * 100}% - 6px)`,
-        ...tone.style,
+        ...tone,
       }}
     >
       {label}

@@ -1,7 +1,11 @@
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMarina } from "../../store/marina-store";
 import type { Berth, Reservation } from "../../types/domain";
 import { BookingBar } from "./booking-bar";
+
+const PURPLE_OUTLINE = "hsl(252, 75%, 80%)";
+const PURPLE_TEXT = "hsl(252, 75%, 60%)";
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
@@ -86,35 +90,41 @@ export function CalendarGrid() {
   const pierGroups = groupByPier(visibleBerths);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
-      <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
+    <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
         <button
           type="button"
+          aria-label="Previous week"
           onClick={() => setWeekStart(addDays(weekStart, -7))}
-          className="rounded px-2 py-1 text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+          className="flex size-8 items-center justify-center rounded-md border transition-colors hover:bg-primary-lighter"
+          style={{ borderColor: PURPLE_OUTLINE, color: PURPLE_TEXT }}
         >
-          Prev
+          <ChevronLeftIcon className="size-4" />
         </button>
-        <p className="text-sm font-medium text-neutral-900">{weekTitle(weekStart)}</p>
+        <p className="text-sm font-semibold text-neutral-800">{weekTitle(weekStart)}</p>
         <button
           type="button"
+          aria-label="Next week"
           onClick={() => setWeekStart(addDays(weekStart, 7))}
-          className="rounded px-2 py-1 text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+          className="flex size-8 items-center justify-center rounded-md border transition-colors hover:bg-primary-lighter"
+          style={{ borderColor: PURPLE_OUTLINE, color: PURPLE_TEXT }}
         >
-          Next
+          <ChevronRightIcon className="size-4" />
         </button>
       </div>
 
       <div className="overflow-x-auto">
         <div className="min-w-[52rem]">
-          <div className="grid grid-cols-[7.5rem_repeat(7,minmax(0,1fr))] border-b border-neutral-200 bg-neutral-50">
-            <div />
+          <div className="grid grid-cols-[152px_repeat(7,minmax(0,1fr))] border-b border-border bg-gray-50">
+            <div className="border-r border-border" />
             {days.map((iso) => {
               const date = toLocalDate(iso);
               return (
-                <div key={iso} className="border-l border-neutral-200 px-2 py-2 text-center">
-                  <p className="text-xs font-medium text-neutral-500">{WEEKDAY_SHORT[date.getDay()]}</p>
-                  <p className="text-sm font-semibold text-neutral-900">{date.getDate()}</p>
+                <div key={iso} className="border-l border-border px-2 py-2 text-center">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {WEEKDAY_SHORT[date.getDay()]}
+                  </p>
+                  <p className="text-sm font-semibold text-neutral-800">{date.getDate()}</p>
                 </div>
               );
             })}
@@ -122,7 +132,7 @@ export function CalendarGrid() {
 
           {pierGroups.map((group) => (
             <div key={group.pier}>
-              <div className="border-b border-neutral-200 bg-neutral-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              <div className="border-b border-border bg-gray-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {group.pier}
               </div>
               {group.berths.map((berth) => (
@@ -171,11 +181,18 @@ function BerthRow({
   const { state } = useMarina();
 
   return (
-    <div className="grid grid-cols-[7.5rem_repeat(7,minmax(0,1fr))] border-b border-neutral-100 last:border-b-0">
-      <div className="flex items-center px-3 py-2 text-sm font-medium text-neutral-800">{berth.name}</div>
+    <div className="grid grid-cols-[152px_repeat(7,minmax(0,1fr))] border-b border-border last:border-b-0">
+      <div className="flex h-12 items-center border-r border-border bg-white px-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-neutral-900">{berth.name}</p>
+          <p className="truncate text-xs font-medium text-muted-foreground">
+            {berth.lengthM} × {berth.beamM} m
+          </p>
+        </div>
+      </div>
       <div className="relative col-span-7 grid grid-cols-7">
         {days.map((iso) => (
-          <div key={iso} className="min-h-11 border-l border-neutral-100" />
+          <div key={iso} className="h-12 border-l border-border hover:bg-gray-50" />
         ))}
         {reservations.map((reservation) => {
           const placement = clipToWeek(reservation, weekStart, weekEnd);

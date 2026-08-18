@@ -20,6 +20,7 @@ function checklistFromType(jobType: JobType): Job["checklist"] {
 function jobFromType(jobType: JobType, previous?: Job): Job {
   return {
     typeId: jobType.id,
+    location: previous?.location ?? "hardstand",
     liftTime: previous?.liftTime,
     launchTime: previous?.launchTime,
     tcStatus: previous?.tcStatus ?? "not_sent",
@@ -34,9 +35,12 @@ export function JobPanel({ reservationId }: JobPanelProps) {
   const navigate = useNavigate();
   const { state, updateJob, addJobLine, createDraftFromJob } = useMarina();
   const reservation = state.reservations.find((item) => item.id === reservationId);
+  const berth = state.berths.find((item) => item.id === reservation?.berthId);
   const job = reservation?.job;
   const jobType = state.jobTypes.find((item) => item.id === job?.typeId);
   const activeTypes = state.jobTypes.filter((item) => item.active);
+  // A berth job can be done afloat or lifted; a hardstand reservation is always lifted.
+  const isBerth = berth?.kind === "wet";
   const hidePrices = state.role === "yard" && state.settings.hidePricesForYard;
   const canCreateDraft = state.role === "office";
 
@@ -79,26 +83,56 @@ export function JobPanel({ reservationId }: JobPanelProps) {
         </select>
       </label>
 
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Lift time</span>
-          <input
-            type="time"
-            value={job.liftTime ?? ""}
-            onChange={(event) => applyJob({ ...job, liftTime: event.target.value || undefined })}
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
-          />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-xs font-medium text-neutral-500">Launch time</span>
-          <input
-            type="time"
-            value={job.launchTime ?? ""}
-            onChange={(event) => applyJob({ ...job, launchTime: event.target.value || undefined })}
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
-          />
-        </label>
-      </div>
+      {isBerth ? (
+        <div className="space-y-1.5">
+          <span className="text-xs font-medium text-neutral-500">Work location</span>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm text-neutral-800">
+              <input
+                type="radio"
+                name={`job-location-${reservationId}`}
+                checked={job.location === "afloat"}
+                onChange={() => applyJob({ ...job, location: "afloat", liftTime: undefined, launchTime: undefined })}
+              />
+              Afloat (in the water)
+            </label>
+            <label className="flex items-center gap-2 text-sm text-neutral-800">
+              <input
+                type="radio"
+                name={`job-location-${reservationId}`}
+                checked={job.location === "hardstand"}
+                onChange={() => applyJob({ ...job, location: "hardstand" })}
+              />
+              Lift to hardstand
+            </label>
+          </div>
+        </div>
+      ) : null}
+
+      {job.location === "hardstand" ? (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-neutral-500">Lift time</span>
+            <input
+              type="time"
+              value={job.liftTime ?? ""}
+              onChange={(event) => applyJob({ ...job, liftTime: event.target.value || undefined })}
+              className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-neutral-500">Launch time</span>
+            <input
+              type="time"
+              value={job.launchTime ?? ""}
+              onChange={(event) => applyJob({ ...job, launchTime: event.target.value || undefined })}
+              className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            />
+          </label>
+        </div>
+      ) : (
+        <p className="text-xs text-neutral-500">Work done afloat — no lift required.</p>
+      )}
 
       {jobType.requiresTc ? (
         <div className="space-y-2">
@@ -183,7 +217,7 @@ export function JobPanel({ reservationId }: JobPanelProps) {
           type="button"
           disabled={job.status === "done" || markDoneBlocked}
           onClick={() => applyJob({ ...job, status: "done" })}
-          className="w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-neutral-300"
         >
           Mark job done
         </button>

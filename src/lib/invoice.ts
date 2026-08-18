@@ -22,7 +22,7 @@ function toInvoiceLine(product: Product, qty: number): DraftInvoice["lines"][num
 }
 
 function isWetRent(product: Product): boolean {
-  return product.id === WET_RENT_PRODUCT_ID || product.name === "Wet berth night";
+  return product.id === WET_RENT_PRODUCT_ID || product.name === "Berth night";
 }
 
 function isHardstandFee(product: Product): boolean {

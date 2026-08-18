@@ -46,6 +46,7 @@ export interface MarinaStore {
   upsertTaskType: (taskType: TaskType) => void;
   upsertProduct: (product: Product) => void;
   updateJob: (reservationId: string, job: Job) => void;
+  addAfloatJob: (reservationId: string) => void;
   addJobLine: (reservationId: string, kind: "hours" | "materials", productId: string, qty: number) => void;
   createDraftFromJob: (reservationId: string) => string;
   sendToYard: (input: SendToYardInput) => void;
@@ -61,9 +62,14 @@ function newId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
-function jobFromType(jobType: JobType, liftTime?: string): Job {
+function jobFromType(
+  jobType: JobType,
+  liftTime?: string,
+  location: Job["location"] = "hardstand"
+): Job {
   return {
     typeId: jobType.id,
+    location,
     liftTime,
     tcStatus: "not_sent",
     checklist: jobType.checklist.map((label) => ({ label, done: false })),
@@ -133,6 +139,21 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
         reservation.id === reservationId ? { ...reservation, job } : reservation
       ),
     }));
+  }, []);
+
+  const addAfloatJob = useCallback((reservationId: string) => {
+    setState((prev) => {
+      const jobType = prev.jobTypes.find((item) => item.active);
+      if (!jobType) return prev;
+      return {
+        ...prev,
+        reservations: prev.reservations.map((reservation) =>
+          reservation.id === reservationId && !reservation.job
+            ? { ...reservation, job: jobFromType(jobType, undefined, "afloat") }
+            : reservation
+        ),
+      };
+    });
   }, []);
 
   const addJobLine = useCallback((
@@ -291,6 +312,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       upsertTaskType,
       upsertProduct,
       updateJob,
+      addAfloatJob,
       addJobLine,
       createDraftFromJob,
       sendToYard,
@@ -311,6 +333,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       upsertTaskType,
       upsertProduct,
       updateJob,
+      addAfloatJob,
       addJobLine,
       createDraftFromJob,
       sendToYard,

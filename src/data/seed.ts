@@ -16,13 +16,13 @@ const SETTINGS: Settings = {
   boatyardEnabled: true,
   dryStorageEnabled: true,
   boatyardLabel: "Hardstand",
-  dryStorageLabel: "Dry storage",
+  dryStorageLabel: "Dry stack",
   jobPanelTitle: "Job",
   hidePricesForYard: true,
 };
 
 const PRODUCTS: Product[] = [
-  { id: "prod-wet-night", name: "Wet berth night", unitType: "DAY", unitPrice: 85, bankAccount: "Marina", active: true },
+  { id: "prod-wet-night", name: "Berth night", unitType: "DAY", unitPrice: 85, bankAccount: "Marina", active: true },
   { id: "prod-hardstand-fee", name: "Hardstand fee", unitType: "DAY", unitPrice: 120, bankAccount: "Holding", active: true },
   { id: "prod-labour-hour", name: "Labour hour", unitType: "HOUR", unitPrice: 95, bankAccount: "Holding", active: true },
   { id: "prod-disc-anode", name: "Disc anode", unitType: "UNIT", unitPrice: 45, bankAccount: "Holding", active: true },
@@ -59,6 +59,16 @@ const JOB_TYPES: JobType[] = [
     checklist: ["Path clear", "Straps checked", "Lift complete"],
     productIds: ["prod-travel-lift", "prod-labour-hour"],
     requiresTc: true,
+    active: true,
+  },
+  {
+    id: "jt-engine",
+    name: "Engine service",
+    colour: "#0ea5e9",
+    defaultDurationDays: 2,
+    checklist: ["Isolate batteries", "Drain coolant", "Service log"],
+    productIds: ["prod-labour-hour"],
+    requiresTc: false,
     active: true,
   },
 ];
@@ -158,6 +168,7 @@ const CUSTOMERS: Customer[] = [
   { id: "cust-reed", name: "Owen Reed" },
   { id: "cust-kim", name: "Ava Kim" },
   { id: "cust-cole", name: "Ben Cole" },
+  { id: "cust-frost", name: "Dana Frost" },
 ];
 
 const VESSELS: Vessel[] = [
@@ -172,6 +183,7 @@ const VESSELS: Vessel[] = [
   { id: "ves-curlew", name: "Curlew", customerId: "cust-reed", lengthM: 7.5, beamM: 2.5, weightT: 2.2, storageStatus: "stored" },
   { id: "ves-shearwater", name: "Shearwater", customerId: "cust-kim", lengthM: 8.8, beamM: 2.9, weightT: 3, storageStatus: "stored" },
   { id: "ves-gannet", name: "Gannet", customerId: "cust-cole", lengthM: 8, beamM: 2.7, weightT: 2.6, storageStatus: "stored" },
+  { id: "ves-corsair", name: "Corsair", customerId: "cust-frost", lengthM: 15, beamM: 4.6, weightT: 12, storageStatus: "stored" },
 ];
 
 function checklistFrom(labels: string[]): { label: string; done: boolean }[] {
@@ -183,6 +195,7 @@ function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
   if (!jobType) throw new Error(`Unknown job type ${typeId}`);
   return {
     typeId,
+    location: "hardstand",
     tcStatus: "not_sent",
     checklist: checklistFrom(jobType.checklist),
     hours: [],
@@ -200,6 +213,15 @@ const RESERVATIONS: Reservation[] = [
     vesselId: "ves-mako",
     startDate: "2026-08-10",
     endDate: "2026-08-16",
+  },
+  {
+    id: "res-b3-corsair",
+    berthId: "berth-b3",
+    customerId: "cust-frost",
+    vesselId: "ves-corsair",
+    startDate: "2026-08-10",
+    endDate: "2026-08-16",
+    job: jobFromType("jt-engine", { location: "afloat" }),
   },
   {
     id: "res-h4-sea-sprite",

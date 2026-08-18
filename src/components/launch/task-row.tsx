@@ -102,7 +102,7 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
               type="button"
               onClick={onMarkDone}
               data-mark-done
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-hover"
             >
               Done
             </button>

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useMarina } from "../../store/marina-store";
 import type { VesselStorageStatus } from "../../types/domain";
+import { Badge } from "../ui/badge";
 
 interface DryStoragePanelProps {
   vesselId: string;
@@ -11,6 +12,12 @@ const STATUS_LABEL: Record<VesselStorageStatus, string> = {
   stored: "Stored",
   launched: "Launched",
   departed: "Departed",
+};
+
+const STATUS_TONE: Record<VesselStorageStatus, "neutral" | "success" | "warning"> = {
+  stored: "neutral",
+  launched: "success",
+  departed: "warning",
 };
 
 export function DryStoragePanel({ vesselId, storageStatus }: DryStoragePanelProps) {
@@ -24,9 +31,9 @@ export function DryStoragePanel({ vesselId, storageStatus }: DryStoragePanelProp
     <div className="space-y-3 border-t border-neutral-200 pt-4">
       <div>
         <p className="text-xs font-medium text-neutral-500">Status</p>
-        <p className="text-sm font-medium text-neutral-900" data-storage-status={storageStatus}>
-          {STATUS_LABEL[storageStatus]}
-        </p>
+        <span className="mt-1 inline-block" data-storage-status={storageStatus}>
+          <Badge tone={STATUS_TONE[storageStatus]}>{STATUS_LABEL[storageStatus]}</Badge>
+        </span>
       </div>
 
       <div>

@@ -52,8 +52,8 @@ export function DraftInvoiceScreen() {
       <div
         className={
           isMixed
-            ? "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"
-            : "rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-900"
+            ? "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"
+            : "rounded-lg border border-primary/30 bg-primary-lighter px-3 py-2 text-sm font-medium text-primary"
         }
       >
         {banner}
