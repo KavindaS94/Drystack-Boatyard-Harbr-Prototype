@@ -49,8 +49,8 @@ export function SettingsScreen() {
           {
             id: "task-types" as const,
             label: "Task types",
-            title: "Launch / retrieve task types",
-            description: "The tasks the ground crew logs — launch, retrieval, or the marina's own, each with a checklist.",
+            title: "Launch / lift task types",
+            description: "The tasks the ground crew logs — launch, lift, or the marina's own, each with a checklist.",
           },
         ]
       : []),

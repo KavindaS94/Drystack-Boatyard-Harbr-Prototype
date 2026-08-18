@@ -3,8 +3,8 @@ export type Role = "office" | "yard";
 export type BankAccount = "Marina" | "Holding";
 export type TcStatus = "not_sent" | "sent" | "signed";
 export type JobStatus = "open" | "done";
-/** Where the work happens: afloat = in the water at the berth; hardstand = lifted out. */
-export type JobLocation = "afloat" | "hardstand";
+/** Where the work happens: afloat = in the water at the berth; dockyard = lifted out. */
+export type JobLocation = "afloat" | "dockyard";
 export type VesselStorageStatus = "stored" | "launched" | "departed";
 export type LaunchTaskStatus = "open" | "done";
 
@@ -30,7 +30,7 @@ export interface JobType {
 
 export interface TaskType {
   id: string;
-  name: string; // marina word, e.g. Launch / Retrieval
+  name: string; // marina word, e.g. Launch / Lift
   kind: "launch" | "retrieval" | "other";
   checklist: string[];
   productId?: string;
@@ -75,8 +75,8 @@ export interface JobLine {
 
 export interface Job {
   typeId: string;
-  location: JobLocation; // afloat (in the water) | hardstand (lifted out)
-  liftTime?: string; // "08:15" — only meaningful when location === "hardstand"
+  location: JobLocation; // afloat (in the water) | dockyard (lifted out)
+  liftTime?: string; // "08:15" — only meaningful when location === "dockyard"
   launchTime?: string; // "14:00"
   tcStatus: TcStatus;
   checklist: { label: string; done: boolean }[];
@@ -117,7 +117,7 @@ export interface DraftInvoice {
 export interface Settings {
   boatyardEnabled: boolean;
   dryStorageEnabled: boolean;
-  boatyardLabel: string; // default "Hardstand"
+  boatyardLabel: string; // default "Dockyard"
   dryStorageLabel: string; // default "Dry stack"
   jobPanelTitle: string; // default "Job"
   hidePricesForYard: boolean;

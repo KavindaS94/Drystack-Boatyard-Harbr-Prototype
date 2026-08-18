@@ -15,7 +15,7 @@ import type {
 const SETTINGS: Settings = {
   boatyardEnabled: true,
   dryStorageEnabled: true,
-  boatyardLabel: "Hardstand",
+  boatyardLabel: "Dockyard",
   dryStorageLabel: "Dry stack",
   jobPanelTitle: "Job",
   hidePricesForYard: true,
@@ -23,7 +23,7 @@ const SETTINGS: Settings = {
 
 const PRODUCTS: Product[] = [
   { id: "prod-wet-night", name: "Berth night", unitType: "DAY", unitPrice: 85, bankAccount: "Marina", active: true },
-  { id: "prod-hardstand-fee", name: "Hardstand fee", unitType: "DAY", unitPrice: 120, bankAccount: "Holding", active: true },
+  { id: "prod-dockyard-fee", name: "Dockyard fee", unitType: "DAY", unitPrice: 120, bankAccount: "Holding", active: true },
   { id: "prod-labour-hour", name: "Labour hour", unitType: "HOUR", unitPrice: 95, bankAccount: "Holding", active: true },
   { id: "prod-disc-anode", name: "Disc anode", unitType: "UNIT", unitPrice: 45, bankAccount: "Holding", active: true },
   { id: "prod-travel-lift", name: "Travel lift", unitType: "UNIT", unitPrice: 350, bankAccount: "Holding", active: true },
@@ -37,7 +37,7 @@ const JOB_TYPES: JobType[] = [
     colour: "#f59e0b",
     defaultDurationDays: 5,
     checklist: ["Wash hull", "Mask fittings", "Apply antifoul"],
-    productIds: ["prod-labour-hour", "prod-disc-anode", "prod-hardstand-fee"],
+    productIds: ["prod-labour-hour", "prod-disc-anode", "prod-dockyard-fee"],
     requiresTc: false,
     active: true,
   },
@@ -47,7 +47,7 @@ const JOB_TYPES: JobType[] = [
     colour: "#3b82f6",
     defaultDurationDays: 3,
     checklist: ["Site induction", "Stands in place"],
-    productIds: ["prod-labour-hour", "prod-hardstand-fee"],
+    productIds: ["prod-labour-hour", "prod-dockyard-fee"],
     requiresTc: false,
     active: true,
   },
@@ -83,7 +83,7 @@ const TASK_TYPES: TaskType[] = [
   },
   {
     id: "tt-retrieval",
-    name: "Retrieval",
+    name: "Lift",
     kind: "retrieval",
     checklist: ["Rinse hull", "Secure stands"],
     active: true,
@@ -105,11 +105,11 @@ function wetBerth(id: string, name: string, pier: string, lengthM: number, beamM
   };
 }
 
-function hardstandBerth(id: string, name: string, lengthM: number, blocksTravelLift = false): Berth {
+function dockyardBerth(id: string, name: string, lengthM: number, blocksTravelLift = false): Berth {
   return {
     id,
     name,
-    pier: "Hardstand",
+    pier: "Dockyard",
     kind: "boatyard",
     lengthM,
     beamM: 5,
@@ -140,14 +140,14 @@ const BERTHS: Berth[] = [
   wetBerth("berth-a12", "A12", "A", 14, 4.5),
   wetBerth("berth-a14", "A14", "A", 12, 4),
   wetBerth("berth-b3", "B3", "B", 16, 5),
-  hardstandBerth("berth-h1", "H1", 14),
-  hardstandBerth("berth-h2", "H2", 16),
-  hardstandBerth("berth-h3", "H3", 14),
-  hardstandBerth("berth-h4", "H4", 15, true),
-  hardstandBerth("berth-h5", "H5", 12),
-  hardstandBerth("berth-h6", "H6", 18),
-  hardstandBerth("berth-h7", "H7", 14),
-  hardstandBerth("berth-h8", "H8", 12),
+  dockyardBerth("berth-h1", "H1", 14),
+  dockyardBerth("berth-h2", "H2", 16),
+  dockyardBerth("berth-h3", "H3", 14),
+  dockyardBerth("berth-h4", "H4", 15, true),
+  dockyardBerth("berth-h5", "H5", 12),
+  dockyardBerth("berth-h6", "H6", 18),
+  dockyardBerth("berth-h7", "H7", 14),
+  dockyardBerth("berth-h8", "H8", 12),
   dryBerth("berth-ds1", "DS1"),
   dryBerth("berth-ds2", "DS2"),
   dryBerth("berth-ds3", "DS3"),
@@ -195,7 +195,7 @@ function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
   if (!jobType) throw new Error(`Unknown job type ${typeId}`);
   return {
     typeId,
-    location: "hardstand",
+    location: "dockyard",
     tcStatus: "not_sent",
     checklist: checklistFrom(jobType.checklist),
     hours: [],
@@ -330,7 +330,7 @@ function makeLaunchTask(
 function buildSaturdayTasks(): LaunchTask[] {
   const launchType = TASK_TYPES.find((t) => t.kind === "launch");
   const retrievalType = TASK_TYPES.find((t) => t.kind === "retrieval");
-  if (!launchType || !retrievalType) throw new Error("Launch and Retrieval task types are required");
+  if (!launchType || !retrievalType) throw new Error("Launch and Lift task types are required");
 
   const pelican = LAUNCH_FLEET[0];
   const tasks: LaunchTask[] = [

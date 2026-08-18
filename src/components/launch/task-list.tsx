@@ -16,27 +16,27 @@ export function TaskList({ date }: TaskListProps) {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { launchTasks, retrievalTasks, otherTasks } = useMemo(() => {
+  const { launchTasks, liftTasks, otherTasks } = useMemo(() => {
     const dayTasks = state.launchTasks.filter((task) => task.date === date);
     const launch: LaunchTask[] = [];
-    const retrieval: LaunchTask[] = [];
+    const lift: LaunchTask[] = [];
     const other: LaunchTask[] = [];
 
     for (const task of dayTasks) {
       const kind = state.taskTypes.find((item) => item.id === task.taskTypeId)?.kind;
-      if (kind === "retrieval") retrieval.push(task);
+      if (kind === "retrieval") lift.push(task);
       else if (kind === "other") other.push(task);
       else launch.push(task);
     }
 
     return {
       launchTasks: sortByTime(launch),
-      retrievalTasks: sortByTime(retrieval),
+      liftTasks: sortByTime(lift),
       otherTasks: sortByTime(other),
     };
   }, [date, state.launchTasks, state.taskTypes]);
 
-  const rowCount = launchTasks.length + retrievalTasks.length + otherTasks.length;
+  const rowCount = launchTasks.length + liftTasks.length + otherTasks.length;
 
   function onToggleOpen(taskId: string) {
     setOpenTaskId((current) => (current === taskId ? null : taskId));
@@ -65,8 +65,8 @@ export function TaskList({ date }: TaskListProps) {
         onError={onError}
       />
       <TaskGroup
-        title="Retrieval"
-        tasks={retrievalTasks}
+        title="Lift"
+        tasks={liftTasks}
         openTaskId={openTaskId}
         errors={errors}
         onToggleOpen={onToggleOpen}

@@ -37,7 +37,7 @@ export function DryStoragePanel({ vesselId, storageStatus }: DryStoragePanelProp
       </div>
 
       <div>
-        <p className="text-xs font-medium text-neutral-500">Launch tasks</p>
+        <p className="text-xs font-medium text-neutral-500">Launch/lift tasks</p>
         {tasks.length === 0 ? (
           <p className="mt-1 text-sm text-neutral-500">None on or after this date.</p>
         ) : (

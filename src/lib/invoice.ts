@@ -1,7 +1,7 @@
 import type { BankAccount, DraftInvoice, Product, Reservation } from "../types/domain";
 
 const WET_RENT_PRODUCT_ID = "prod-wet-night";
-const HARDSTAND_FEE_PRODUCT_ID = "prod-hardstand-fee";
+const DOCKYARD_FEE_PRODUCT_ID = "prod-dockyard-fee";
 
 export function nightsBetween(startDate: string, endDate: string): number {
   const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
@@ -25,14 +25,14 @@ function isWetRent(product: Product): boolean {
   return product.id === WET_RENT_PRODUCT_ID || product.name === "Berth night";
 }
 
-function isHardstandFee(product: Product): boolean {
-  return product.id === HARDSTAND_FEE_PRODUCT_ID || product.name === "Hardstand fee";
+function isDockyardFee(product: Product): boolean {
+  return product.id === DOCKYARD_FEE_PRODUCT_ID || product.name === "Dockyard fee";
 }
 
 export function draftFromJob(
   reservation: Reservation,
   products: Product[],
-  includeHardstandFee: boolean
+  includeDockyardFee: boolean
 ): DraftInvoice["lines"] {
   const job = reservation.job;
   if (!job) return [];
@@ -45,8 +45,8 @@ export function draftFromJob(
     lines.push(toInvoiceLine(product, line.qty));
   }
 
-  if (includeHardstandFee) {
-    const fee = products.find((item) => isHardstandFee(item));
+  if (includeDockyardFee) {
+    const fee = products.find((item) => isDockyardFee(item));
     const alreadyHasFee = fee ? lines.some((line) => line.productId === fee.id) : false;
     if (fee && !alreadyHasFee) {
       const nights = nightsBetween(reservation.startDate, reservation.endDate);

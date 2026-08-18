@@ -102,7 +102,7 @@ export function TaskTypesTab() {
           >
             {KINDS.map((kind) => (
               <option key={kind} value={kind}>
-                {kind === "other" ? "Other" : kind === "launch" ? "Launch" : "Retrieval"}
+                {kind === "other" ? "Other" : kind === "launch" ? "Launch" : "Lift"}
               </option>
             ))}
           </select>

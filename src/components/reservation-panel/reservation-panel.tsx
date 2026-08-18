@@ -91,7 +91,7 @@ export function ReservationPanel() {
       </div>
 
       <div className="px-5 pb-5">
-        {/* Job shows on a Hardstand (lifted) reservation, or on a Berth with afloat work. */}
+        {/* Job shows on a Dockyard (lifted) reservation, or on a Berth with afloat work. */}
         {(berth.kind === "boatyard" && state.settings.boatyardEnabled) || berth.kind === "wet" ? (
           <JobPanel reservationId={reservation.id} />
         ) : null}

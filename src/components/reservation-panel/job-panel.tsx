@@ -20,7 +20,7 @@ function checklistFromType(jobType: JobType): Job["checklist"] {
 function jobFromType(jobType: JobType, previous?: Job): Job {
   return {
     typeId: jobType.id,
-    location: previous?.location ?? "hardstand",
+    location: previous?.location ?? "dockyard",
     liftTime: previous?.liftTime,
     launchTime: previous?.launchTime,
     tcStatus: previous?.tcStatus ?? "not_sent",
@@ -39,7 +39,7 @@ export function JobPanel({ reservationId }: JobPanelProps) {
   const job = reservation?.job;
   const jobType = state.jobTypes.find((item) => item.id === job?.typeId);
   const activeTypes = state.jobTypes.filter((item) => item.active);
-  // A berth job can be done afloat or lifted; a hardstand reservation is always lifted.
+  // A berth job can be done afloat or lifted; a dockyard reservation is always lifted.
   const isBerth = berth?.kind === "wet";
   const hidePrices = state.role === "yard" && state.settings.hidePricesForYard;
   const canCreateDraft = state.role === "office";
@@ -100,16 +100,16 @@ export function JobPanel({ reservationId }: JobPanelProps) {
               <input
                 type="radio"
                 name={`job-location-${reservationId}`}
-                checked={job.location === "hardstand"}
-                onChange={() => applyJob({ ...job, location: "hardstand" })}
+                checked={job.location === "dockyard"}
+                onChange={() => applyJob({ ...job, location: "dockyard" })}
               />
-              Lift to hardstand
+              Lift to {state.settings.boatyardLabel}
             </label>
           </div>
         </div>
       ) : null}
 
-      {job.location === "hardstand" ? (
+      {job.location === "dockyard" ? (
         <div className="grid grid-cols-2 gap-2">
           <label className="block space-y-1">
             <span className="text-xs font-medium text-neutral-500">Lift time</span>

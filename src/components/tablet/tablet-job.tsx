@@ -20,7 +20,7 @@ function checklistFromType(jobType: JobType): Job["checklist"] {
 function jobFromType(jobType: JobType, previous?: Job): Job {
   return {
     typeId: jobType.id,
-    location: previous?.location ?? "hardstand",
+    location: previous?.location ?? "dockyard",
     liftTime: previous?.liftTime,
     launchTime: previous?.launchTime,
     tcStatus: previous?.tcStatus ?? "not_sent",

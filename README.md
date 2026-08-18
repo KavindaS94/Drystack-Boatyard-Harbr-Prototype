@@ -31,10 +31,10 @@ Requires Node 22+ (or Node 20.12+). `pnpm` is the package manager.
 Walk these four scripts. All data is fake.
 
 1. **Yard-only job** — open H4 Sea Sprite (antifoul) → Job → log hours/materials on tablet (no $) → Office creates draft → banner **This invoice → Holding**.
-2. **Berth → hardstand** — open A12 (Berth) → Send to Hardstand → pick a spot + Travel lift + **Keep berth** *or* **Move (free berth)** → Job + T&Cs Sent/Signed → lift done blocked until Signed.
+2. **Berth → dockyard** — open A12 (Berth) → Send to Dockyard → pick a spot + Travel lift + **Keep berth** *or* **Move (free berth)** → Job + T&Cs Sent/Signed → lift done blocked until Signed.
 3. **Afloat job** — open B3 (Berth) Corsair → Job with **Work location: Afloat** → log hours → Create draft (no lift needed).
-4. **Busy Saturday** — Launch board, ~50 tasks → mark launch done → status stored → launched → set departed → mark retrieve done → stored.
-5. **Settings** — rename Hardstand / Dry stack; add a job type colour; add a product with bank Holding.
+4. **Busy Saturday** — Launch board, ~50 tasks → mark launch done → status stored → launched → set departed → mark lift done → stored.
+5. **Settings** — rename Dockyard / Dry stack; add a job type colour; add a product with bank Holding.
 
 A collapsible **Demo scripts** block on the Calendar lists the main ones too.
 

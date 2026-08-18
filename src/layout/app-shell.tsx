@@ -12,16 +12,16 @@ const DEMO_SCRIPTS = [
   {
     title: "Wet → yard",
     steps:
-      "open A12 (wet) → Send to hardstand → pick H2 + Travel lift + Keep berth or Move (free wet) → Job + T&Cs Sent/Signed → lift done blocked until Signed.",
+      "open A12 (wet) → Send to dockyard → pick H2 + Travel lift + Keep berth or Move (free wet) → Job + T&Cs Sent/Signed → lift done blocked until Signed.",
   },
   {
     title: "Busy Saturday",
     steps:
-      "Launch board, ~50 tasks → mark launch done → status stored → launched → set departed → mark retrieve done → stored.",
+      "Launch board, ~50 tasks → mark launch done → status stored → launched → set departed → mark lift done → stored.",
   },
   {
     title: "Settings",
-    steps: "rename Hardstand / Dry stack; add a job type colour; add a product with bank Holding.",
+    steps: "rename Dockyard / Dry stack; add a job type colour; add a product with bank Holding.",
   },
 ] as const;
 

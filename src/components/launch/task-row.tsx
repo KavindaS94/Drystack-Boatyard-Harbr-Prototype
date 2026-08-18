@@ -26,7 +26,7 @@ function illegalDoneMessage(kind: TaskType["kind"], current: VesselStorageStatus
   if (kind === "other") return null;
   if (statusAfterTaskDone(kind, current) !== null) return null;
   if (kind === "retrieval" && current === "stored") {
-    return "Cannot mark retrieval done while vessel is still stored.";
+    return "Cannot mark lift done while vessel is still stored.";
   }
   if (kind === "launch") {
     return `Cannot mark launch done while vessel is ${current}.`;

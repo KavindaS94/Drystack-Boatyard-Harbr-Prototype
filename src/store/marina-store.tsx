@@ -65,7 +65,7 @@ function newId(prefix: string): string {
 function jobFromType(
   jobType: JobType,
   liftTime?: string,
-  location: Job["location"] = "hardstand"
+  location: Job["location"] = "dockyard"
 ): Job {
   return {
     typeId: jobType.id,
