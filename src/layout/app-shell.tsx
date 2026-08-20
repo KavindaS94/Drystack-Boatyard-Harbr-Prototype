@@ -1,29 +1,12 @@
 import { BellIcon, ChevronRightIcon, ChevronsUpDownIcon, PanelLeftIcon } from "lucide-react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { DemoDeepLink } from "../components/demo/demo-deep-link";
+import { createSeedState } from "../data/seed";
+import { DEMO_SCRIPTS, resolveDemoReservationId } from "../lib/demo-scripts";
+import { useMarina } from "../store/marina-store";
 import { SidebarNav } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
-
-const DEMO_SCRIPTS = [
-  {
-    title: "Yard-only job",
-    steps:
-      "open H4 Sea Sprite (antifoul) → Job → log hours/materials on tablet (no $) → Office creates draft → banner This invoice → Holding.",
-  },
-  {
-    title: "Wet → yard",
-    steps:
-      "open A12 (wet) → Send to dockyard → pick H2 + Travel lift + Keep berth or Move (free wet) → Job + T&Cs Sent/Signed → lift done blocked until Signed.",
-  },
-  {
-    title: "Busy Saturday",
-    steps:
-      "Launch board, ~50 tasks → mark launch done → status stored → launched → set departed → mark lift done → stored.",
-  },
-  {
-    title: "Settings",
-    steps: "rename Dockyard / Dry stack; add a job type colour; add a product with bank Holding.",
-  },
-] as const;
 
 /** Breadcrumb trail per route — mirrors Harbr's section / page header. */
 function crumbsForPath(pathname: string): [string, string] {
@@ -35,31 +18,70 @@ function crumbsForPath(pathname: string): [string, string] {
 }
 
 function DemoScripts() {
+  const navigate = useNavigate();
+  const { state, resetDemo, setSelectedDate, setSelectedReservationId } = useMarina();
+
+  function onReset() {
+    if (!window.confirm("Reset the demo to the starting data? Your click-through progress will be cleared.")) {
+      return;
+    }
+    resetDemo();
+    navigate("/calendar");
+    toast.success("Demo reset to starting data");
+  }
+
+  function onScriptClick(scriptId: string) {
+    if (scriptId === "saturday") {
+      setSelectedDate(createSeedState().selectedDate);
+      return;
+    }
+    const reservationId = resolveDemoReservationId(state, { script: scriptId, boat: null });
+    if (reservationId) setSelectedReservationId(reservationId);
+  }
+
   return (
-    <details className="group max-w-3xl" data-demo-scripts>
-      <summary className="cursor-pointer text-sm font-medium text-neutral-700 hover:text-neutral-900">
-        Demo scripts
-      </summary>
-      <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-xs leading-5 text-muted-foreground">
-        {DEMO_SCRIPTS.map((script) => (
-          <li key={script.title}>
-            <span className="font-semibold text-neutral-800">{script.title}</span>
-            {" — "}
-            {script.steps}
-          </li>
-        ))}
-      </ol>
-    </details>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <details className="group min-w-0 max-w-3xl flex-1" data-demo-scripts>
+        <summary className="cursor-pointer text-sm font-medium text-neutral-700 hover:text-neutral-900">
+          Demo scripts
+        </summary>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Refresh keeps progress. Click a script to jump to that boat. Reset to start over.
+        </p>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-xs leading-5 text-muted-foreground">
+          {DEMO_SCRIPTS.map((script) => (
+            <li key={script.id}>
+              <Link
+                to={script.to}
+                onClick={() => onScriptClick(script.id)}
+                className="font-semibold text-primary hover:underline"
+              >
+                {script.title}
+              </Link>
+              {" — "}
+              {script.steps}
+            </li>
+          ))}
+        </ol>
+      </details>
+      <button
+        type="button"
+        onClick={onReset}
+        className="shrink-0 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+      >
+        Reset demo
+      </button>
+    </div>
   );
 }
 
 export function AppShell() {
   const location = useLocation();
-  const showDemoScripts = location.pathname === "/calendar";
   const [section, page] = crumbsForPath(location.pathname);
 
   return (
     <div className="flex min-h-screen bg-neutral-50">
+      <DemoDeepLink />
       <aside className="flex w-[248px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
         {/* Org switcher — mirrors Harbr's OrganizationSwitcher */}
         <div className="p-2">
@@ -109,11 +131,9 @@ export function AppShell() {
             </button>
           </div>
         </header>
-        {showDemoScripts ? (
-          <div className="border-b border-border bg-white px-6 py-2">
-            <DemoScripts />
-          </div>
-        ) : null}
+        <div className="border-b border-border bg-white px-6 py-2">
+          <DemoScripts />
+        </div>
         <main className="min-h-0 flex-1 overflow-auto p-6">
           <Outlet />
         </main>

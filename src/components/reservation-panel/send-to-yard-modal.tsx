@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { useMarina, type SendToYardInput } from "../../store/marina-store";
 
 interface SendToYardModalProps {
@@ -48,6 +49,7 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
   function onConfirm() {
     if (!canConfirm) return;
     sendToYard({ wetReservationId: reservationId, yardBerthId, start, end, jobTypeId, liftTime, mode });
+    toast.success(`Sent to ${boatyardLabel}`);
     onClose();
   }
 

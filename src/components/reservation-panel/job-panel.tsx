@@ -1,4 +1,6 @@
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { draftFromJob, invoiceBannerText } from "../../lib/invoice";
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus } from "../../types/domain";
 import { JobLines } from "./job-lines";
@@ -141,7 +143,10 @@ export function JobPanel({ reservationId }: JobPanelProps) {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => applyJob({ ...job, tcStatus: "sent" })}
+              onClick={() => {
+                applyJob({ ...job, tcStatus: "sent" });
+                toast.success("T&Cs sent");
+              }}
               disabled={job.tcStatus !== "not_sent"}
               className="flex-1 rounded-md border border-neutral-200 px-2 py-1.5 text-xs font-medium text-neutral-800 disabled:text-neutral-400"
             >
@@ -149,7 +154,10 @@ export function JobPanel({ reservationId }: JobPanelProps) {
             </button>
             <button
               type="button"
-              onClick={() => applyJob({ ...job, tcStatus: "signed" })}
+              onClick={() => {
+                applyJob({ ...job, tcStatus: "signed" });
+                toast.success("T&Cs signed");
+              }}
               disabled={job.tcStatus === "signed"}
               className="flex-1 rounded-md border border-neutral-200 px-2 py-1.5 text-xs font-medium text-neutral-800 disabled:text-neutral-400"
             >
@@ -207,7 +215,11 @@ export function JobPanel({ reservationId }: JobPanelProps) {
         {canCreateDraft ? (
           <button
             type="button"
-            onClick={() => navigate(`/invoices/${createDraftFromJob(reservationId)}`)}
+            onClick={() => {
+              const invoiceId = createDraftFromJob(reservationId);
+              toast.success(invoiceBannerText(draftFromJob(reservation, state.products, true)));
+              navigate(`/invoices/${invoiceId}`);
+            }}
             className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
           >
             Create draft invoice
@@ -216,7 +228,10 @@ export function JobPanel({ reservationId }: JobPanelProps) {
         <button
           type="button"
           disabled={job.status === "done" || markDoneBlocked}
-          onClick={() => applyJob({ ...job, status: "done" })}
+          onClick={() => {
+            applyJob({ ...job, status: "done" });
+            toast.success("Job marked done");
+          }}
           className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-neutral-300"
         >
           Mark job done

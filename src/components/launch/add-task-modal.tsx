@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { useMarina } from "../../store/marina-store";
 import type { Berth, Customer, Reservation, Vessel } from "../../types/domain";
 
@@ -65,6 +66,7 @@ export function AddTaskModal({ date, onClose }: AddTaskModalProps) {
       date,
       time,
     });
+    toast.success("Task booked");
     onClose();
   }
 

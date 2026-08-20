@@ -1,6 +1,7 @@
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus } from "../../types/domain";
 import { JobLines } from "../reservation-panel/job-lines";
+import { toast } from "sonner";
 
 interface TabletJobProps {
   reservationId: string;
@@ -185,7 +186,10 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
         <button
           type="button"
           disabled={job.status === "done" || markDoneBlocked}
-          onClick={() => applyJob({ ...job, status: "done" })}
+          onClick={() => {
+            applyJob({ ...job, status: "done" });
+            toast.success("Job marked done");
+          }}
           className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-neutral-300"
         >
           Mark job done

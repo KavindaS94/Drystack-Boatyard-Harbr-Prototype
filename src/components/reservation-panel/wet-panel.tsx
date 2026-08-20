@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useMarina } from "../../store/marina-store";
 import { SendToYardModal } from "./send-to-yard-modal";
 
@@ -17,7 +18,10 @@ export function WetPanel({ reservationId, boatyardLabel, hasJob }: WetPanelProps
       {!hasJob ? (
         <button
           type="button"
-          onClick={() => addAfloatJob(reservationId)}
+          onClick={() => {
+            addAfloatJob(reservationId);
+            toast.success("Afloat job added");
+          }}
           data-add-afloat-job
           className="w-full rounded-md border border-primary/40 bg-primary-lighter px-3 py-2 text-sm font-medium text-primary hover:bg-primary-lighter/70"
         >

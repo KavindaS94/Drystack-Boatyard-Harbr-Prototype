@@ -1,6 +1,7 @@
 import { statusAfterTaskDone } from "../../lib/status";
 import { useMarina } from "../../store/marina-store";
 import type { LaunchTask, TaskType, VesselStorageStatus } from "../../types/domain";
+import { toast } from "sonner";
 
 interface TaskRowProps {
   task: LaunchTask;
@@ -44,6 +45,7 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
   if (!taskType || !customer || !vessel || !berth) return null;
 
   const vesselId = vessel.id;
+  const taskTypeName = taskType.name;
   const doneCount = task.checklist.filter((item) => item.done).length;
   const kind = taskType.kind;
   const storageStatus = vessel.storageStatus;
@@ -56,11 +58,13 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
     }
     onError(null);
     markTaskDone(task.id);
+    toast.success(`${taskTypeName} done`);
   }
 
   function onDeparted() {
     onError(null);
     setVesselDeparted(vesselId);
+    toast.success("Marked departed");
   }
 
   return (

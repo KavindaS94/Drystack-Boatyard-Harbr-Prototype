@@ -1,17 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import { createSeedState } from "../data/seed";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createInitialStoreState, clearDemoState, loadDemoState, saveDemoState, type PersistedDemoState } from "../lib/demo-persist";
 import { draftFromJob } from "../lib/invoice";
 import { statusAfterTaskDone } from "../lib/status";
-import type {
-  Job,
-  JobType,
-  MarinaState,
-  Product,
-  Role,
-  Settings,
-  SpaceKind,
-  TaskType,
-} from "../types/domain";
+import type { Job, JobType, Product, Role, Settings, SpaceKind, TaskType } from "../types/domain";
 
 export interface SendToYardInput {
   wetReservationId: string;
@@ -32,10 +23,11 @@ export interface AddLaunchTaskInput {
   time: string;
 }
 
-export type MarinaStoreState = MarinaState & { kindFilter: SpaceKind[] };
+export type MarinaStoreState = PersistedDemoState;
 
 export interface MarinaStore {
   state: MarinaStoreState;
+  resetDemo: () => void;
   setRole: (role: Role) => void;
   setSelectedReservationId: (id: string | null) => void;
   setSelectedDate: (date: string) => void;
@@ -86,12 +78,18 @@ function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
 }
 
 export function MarinaProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<MarinaStoreState>(() => ({
-    ...createSeedState(),
-    kindFilter: ["wet", "boatyard", "dry_storage"],
-  }));
+  const [state, setState] = useState<MarinaStoreState>(loadDemoState);
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  useEffect(() => {
+    saveDemoState(state);
+  }, [state]);
+
+  const resetDemo = useCallback(() => {
+    clearDemoState();
+    setState(createInitialStoreState());
+  }, []);
 
   const setRole = useCallback((role: Role) => {
     setState((prev) => ({ ...prev, role }));
@@ -302,6 +300,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
   const value = useMemo<MarinaStore>(
     () => ({
       state,
+      resetDemo,
       setRole,
       setSelectedReservationId,
       setSelectedDate,
@@ -323,6 +322,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
     }),
     [
       state,
+      resetDemo,
       setRole,
       setSelectedReservationId,
       setSelectedDate,
