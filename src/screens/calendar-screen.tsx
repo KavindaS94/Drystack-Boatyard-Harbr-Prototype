@@ -11,14 +11,11 @@ export function CalendarScreen() {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 items-stretch gap-0 overflow-hidden">
-        <div className="min-w-0 flex-1 overflow-auto p-4 sm:p-6">
-          <CalendarGrid />
-        </div>
-        <aside className="hidden w-96 shrink-0 overflow-y-auto border-l border-gray-200 bg-white lg:block">
-          <ReservationPanel />
-        </aside>
+      <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
+        <CalendarGrid />
       </div>
+
+      <ReservationPanel />
     </div>
   );
 }

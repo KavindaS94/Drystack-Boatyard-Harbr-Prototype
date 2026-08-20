@@ -1,9 +1,10 @@
 import { createSeedState } from "../data/seed";
 import type { MarinaState, SpaceKind } from "../types/domain";
+import { withReservationDefaults } from "./reservation-footer";
 
 export type PersistedDemoState = MarinaState & { kindFilter: SpaceKind[] };
 
-export const DEMO_STORAGE_KEY = "harbr-yard-demo:v1";
+export const DEMO_STORAGE_KEY = "harbr-yard-demo:v2";
 
 const DEFAULT_KIND_FILTER: SpaceKind[] = ["wet", "boatyard", "dry_storage"];
 
@@ -42,6 +43,7 @@ export function loadDemoState(): PersistedDemoState {
         Array.isArray(parsed.kindFilter) && parsed.kindFilter.length > 0
           ? parsed.kindFilter
           : [...DEFAULT_KIND_FILTER],
+      reservations: parsed.reservations.map(withReservationDefaults),
     };
   } catch {
     return fallback;

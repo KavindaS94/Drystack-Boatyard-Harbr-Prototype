@@ -41,16 +41,6 @@ export function WetPanel({ reservationId, boatyardLabel, hasJob }: WetPanelProps
           onClose={() => setIsModalOpen(false)}
         />
       ) : null}
-      <div>
-        <button
-          type="button"
-          disabled
-          className="w-full cursor-not-allowed rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-400"
-        >
-          Move
-        </button>
-        <p className="mt-1.5 text-xs text-neutral-500">Use Send to … and choose Free berth</p>
-      </div>
     </div>
   );
 }

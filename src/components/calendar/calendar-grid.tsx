@@ -145,7 +145,9 @@ export function CalendarGrid() {
                   days={days}
                   weekStart={weekStart}
                   weekEnd={weekEnd}
-                  reservations={state.reservations.filter((item) => item.berthId === berth.id)}
+                  reservations={state.reservations.filter(
+                    (item) => item.berthId === berth.id && item.status !== "archived"
+                  )}
                   selectedReservationId={state.selectedReservationId}
                   onSelect={setSelectedReservationId}
                 />

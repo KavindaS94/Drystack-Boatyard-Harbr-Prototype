@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createInitialStoreState, clearDemoState, loadDemoState, saveDemoState, type PersistedDemoState } from "../lib/demo-persist";
 import { draftFromJob } from "../lib/invoice";
 import { statusAfterTaskDone } from "../lib/status";
-import type { Job, JobType, Product, Role, Settings, SpaceKind, TaskType } from "../types/domain";
+import type { Job, JobType, Product, ReservationStatus, Role, Settings, SpaceKind, TaskType } from "../types/domain";
 
 export interface SendToYardInput {
   wetReservationId: string;
@@ -46,6 +46,8 @@ export interface MarinaStore {
   toggleTaskCheck: (taskId: string, index: number) => void;
   markTaskDone: (taskId: string) => void;
   setVesselDeparted: (vesselId: string) => void;
+  setReservationStatus: (reservationId: string, status: ReservationStatus) => void;
+  archiveReservation: (reservationId: string) => void;
 }
 
 const MarinaContext = createContext<MarinaStore | null>(null);
@@ -224,6 +226,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
             vesselId: wet.vesselId,
             startDate: input.start,
             endDate: input.end,
+            status: "approved",
             job,
           },
         ],
@@ -297,6 +300,25 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const setReservationStatus = useCallback((reservationId: string, status: ReservationStatus) => {
+    setState((prev) => ({
+      ...prev,
+      reservations: prev.reservations.map((reservation) =>
+        reservation.id === reservationId ? { ...reservation, status } : reservation
+      ),
+    }));
+  }, []);
+
+  const archiveReservation = useCallback((reservationId: string) => {
+    setState((prev) => ({
+      ...prev,
+      selectedReservationId: prev.selectedReservationId === reservationId ? null : prev.selectedReservationId,
+      reservations: prev.reservations.map((reservation) =>
+        reservation.id === reservationId ? { ...reservation, status: "archived" } : reservation
+      ),
+    }));
+  }, []);
+
   const value = useMemo<MarinaStore>(
     () => ({
       state,
@@ -319,6 +341,8 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       toggleTaskCheck,
       markTaskDone,
       setVesselDeparted,
+      setReservationStatus,
+      archiveReservation,
     }),
     [
       state,
@@ -341,6 +365,8 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       toggleTaskCheck,
       markTaskDone,
       setVesselDeparted,
+      setReservationStatus,
+      archiveReservation,
     ]
   );
 

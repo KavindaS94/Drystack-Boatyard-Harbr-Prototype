@@ -41,12 +41,20 @@ export const DEMO_SCRIPTS: DemoScript[] = [
     to: "/settings/general-info",
     steps: "Rename Dockyard / Dry stack; add a job type colour; add a product with bank Holding.",
   },
+  {
+    id: "approve",
+    title: "Approve a booking",
+    to: "/operations/calendar?script=approve",
+    steps:
+      "A14 Shearwater is To be approved → Review Agreement → Approve → footer becomes View Agreement + Edit / Move / Archive (Archive blocked while a yard job is open).",
+  },
 ];
 
 const SCRIPT_RESERVATION_IDS: Record<string, string> = {
   "yard-job": "res-h4-sea-sprite",
   "berth-yard": "res-a12-mako",
   afloat: "res-b3-corsair",
+  approve: "res-a14-shearwater",
 };
 
 export function resolveDemoReservationId(

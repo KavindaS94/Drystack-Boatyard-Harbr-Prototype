@@ -208,6 +208,7 @@ function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
 const RESERVATIONS: Reservation[] = [
   {
     id: "res-a12-mako",
+    status: "approved",
     berthId: "berth-a12",
     customerId: "cust-hale",
     vesselId: "ves-mako",
@@ -216,6 +217,7 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-b3-corsair",
+    status: "approved",
     berthId: "berth-b3",
     customerId: "cust-frost",
     vesselId: "ves-corsair",
@@ -225,6 +227,7 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-h4-sea-sprite",
+    status: "approved",
     berthId: "berth-h4",
     customerId: "cust-voss",
     vesselId: "ves-sea-sprite",
@@ -234,6 +237,7 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-h2-riviera",
+    status: "approved",
     berthId: "berth-h3",
     customerId: "cust-bridger",
     vesselId: "ves-riviera",
@@ -243,6 +247,7 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-ds1-pelican",
+    status: "approved",
     berthId: "berth-ds1",
     customerId: "cust-shah",
     vesselId: "ves-pelican",
@@ -251,6 +256,7 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-ds2-tern",
+    status: "approved",
     berthId: "berth-ds2",
     customerId: "cust-chen",
     vesselId: "ves-tern",
@@ -259,6 +265,7 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-ds3-heron",
+    status: "approved",
     berthId: "berth-ds3",
     customerId: "cust-quinn",
     vesselId: "ves-heron",
@@ -267,6 +274,7 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-ds4-kingfisher",
+    status: "approved",
     berthId: "berth-ds4",
     customerId: "cust-ortiz",
     vesselId: "ves-kingfisher",
@@ -275,6 +283,7 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-ds5-osprey",
+    status: "approved",
     berthId: "berth-ds5",
     customerId: "cust-blake",
     vesselId: "ves-osprey",
@@ -283,11 +292,21 @@ const RESERVATIONS: Reservation[] = [
   },
   {
     id: "res-ds6-curlew",
+    status: "approved",
     berthId: "berth-ds6",
     customerId: "cust-reed",
     vesselId: "ves-curlew",
     startDate: "2026-08-01",
     endDate: "2026-08-31",
+  },
+  {
+    id: "res-a14-shearwater",
+    status: "to_be_approved",
+    berthId: "berth-a14",
+    customerId: "cust-kim",
+    vesselId: "ves-shearwater",
+    startDate: "2026-08-10",
+    endDate: "2026-08-16",
   },
 ];
 

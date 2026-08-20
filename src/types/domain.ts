@@ -85,6 +85,9 @@ export interface Job {
   status: JobStatus;
 }
 
+/** Matches Harbr’s calendar card labels (Draft → Pending, Submitted → To be approved). */
+export type ReservationStatus = "pending" | "to_be_approved" | "approved" | "archived";
+
 export interface Reservation {
   id: string;
   berthId: string;
@@ -92,6 +95,7 @@ export interface Reservation {
   vesselId: string;
   startDate: string; // YYYY-MM-DD
   endDate: string;
+  status: ReservationStatus;
   job?: Job; // only when berth.kind === "boatyard"
 }
 
