@@ -1,3 +1,5 @@
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { draftFromJob, invoiceBannerText } from "../../lib/invoice";
@@ -47,6 +49,12 @@ export function JobPanel({ reservationId }: JobPanelProps) {
   const hidePrices = state.role === "yard" && state.settings.hidePricesForYard;
   const canCreateDraft = state.role === "office";
 
+  const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    setOpen(true);
+  }, [reservationId]);
+
   if (!reservation || !job || !jobType) return null;
   const currentJob = job;
 
@@ -67,9 +75,37 @@ export function JobPanel({ reservationId }: JobPanelProps) {
     ? state.products.filter((product) => product.active && jobType.productIds.includes(product.id))
     : state.products.filter((product) => product.active);
 
+  const preview = [
+    jobType.name,
+    job.status === "done" ? "Done" : "Open",
+    job.liftTime ? `Lift ${job.liftTime}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <section className="space-y-4 border-t border-neutral-200 pt-4" data-job-section>
-      <h2 className="text-sm font-semibold text-neutral-900">{state.settings.jobPanelTitle}</h2>
+    <section className="min-w-0 rounded-lg border border-gray-200 bg-gray-50/80" data-job-section>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-gray-100/80"
+        aria-expanded={open}
+      >
+        {open ? (
+          <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="font-medium text-foreground text-sm">{state.settings.jobPanelTitle}</div>
+          {!open ? (
+            <p className="mt-0.5 line-clamp-2 break-words text-muted-foreground text-xs">{preview}</p>
+          ) : null}
+        </div>
+      </button>
+
+      {open ? (
+        <div className="space-y-4 border-gray-200 border-t bg-white px-3 py-3">
 
       <label className="block space-y-1">
         <span className="text-xs font-medium text-neutral-500">Job type</span>
@@ -243,6 +279,8 @@ export function JobPanel({ reservationId }: JobPanelProps) {
           <p className="text-xs text-neutral-500">T&Cs must be signed before the job can be marked done.</p>
         ) : null}
       </div>
+        </div>
+      ) : null}
     </section>
   );
 }
