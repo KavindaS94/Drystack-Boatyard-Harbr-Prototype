@@ -1,27 +1,51 @@
-import type { ReactNode } from "react";
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "../../lib/utils";
+
+const badgeVariants = cva(
+  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] overflow-hidden",
+  {
+    variants: {
+      variant: {
+        default: "border-transparent bg-primary text-primary-foreground",
+        secondary: "border-transparent bg-secondary text-secondary-foreground",
+        destructive: "border-transparent bg-destructive text-white",
+        outline: "text-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
 
 type BadgeTone = "neutral" | "primary" | "success" | "warning";
 
 const TONE_CLASS: Record<BadgeTone, string> = {
-  neutral: "bg-neutral-100 text-neutral-700",
-  primary: "bg-primary-lighter text-primary",
-  success: "bg-teal-50 text-teal-800",
-  warning: "bg-amber-50 text-amber-900",
+  neutral: "border-transparent bg-neutral-100 text-neutral-700",
+  primary:
+    "border-[hsl(252,75%,80%)] bg-[hsl(252,75%,99%)] text-[hsl(252,75%,55%)]",
+  success: "border-transparent bg-teal-50 text-teal-800",
+  warning: "border-transparent bg-amber-50 text-amber-900",
 };
 
-interface BadgeProps {
-  tone?: BadgeTone;
-  children: ReactNode;
-  className?: string;
-}
-
-/** Small status pill, styled with Harbr tokens. */
-export function Badge({ tone = "neutral", children, className = "" }: BadgeProps) {
+function Badge({
+  className,
+  variant,
+  tone,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean; tone?: BadgeTone }) {
+  const Comp = asChild ? Slot : "span";
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TONE_CLASS[tone]} ${className}`}
-    >
-      {children}
-    </span>
+    <Comp
+      data-slot="badge"
+      className={cn(badgeVariants({ variant }), tone && TONE_CLASS[tone], className)}
+      {...props}
+    />
   );
 }
+
+export { Badge, badgeVariants };

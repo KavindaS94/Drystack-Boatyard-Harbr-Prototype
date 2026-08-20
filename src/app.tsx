@@ -13,11 +13,15 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<AppShell />}>
-            <Route path="/" element={<Navigate to="/calendar" replace />} />
-            <Route path="/calendar" element={<CalendarScreen />} />
-            <Route path="/launch-board" element={<LaunchBoardScreen />} />
-            <Route path="/settings" element={<SettingsScreen />} />
-            <Route path="/tablet" element={<YardTabletScreen />} />
+            <Route path="/" element={<Navigate to="/operations/calendar" replace />} />
+            <Route path="/calendar" element={<Navigate to="/operations/calendar" replace />} />
+            <Route path="/launch-board" element={<Navigate to="/operations/launch-board" replace />} />
+            <Route path="/tablet" element={<Navigate to="/operations/tablet" replace />} />
+            <Route path="/settings" element={<Navigate to="/settings/general-info" replace />} />
+            <Route path="/operations/calendar" element={<CalendarScreen />} />
+            <Route path="/operations/launch-board" element={<LaunchBoardScreen />} />
+            <Route path="/operations/tablet" element={<YardTabletScreen />} />
+            <Route path="/settings/general-info" element={<SettingsScreen />} />
             <Route path="/invoices/:id" element={<DraftInvoiceScreen />} />
           </Route>
         </Routes>

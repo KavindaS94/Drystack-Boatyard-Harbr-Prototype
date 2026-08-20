@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { draftFromJob, invoiceBannerText } from "../../lib/invoice";
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus } from "../../types/domain";
+import { Button } from "../ui/button";
 import { JobLines } from "./job-lines";
 
 interface JobPanelProps {
@@ -213,29 +214,31 @@ export function JobPanel({ reservationId }: JobPanelProps) {
 
       <div className="space-y-2">
         {canCreateDraft ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            className="w-full"
             onClick={() => {
               const invoiceId = createDraftFromJob(reservationId);
               toast.success(invoiceBannerText(draftFromJob(reservation, state.products, true)));
               navigate(`/invoices/${invoiceId}`);
             }}
-            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
           >
             Create draft invoice
-          </button>
+          </Button>
         ) : null}
-        <button
+        <Button
           type="button"
+          variant="harbr"
+          className="w-full"
           disabled={job.status === "done" || markDoneBlocked}
           onClick={() => {
             applyJob({ ...job, status: "done" });
             toast.success("Job marked done");
           }}
-          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-neutral-300"
         >
           Mark job done
-        </button>
+        </Button>
         {markDoneBlocked ? (
           <p className="text-xs text-neutral-500">T&Cs must be signed before the job can be marked done.</p>
         ) : null}

@@ -176,7 +176,7 @@ export function AddTaskModal({ date, onClose }: AddTaskModalProps) {
             disabled={!canSave}
             onClick={onSave}
             data-add-task-save
-            className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-neutral-300"
+            className="flex-1 rounded-md bg-[hsl(252,75%,70%)] px-3 py-2 text-sm font-medium text-white hover:bg-[hsl(252,75%,60%)] disabled:cursor-not-allowed disabled:bg-neutral-300"
           >
             Save
           </button>

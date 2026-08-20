@@ -12,33 +12,33 @@ export const DEMO_SCRIPTS: DemoScript[] = [
   {
     id: "yard-job",
     title: "Yard-only job",
-    to: "/calendar?script=yard-job",
+    to: "/operations/calendar?script=yard-job",
     steps:
       "H4 Sea Sprite (antifoul) → Job → log hours/materials on tablet (no $) → Office creates draft → banner This invoice → Holding.",
   },
   {
     id: "berth-yard",
     title: "Berth → dockyard",
-    to: "/calendar?script=berth-yard",
+    to: "/operations/calendar?script=berth-yard",
     steps:
       "A12 (Berth) → Send to Dockyard → pick a spot + Travel lift + Keep berth or Move → Job + T&Cs Sent/Signed → lift done blocked until Signed.",
   },
   {
     id: "afloat",
     title: "Afloat job",
-    to: "/calendar?script=afloat",
+    to: "/operations/calendar?script=afloat",
     steps: "B3 Corsair → Job with Work location: Afloat → log hours → Create draft (no lift needed).",
   },
   {
     id: "saturday",
     title: "Busy Saturday",
-    to: "/launch-board?script=saturday",
+    to: "/operations/launch-board?script=saturday",
     steps: "Launch board, ~50 tasks → mark launch done → status stored → launched → set departed → mark lift done → stored.",
   },
   {
     id: "settings",
     title: "Settings",
-    to: "/settings",
+    to: "/settings/general-info",
     steps: "Rename Dockyard / Dry stack; add a job type colour; add a product with bank Holding.",
   },
 ];

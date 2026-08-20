@@ -190,7 +190,7 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
             applyJob({ ...job, status: "done" });
             toast.success("Job marked done");
           }}
-          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-neutral-300"
+          className="w-full rounded-md bg-[hsl(252,75%,70%)] px-3 py-2 text-sm font-medium text-white hover:bg-[hsl(252,75%,60%)] disabled:cursor-not-allowed disabled:bg-neutral-300"
         >
           Mark job done
         </button>

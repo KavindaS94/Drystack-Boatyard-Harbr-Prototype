@@ -1,4 +1,5 @@
 import { kindLabel } from "../../lib/labels";
+import { cn } from "../../lib/utils";
 import { useMarina } from "../../store/marina-store";
 import type { SpaceKind } from "../../types/domain";
 
@@ -34,7 +35,7 @@ export function KindFilter() {
   ];
 
   return (
-    <div className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-neutral-100 p-0.5">
+    <div className="inline-flex flex-wrap gap-1 rounded-md border border-gray-200 bg-gray-50 p-0.5 shadow-sm">
       {chips.map((chip) => {
         const isActive = sameKinds(kindFilter, chip.kinds);
         return (
@@ -42,11 +43,10 @@ export function KindFilter() {
             key={chip.id}
             type="button"
             onClick={() => setKindFilter(chip.kinds)}
-            className={
-              isActive
-                ? "rounded-md px-3 py-1 text-sm font-medium bg-white text-primary shadow-sm"
-                : "rounded-md px-3 py-1 text-sm font-medium text-neutral-600 hover:text-neutral-900"
-            }
+            className={cn(
+              "rounded-md px-3 py-1 text-sm font-medium",
+              isActive ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
           >
             {chip.label}
           </button>

@@ -54,7 +54,7 @@ export function DryStoragePanel({ vesselId, storageStatus }: DryStoragePanelProp
         )}
       </div>
 
-      <Link to="/launch-board" className="inline-block text-sm font-medium text-neutral-900 underline underline-offset-2">
+      <Link to="/operations/launch-board" className="inline-block text-sm font-medium text-[hsl(252,75%,45%)] underline underline-offset-2">
         Open launch board
       </Link>
     </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "../ui/button";
 import { useMarina } from "../../store/marina-store";
 import { SendToYardModal } from "./send-to-yard-modal";
 
@@ -16,26 +17,23 @@ export function WetPanel({ reservationId, boatyardLabel, hasJob }: WetPanelProps
   return (
     <div className="space-y-3 border-t border-neutral-200 pt-4">
       {!hasJob ? (
-        <button
+        <Button
           type="button"
+          variant="harbrSecondary"
           onClick={() => {
             addAfloatJob(reservationId);
             toast.success("Afloat job added");
           }}
           data-add-afloat-job
-          className="w-full rounded-md border border-primary/40 bg-primary-lighter px-3 py-2 text-sm font-medium text-primary hover:bg-primary-lighter/70"
+          className="w-full"
         >
           Add afloat job
-        </button>
+        </Button>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => setIsModalOpen(true)}
-        className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover"
-      >
+      <Button type="button" variant="harbr" onClick={() => setIsModalOpen(true)} className="w-full">
         Send to {boatyardLabel}
-      </button>
+      </Button>
       {isModalOpen ? (
         <SendToYardModal
           reservationId={reservationId}

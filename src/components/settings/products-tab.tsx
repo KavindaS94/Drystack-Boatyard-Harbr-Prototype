@@ -128,7 +128,7 @@ export function ProductsTab() {
           <button
             type="submit"
             data-product-save
-            className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
+            className="w-full rounded-md bg-[hsl(252,75%,70%)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[hsl(252,75%,60%)]"
           >
             Add
           </button>

@@ -65,7 +65,7 @@ export function SettingsScreen() {
   const active = tabs.find((item) => item.id === tab) ?? tabs[0];
 
   return (
-    <div className="space-y-4" data-settings-screen>
+    <div className="space-y-4 p-4 sm:p-6" data-settings-screen>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">General Info</p>
@@ -86,7 +86,7 @@ export function SettingsScreen() {
             data-settings-tab-button={item.id}
             className={
               active.id === item.id
-                ? "rounded-md bg-white px-3 py-1.5 text-sm font-medium text-primary shadow-sm"
+                ? "rounded-md bg-white px-3 py-1.5 text-sm font-medium text-foreground shadow-sm"
                 : "rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-neutral-900"
             }
           >

@@ -4,17 +4,18 @@ import { ReservationPanel } from "../components/reservation-panel/reservation-pa
 
 export function CalendarScreen() {
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Calendar</h1>
-        <KindFilter />
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="border-b border-gray-200 bg-white px-4 pb-4 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <KindFilter />
+        </div>
       </div>
 
-      <div className="flex items-start gap-6">
-        <div className="min-w-0 flex-1">
+      <div className="flex min-h-0 flex-1 items-stretch gap-0 overflow-hidden">
+        <div className="min-w-0 flex-1 overflow-auto p-4 sm:p-6">
           <CalendarGrid />
         </div>
-        <aside className="sticky top-0 max-h-[calc(100vh-6.5rem)] w-96 shrink-0 overflow-y-auto rounded-lg border border-border bg-white shadow-sm">
+        <aside className="hidden w-96 shrink-0 overflow-y-auto border-l border-gray-200 bg-white lg:block">
           <ReservationPanel />
         </aside>
       </div>

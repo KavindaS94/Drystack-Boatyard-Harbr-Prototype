@@ -1,5 +1,9 @@
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { createSeedState } from "../data/seed";
+import { DEMO_SCRIPTS, resolveDemoReservationId } from "../lib/demo-scripts";
 import { useMarina } from "../store/marina-store";
 import type { Role } from "../types/domain";
 
@@ -8,18 +12,35 @@ const ROLES: { value: Role; label: string; hint: string }[] = [
   { value: "yard", label: "Yard", hint: "Prices hidden on the tablet and job" },
 ];
 
-/**
- * Sidebar-footer identity + role switcher — mirrors Harbr's UserButton menu.
- * Replaces the old top-bar Office/Yard toggle: role now lives with the user, where
- * a marina's price-visibility permission actually belongs.
- */
 export function UserMenu() {
-  const { state, setRole } = useMarina();
+  const navigate = useNavigate();
+  const { state, setRole, resetDemo, setSelectedDate, setSelectedReservationId } = useMarina();
   const [open, setOpen] = useState(false);
   const current = ROLES.find((role) => role.value === state.role) ?? ROLES[0];
 
+  function onReset() {
+    if (
+      !window.confirm("Reset the demo to the starting data? Your click-through progress will be cleared.")
+    ) {
+      return;
+    }
+    resetDemo();
+    setOpen(false);
+    navigate("/operations/calendar");
+    toast.success("Demo reset to starting data");
+  }
+
+  function onScriptClick(scriptId: string) {
+    if (scriptId === "saturday") {
+      setSelectedDate(createSeedState().selectedDate);
+      return;
+    }
+    const reservationId = resolveDemoReservationId(state, { script: scriptId, boat: null });
+    if (reservationId) setSelectedReservationId(reservationId);
+  }
+
   return (
-    <div className="relative">
+    <div className="relative w-full">
       {open ? (
         <button
           type="button"
@@ -31,7 +52,7 @@ export function UserMenu() {
       ) : null}
 
       {open ? (
-        <div className="absolute bottom-full left-0 right-0 z-20 mb-1 rounded-lg border border-border bg-white p-1 shadow-lg">
+        <div className="absolute bottom-full left-0 right-0 z-20 mb-1 max-h-[min(28rem,70vh)] overflow-y-auto rounded-lg border border-sidebar-border bg-white p-1 shadow-lg">
           <p className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Viewing as
           </p>
@@ -50,10 +71,12 @@ export function UserMenu() {
                 }`}
               >
                 <CheckIcon
-                  className={`mt-0.5 size-4 shrink-0 ${active ? "text-primary" : "text-transparent"}`}
+                  className={`mt-0.5 size-4 shrink-0 ${active ? "text-[hsl(252,75%,55%)]" : "text-transparent"}`}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className={`block text-sm font-medium ${active ? "text-primary" : "text-neutral-900"}`}>
+                  <span
+                    className={`block text-sm font-medium ${active ? "text-[hsl(252,75%,45%)]" : "text-neutral-900"}`}
+                  >
                     {role.label}
                   </span>
                   <span className="block text-xs text-muted-foreground">{role.hint}</span>
@@ -61,15 +84,41 @@ export function UserMenu() {
               </button>
             );
           })}
+
+          <div className="my-1 border-t border-sidebar-border" />
+          <p className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Demo scripts
+          </p>
+          {DEMO_SCRIPTS.map((script) => (
+            <Link
+              key={script.id}
+              to={script.to}
+              onClick={() => {
+                onScriptClick(script.id);
+                setOpen(false);
+              }}
+              className="block rounded-md px-2 py-1.5 hover:bg-sidebar-accent/60"
+            >
+              <span className="block text-sm font-medium text-[hsl(252,75%,45%)]">{script.title}</span>
+              <span className="block text-[11px] leading-4 text-muted-foreground">{script.steps}</span>
+            </Link>
+          ))}
+          <button
+            type="button"
+            onClick={onReset}
+            className="mt-1 w-full rounded-md px-2 py-1.5 text-left text-sm font-medium text-neutral-700 hover:bg-sidebar-accent/60"
+          >
+            Reset demo
+          </button>
         </div>
       ) : null}
 
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-sidebar-accent"
+        className="flex w-full items-center gap-2 overflow-hidden rounded-md px-2 py-1.5 text-left hover:bg-sidebar-accent"
       >
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-lighter text-xs font-semibold text-primary">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[hsl(252,75%,95%)] text-xs font-semibold text-[hsl(252,75%,45%)]">
           MS
         </span>
         <span className="min-w-0 flex-1 leading-tight">

@@ -2,10 +2,8 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMarina } from "../../store/marina-store";
 import type { Berth, Reservation } from "../../types/domain";
+import { Button } from "../ui/button";
 import { BookingBar } from "./booking-bar";
-
-const PURPLE_OUTLINE = "hsl(252, 75%, 80%)";
-const PURPLE_TEXT = "hsl(252, 75%, 60%)";
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
@@ -90,27 +88,32 @@ export function CalendarGrid() {
   const pierGroups = groupByPier(visibleBerths);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-        <button
-          type="button"
-          aria-label="Previous week"
-          onClick={() => setWeekStart(addDays(weekStart, -7))}
-          className="flex size-8 items-center justify-center rounded-md border transition-colors hover:bg-primary-lighter"
-          style={{ borderColor: PURPLE_OUTLINE, color: PURPLE_TEXT }}
-        >
-          <ChevronLeftIcon className="size-4" />
-        </button>
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2.5">
+        <div className="inline-flex overflow-hidden rounded-md border border-gray-200 bg-gray-50 shadow-sm">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label="Previous week"
+            onClick={() => setWeekStart(addDays(weekStart, -7))}
+            className="h-8 w-8 rounded-none border-gray-200 border-r p-0 hover:bg-gray-100"
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label="Next week"
+            onClick={() => setWeekStart(addDays(weekStart, 7))}
+            className="h-8 w-8 rounded-none p-0 hover:bg-gray-100"
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </div>
         <p className="text-sm font-semibold text-neutral-800">{weekTitle(weekStart)}</p>
-        <button
-          type="button"
-          aria-label="Next week"
-          onClick={() => setWeekStart(addDays(weekStart, 7))}
-          className="flex size-8 items-center justify-center rounded-md border transition-colors hover:bg-primary-lighter"
-          style={{ borderColor: PURPLE_OUTLINE, color: PURPLE_TEXT }}
-        >
-          <ChevronRightIcon className="size-4" />
-        </button>
+        <div className="w-16" />
       </div>
 
       <div className="overflow-x-auto">

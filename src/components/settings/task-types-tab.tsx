@@ -129,7 +129,7 @@ export function TaskTypesTab() {
           <button
             type="submit"
             data-task-type-save
-            className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+            className="flex-1 rounded-md bg-[hsl(252,75%,70%)] px-3 py-2 text-sm font-medium text-white hover:bg-[hsl(252,75%,60%)]"
           >
             {editingId ? "Save" : "Add"}
           </button>

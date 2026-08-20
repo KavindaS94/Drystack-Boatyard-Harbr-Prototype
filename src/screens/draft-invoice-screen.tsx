@@ -14,7 +14,7 @@ export function DraftInvoiceScreen() {
 
   if (cannotView) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-2 p-4 sm:p-6">
         <h1 className="text-2xl font-semibold text-neutral-900">Draft invoice</h1>
         <p className="text-sm text-neutral-700">You cannot view invoices</p>
       </div>
@@ -23,7 +23,7 @@ export function DraftInvoiceScreen() {
 
   if (!invoice) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-2 p-4 sm:p-6">
         <h1 className="text-2xl font-semibold text-neutral-900">Draft invoice</h1>
         <p className="text-sm text-neutral-500">Invoice not found</p>
       </div>
@@ -40,7 +40,7 @@ export function DraftInvoiceScreen() {
   const total = invoice.lines.reduce((sum, line) => sum + line.qty * line.unitPrice, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold text-neutral-900">Draft invoice</h1>
         <p className="mt-1 text-sm text-neutral-600">
@@ -53,7 +53,7 @@ export function DraftInvoiceScreen() {
         className={
           isMixed
             ? "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"
-            : "rounded-lg border border-primary/30 bg-primary-lighter px-3 py-2 text-sm font-medium text-primary"
+            : "rounded-lg border border-[hsl(252,75%,80%)] bg-[hsl(252,75%,99%)] px-3 py-2 text-sm font-medium text-[hsl(252,75%,40%)]"
         }
       >
         {banner}
