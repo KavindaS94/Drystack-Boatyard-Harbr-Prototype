@@ -5,8 +5,25 @@ export type TcStatus = "not_sent" | "sent" | "signed";
 export type JobStatus = "open" | "done";
 /** Where the work happens: afloat = in the water at the berth; dockyard = lifted out. */
 export type JobLocation = "afloat" | "dockyard";
+export type WorkBy = "marina" | "diy" | "contractor";
 export type VesselStorageStatus = "stored" | "launched" | "departed";
-export type LaunchTaskStatus = "open" | "done";
+export type LaunchTaskStatus = "requested" | "open" | "in_progress" | "done" | "declined";
+export type LaunchTaskSource = "staff" | "customer";
+export type ActivityActor = "office" | "yard" | "customer" | "system";
+export type MessageChannel = "email" | "sms";
+export type MessageTemplate =
+  | "portal_link"
+  | "dnl_notice"
+  | "payment_reminder"
+  | "insurance_reminder"
+  | "boat_ready"
+  | "launch_confirmed"
+  | "launch_declined"
+  | "launching_now"
+  | "tc_sent"
+  | "contractor_notified"
+  | "relaunch_moved"
+  | "custom";
 
 export interface Product {
   id: string;
@@ -54,6 +71,9 @@ export interface Berth {
 export interface Customer {
   id: string;
   name: string;
+  email: string;
+  phone: string;
+  accountOverdue: boolean;
 }
 
 export interface Vessel {
@@ -64,6 +84,8 @@ export interface Vessel {
   beamM: number;
   weightT?: number;
   storageStatus: VesselStorageStatus;
+  insuranceExpiry: string; // YYYY-MM-DD
+  dnlOverride?: { active: boolean; reason: string };
 }
 
 export interface JobLine {
@@ -73,13 +95,23 @@ export interface JobLine {
   staffName?: string;
 }
 
+export interface JobPhoto {
+  stage: "lift_out" | "relaunch";
+  done: boolean;
+}
+
 export interface Job {
   typeId: string;
   location: JobLocation; // afloat (in the water) | dockyard (lifted out)
+  workBy: WorkBy;
+  contractorName?: string;
   liftTime?: string; // "08:15" — only meaningful when location === "dockyard"
   launchTime?: string; // "14:00"
+  launchDate?: string; // YYYY-MM-DD — relaunch day
   tcStatus: TcStatus;
+  tcSignedAt?: string;
   checklist: { label: string; done: boolean }[];
+  photos: JobPhoto[];
   hours: JobLine[];
   materials: JobLine[];
   status: JobStatus;
@@ -96,6 +128,7 @@ export interface Reservation {
   startDate: string; // YYYY-MM-DD
   endDate: string;
   status: ReservationStatus;
+  notes?: string;
   job?: Job; // only when berth.kind === "boatyard"
 }
 
@@ -109,6 +142,8 @@ export interface LaunchTask {
   time: string; // "09:00"
   checklist: { label: string; done: boolean }[];
   status: LaunchTaskStatus;
+  source: LaunchTaskSource;
+  declineReason?: string;
 }
 
 export interface DraftInvoice {
@@ -118,6 +153,36 @@ export interface DraftInvoice {
   lines: { productId: string; qty: number; unitPrice: number; bankAccount: BankAccount }[];
 }
 
+export interface PortalLink {
+  id: string;
+  token: string;
+  customerId: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface ActivityEvent {
+  id: string;
+  at: string;
+  actor: ActivityActor;
+  message: string;
+  reservationId?: string;
+  vesselId?: string;
+  taskId?: string;
+  customerId?: string;
+}
+
+export interface Message {
+  id: string;
+  at: string;
+  customerId: string;
+  channel: MessageChannel;
+  template: MessageTemplate;
+  subject: string;
+  body: string;
+  read: boolean;
+}
+
 export interface Settings {
   boatyardEnabled: boolean;
   dryStorageEnabled: boolean;
@@ -125,6 +190,9 @@ export interface Settings {
   dryStorageLabel: string; // default "Dry stack"
   jobPanelTitle: string; // default "Job"
   hidePricesForYard: boolean;
+  autoDnlOverdue: boolean;
+  autoDnlInsurance: boolean;
+  allowPortalRequests: boolean;
 }
 
 export interface MarinaState {
@@ -139,6 +207,9 @@ export interface MarinaState {
   reservations: Reservation[];
   launchTasks: LaunchTask[];
   invoices: DraftInvoice[];
+  portalLinks: PortalLink[];
+  activity: ActivityEvent[];
+  messages: Message[];
   selectedReservationId: string | null;
   selectedDate: string; // calendar / launch board day
 }

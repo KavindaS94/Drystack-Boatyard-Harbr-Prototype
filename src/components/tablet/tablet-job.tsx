@@ -1,3 +1,5 @@
+import { DnlBadge } from "../dnl-badge";
+import { dnlStatus } from "../../lib/dnl";
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus } from "../../types/domain";
 import { JobLines } from "../reservation-panel/job-lines";
@@ -18,14 +20,26 @@ function checklistFromType(jobType: JobType): Job["checklist"] {
   return jobType.checklist.map((label) => ({ label, done: false }));
 }
 
+function defaultPhotos(): Job["photos"] {
+  return [
+    { stage: "lift_out", done: false },
+    { stage: "relaunch", done: false },
+  ];
+}
+
 function jobFromType(jobType: JobType, previous?: Job): Job {
   return {
     typeId: jobType.id,
     location: previous?.location ?? "dockyard",
+    workBy: previous?.workBy ?? "marina",
+    contractorName: previous?.contractorName,
     liftTime: previous?.liftTime,
     launchTime: previous?.launchTime,
+    launchDate: previous?.launchDate,
     tcStatus: previous?.tcStatus ?? "not_sent",
+    tcSignedAt: previous?.tcSignedAt,
     checklist: checklistFromType(jobType),
+    photos: previous?.photos ?? defaultPhotos(),
     hours: previous?.hours ?? [],
     materials: previous?.materials ?? [],
     status: previous?.status ?? "open",
@@ -33,7 +47,7 @@ function jobFromType(jobType: JobType, previous?: Job): Job {
 }
 
 export function TabletJob({ reservationId, onBack }: TabletJobProps) {
-  const { state, updateJob, addJobLine } = useMarina();
+  const { state, updateJob, addJobLine, toggleJobPhoto } = useMarina();
   const reservation = state.reservations.find((item) => item.id === reservationId);
   const job = reservation?.job;
   const jobType = state.jobTypes.find((item) => item.id === job?.typeId);
@@ -45,6 +59,7 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
 
   if (!reservation || !job || !jobType || !vessel || !customer || !berth) return null;
   const currentJob = job;
+  const dnl = dnlStatus(vessel, customer, state.settings);
 
   function applyJob(next: Job) {
     updateJob(reservationId, next);
@@ -74,7 +89,12 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
         <p className="text-sm text-neutral-500">
           {customer.name} · {berth.name}
           {job.liftTime ? ` · Lift ${job.liftTime}` : ""}
+          {job.workBy === "contractor" && job.contractorName ? ` · ${job.contractorName}` : ""}
+          {job.workBy === "diy" ? " · DIY" : ""}
         </p>
+        <div className="mt-2">
+          <DnlBadge status={dnl} />
+        </div>
       </div>
 
       <label className="block space-y-1">
@@ -117,24 +137,6 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
         <div className="space-y-2">
           <p className="text-xs font-medium text-neutral-500">T&Cs</p>
           <p className="text-sm font-medium text-neutral-900">{TC_LABEL[job.tcStatus]}</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => applyJob({ ...job, tcStatus: "sent" })}
-              disabled={job.tcStatus !== "not_sent"}
-              className="flex-1 rounded-md border border-neutral-200 px-2 py-1.5 text-xs font-medium text-neutral-800 disabled:text-neutral-400"
-            >
-              Send T&Cs
-            </button>
-            <button
-              type="button"
-              onClick={() => applyJob({ ...job, tcStatus: "signed" })}
-              disabled={job.tcStatus === "signed"}
-              className="flex-1 rounded-md border border-neutral-200 px-2 py-1.5 text-xs font-medium text-neutral-800 disabled:text-neutral-400"
-            >
-              Mark signed
-            </button>
-          </div>
         </div>
       ) : null}
 
@@ -157,6 +159,25 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
                   }}
                 />
                 {item.label}
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium text-neutral-500">QA photos</p>
+        <ul className="mt-1.5 space-y-1">
+          {job.photos.map((photo) => (
+            <li key={photo.stage}>
+              <label className="flex items-center gap-2 text-sm text-neutral-800">
+                <input
+                  type="checkbox"
+                  checked={photo.done}
+                  onChange={() => toggleJobPhoto(reservationId, photo.stage)}
+                  data-photo-stage={photo.stage}
+                />
+                📷 {photo.stage === "lift_out" ? "Lift-out photo taken" : "Relaunch photo taken"}
               </label>
             </li>
           ))}

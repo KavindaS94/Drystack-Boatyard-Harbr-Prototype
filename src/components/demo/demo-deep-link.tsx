@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { createSeedState } from "../../data/seed";
+import { DEMO_SATURDAY } from "../../lib/demo-dates";
 import { resolveDemoReservationId } from "../../lib/demo-scripts";
 import { useMarina } from "../../store/marina-store";
 
@@ -16,7 +16,7 @@ export function DemoDeepLink() {
 
   useEffect(() => {
     if (script === "saturday") {
-      setSelectedDate(createSeedState().selectedDate);
+      setSelectedDate(DEMO_SATURDAY);
       return;
     }
 

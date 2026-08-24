@@ -1,10 +1,14 @@
+import { DEMO_FRIDAY, DEMO_SATURDAY } from "../lib/demo-dates";
 import type {
+  ActivityEvent,
   Berth,
   Customer,
   Job,
   JobType,
   LaunchTask,
   MarinaState,
+  Message,
+  PortalLink,
   Product,
   Reservation,
   Settings,
@@ -19,6 +23,9 @@ const SETTINGS: Settings = {
   dryStorageLabel: "Dry stack",
   jobPanelTitle: "Job",
   hidePricesForYard: true,
+  autoDnlOverdue: true,
+  autoDnlInsurance: true,
+  allowPortalRequests: true,
 };
 
 const PRODUCTS: Product[] = [
@@ -156,38 +163,68 @@ const BERTHS: Berth[] = [
   dryBerth("berth-ds6", "DS6"),
 ];
 
+function customer(
+  id: string,
+  name: string,
+  email: string,
+  phone: string,
+  accountOverdue = false
+): Customer {
+  return { id, name, email, phone, accountOverdue };
+}
+
 const CUSTOMERS: Customer[] = [
-  { id: "cust-hale", name: "James Hale" },
-  { id: "cust-voss", name: "Elena Voss" },
-  { id: "cust-bridger", name: "Tom Bridger" },
-  { id: "cust-shah", name: "Priya Shah" },
-  { id: "cust-chen", name: "Mark Chen" },
-  { id: "cust-quinn", name: "Sarah Quinn" },
-  { id: "cust-ortiz", name: "Liam Ortiz" },
-  { id: "cust-blake", name: "Nora Blake" },
-  { id: "cust-reed", name: "Owen Reed" },
-  { id: "cust-kim", name: "Ava Kim" },
-  { id: "cust-cole", name: "Ben Cole" },
-  { id: "cust-frost", name: "Dana Frost" },
+  customer("cust-hale", "James Hale", "james.hale@harbour.demo", "+61 412 100 001"),
+  customer("cust-voss", "Elena Voss", "elena.voss@harbour.demo", "+61 412 100 002"),
+  customer("cust-bridger", "Tom Bridger", "tom.bridger@harbour.demo", "+61 412 100 003"),
+  customer("cust-shah", "Priya Shah", "priya.shah@harbour.demo", "+61 412 100 004"),
+  customer("cust-chen", "Mark Chen", "mark.chen@harbour.demo", "+61 412 100 005", true),
+  customer("cust-quinn", "Sarah Quinn", "sarah.quinn@harbour.demo", "+61 412 100 006"),
+  customer("cust-ortiz", "Liam Ortiz", "liam.ortiz@harbour.demo", "+61 412 100 007"),
+  customer("cust-blake", "Nora Blake", "nora.blake@harbour.demo", "+61 412 100 008"),
+  customer("cust-reed", "Owen Reed", "owen.reed@harbour.demo", "+61 412 100 009"),
+  customer("cust-kim", "Ava Kim", "ava.kim@harbour.demo", "+61 412 100 010"),
+  customer("cust-cole", "Ben Cole", "ben.cole@harbour.demo", "+61 412 100 011"),
+  customer("cust-frost", "Dana Frost", "dana.frost@harbour.demo", "+61 412 100 012"),
 ];
 
+function vessel(
+  id: string,
+  name: string,
+  customerId: string,
+  lengthM: number,
+  beamM: number,
+  weightT: number,
+  storageStatus: Vessel["storageStatus"],
+  insuranceExpiry: string
+): Vessel {
+  return { id, name, customerId, lengthM, beamM, weightT, storageStatus, insuranceExpiry };
+}
+
 const VESSELS: Vessel[] = [
-  { id: "ves-mako", name: "Mako", customerId: "cust-hale", lengthM: 12.2, beamM: 3.8, weightT: 8, storageStatus: "stored" },
-  { id: "ves-sea-sprite", name: "Sea Sprite", customerId: "cust-voss", lengthM: 11.5, beamM: 3.6, weightT: 7, storageStatus: "stored" },
-  { id: "ves-riviera", name: "Riviera", customerId: "cust-bridger", lengthM: 13, beamM: 4, weightT: 10, storageStatus: "stored" },
-  { id: "ves-pelican", name: "Pelican", customerId: "cust-shah", lengthM: 8.5, beamM: 2.8, weightT: 3, storageStatus: "stored" },
-  { id: "ves-tern", name: "Tern", customerId: "cust-chen", lengthM: 7.8, beamM: 2.6, weightT: 2.5, storageStatus: "launched" },
-  { id: "ves-heron", name: "Heron", customerId: "cust-quinn", lengthM: 9, beamM: 2.9, weightT: 3.2, storageStatus: "stored" },
-  { id: "ves-kingfisher", name: "Kingfisher", customerId: "cust-ortiz", lengthM: 8.2, beamM: 2.7, weightT: 2.8, storageStatus: "stored" },
-  { id: "ves-osprey", name: "Osprey", customerId: "cust-blake", lengthM: 9.4, beamM: 3.1, weightT: 3.6, storageStatus: "stored" },
-  { id: "ves-curlew", name: "Curlew", customerId: "cust-reed", lengthM: 7.5, beamM: 2.5, weightT: 2.2, storageStatus: "stored" },
-  { id: "ves-shearwater", name: "Shearwater", customerId: "cust-kim", lengthM: 8.8, beamM: 2.9, weightT: 3, storageStatus: "stored" },
-  { id: "ves-gannet", name: "Gannet", customerId: "cust-cole", lengthM: 8, beamM: 2.7, weightT: 2.6, storageStatus: "stored" },
-  { id: "ves-corsair", name: "Corsair", customerId: "cust-frost", lengthM: 15, beamM: 4.6, weightT: 12, storageStatus: "stored" },
+  vessel("ves-mako", "Mako", "cust-hale", 12.2, 3.8, 8, "stored", "2027-03-01"),
+  vessel("ves-sea-sprite", "Sea Sprite", "cust-voss", 11.5, 3.6, 7, "stored", "2027-01-15"),
+  vessel("ves-riviera", "Riviera", "cust-bridger", 13, 4, 10, "stored", "2026-12-01"),
+  vessel("ves-pelican", "Pelican", "cust-shah", 8.5, 2.8, 3, "stored", "2027-06-01"),
+  vessel("ves-tern", "Tern", "cust-chen", 7.8, 2.6, 2.5, "launched", "2027-02-01"),
+  vessel("ves-heron", "Heron", "cust-quinn", 9, 2.9, 3.2, "stored", "2026-07-01"),
+  vessel("ves-kingfisher", "Kingfisher", "cust-ortiz", 8.2, 2.7, 2.8, "stored", "2027-04-01"),
+  vessel("ves-osprey", "Osprey", "cust-blake", 9.4, 3.1, 3.6, "stored", "2027-05-01"),
+  vessel("ves-curlew", "Curlew", "cust-reed", 7.5, 2.5, 2.2, "stored", "2027-08-01"),
+  vessel("ves-shearwater", "Shearwater", "cust-kim", 8.8, 2.9, 3, "stored", "2027-09-01"),
+  vessel("ves-gannet", "Gannet", "cust-cole", 8, 2.7, 2.6, "stored", "2027-10-01"),
+  vessel("ves-corsair", "Corsair", "cust-frost", 15, 4.6, 12, "stored", "2027-01-01"),
 ];
 
 function checklistFrom(labels: string[]): { label: string; done: boolean }[] {
   return labels.map((label) => ({ label, done: false }));
+}
+
+function defaultPhotos(): Job["photos"] {
+  return [
+    { stage: "lift_out", done: false },
+    { stage: "relaunch", done: false },
+  ];
 }
 
 function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
@@ -196,8 +233,10 @@ function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
   return {
     typeId,
     location: "dockyard",
+    workBy: "marina",
     tcStatus: "not_sent",
     checklist: checklistFrom(jobType.checklist),
+    photos: defaultPhotos(),
     hours: [],
     materials: [],
     status: "open",
@@ -233,7 +272,12 @@ const RESERVATIONS: Reservation[] = [
     vesselId: "ves-sea-sprite",
     startDate: "2026-08-10",
     endDate: "2026-08-14",
-    job: jobFromType("jt-antifoul", { liftTime: "08:15", launchTime: "14:00" }),
+    job: jobFromType("jt-antifoul", {
+      liftTime: "08:15",
+      launchTime: "14:00",
+      launchDate: "2026-08-14",
+      workBy: "marina",
+    }),
   },
   {
     id: "res-h2-riviera",
@@ -243,7 +287,27 @@ const RESERVATIONS: Reservation[] = [
     vesselId: "ves-riviera",
     startDate: "2026-08-11",
     endDate: "2026-08-13",
-    job: jobFromType("jt-diy"),
+    job: jobFromType("jt-diy", {
+      workBy: "diy",
+      tcStatus: "sent",
+    }),
+  },
+  {
+    id: "res-h1-travel-lift",
+    status: "approved",
+    berthId: "berth-h1",
+    customerId: "cust-ortiz",
+    vesselId: "ves-kingfisher",
+    startDate: "2026-08-12",
+    endDate: "2026-08-13",
+    job: jobFromType("jt-travel-lift", {
+      liftTime: "09:00",
+      launchTime: "16:00",
+      launchDate: "2026-08-13",
+      workBy: "contractor",
+      contractorName: "Marine Works",
+      tcStatus: "sent",
+    }),
   },
   {
     id: "res-ds1-pelican",
@@ -310,7 +374,8 @@ const RESERVATIONS: Reservation[] = [
   },
 ];
 
-const SATURDAY = "2026-08-15";
+const SATURDAY = DEMO_SATURDAY;
+const FRIDAY = DEMO_FRIDAY;
 
 const LAUNCH_FLEET: { customerId: string; vesselId: string; berthId: string }[] = [
   { customerId: "cust-shah", vesselId: "ves-pelican", berthId: "berth-ds1" },
@@ -331,7 +396,8 @@ function makeLaunchTask(
   id: string,
   taskType: TaskType,
   client: { customerId: string; vesselId: string; berthId: string },
-  time: string
+  time: string,
+  extras: Partial<LaunchTask> = {}
 ): LaunchTask {
   return {
     id,
@@ -343,6 +409,8 @@ function makeLaunchTask(
     time,
     checklist: checklistFrom(taskType.checklist),
     status: "open",
+    source: "staff",
+    ...extras,
   };
 }
 
@@ -376,8 +444,105 @@ function buildSaturdayTasks(): LaunchTask[] {
     serial += 1;
   }
 
-  return tasks;
+  // Busy Friday customer requests (Western Port scenario)
+  const fridayRequests: LaunchTask[] = [
+    makeLaunchTask("lt-req-01", launchType, LAUNCH_FLEET[0], "08:00", {
+      date: FRIDAY,
+      status: "requested",
+      source: "customer",
+    }),
+    makeLaunchTask("lt-req-02", launchType, LAUNCH_FLEET[2], "08:30", {
+      date: FRIDAY,
+      status: "requested",
+      source: "customer",
+    }),
+    makeLaunchTask("lt-req-03", launchType, LAUNCH_FLEET[4], "09:00", {
+      date: FRIDAY,
+      status: "requested",
+      source: "customer",
+    }),
+    makeLaunchTask("lt-req-04", launchType, LAUNCH_FLEET[5], "09:30", {
+      date: FRIDAY,
+      status: "requested",
+      source: "customer",
+    }),
+    makeLaunchTask("lt-req-05", launchType, LAUNCH_FLEET[1], "10:00", {
+      date: FRIDAY,
+      status: "requested",
+      source: "customer",
+    }),
+  ];
+
+  return [...fridayRequests, ...tasks];
 }
+
+const PORTAL_LINKS: PortalLink[] = [
+  {
+    id: "plink-pelican",
+    token: "demo-pelican-portal",
+    customerId: "cust-shah",
+    createdAt: "2026-08-10T09:00:00.000Z",
+    expiresAt: "2027-12-31T23:59:59.000Z",
+  },
+  {
+    id: "plink-tern",
+    token: "demo-tern-portal",
+    customerId: "cust-chen",
+    createdAt: "2026-08-10T09:00:00.000Z",
+    expiresAt: "2027-12-31T23:59:59.000Z",
+  },
+  {
+    id: "plink-heron",
+    token: "demo-heron-portal",
+    customerId: "cust-quinn",
+    createdAt: "2026-08-10T09:00:00.000Z",
+    expiresAt: "2027-12-31T23:59:59.000Z",
+  },
+];
+
+const ACTIVITY: ActivityEvent[] = [
+  {
+    id: "act-1",
+    at: "2026-08-14T08:05:00.000Z",
+    actor: "customer",
+    message: "Requested Launch for 2026-08-14 08:00",
+    taskId: "lt-req-01",
+    vesselId: "ves-pelican",
+    customerId: "cust-shah",
+  },
+  {
+    id: "act-2",
+    at: "2026-08-12T10:00:00.000Z",
+    actor: "office",
+    message: "T&Cs sent to customer",
+    reservationId: "res-h1-travel-lift",
+    vesselId: "ves-kingfisher",
+    customerId: "cust-ortiz",
+  },
+];
+
+const MESSAGES: Message[] = [
+  {
+    id: "msg-1",
+    at: "2026-08-14T08:05:00.000Z",
+    customerId: "cust-shah",
+    channel: "sms",
+    template: "custom",
+    subject: "Request received",
+    body: "We received your launch request for 2026-08-14 at 08:00. The marina will confirm shortly.",
+    read: false,
+  },
+  {
+    id: "msg-2",
+    at: "2026-08-12T10:00:00.000Z",
+    customerId: "cust-ortiz",
+    channel: "email",
+    template: "tc_sent",
+    subject: "Please sign yard T&Cs",
+    body: "Please open your status link and sign the yard terms before we can lift your boat.",
+    read: false,
+  },
+];
 
 export function createSeedState(): MarinaState {
   return {
@@ -392,6 +557,9 @@ export function createSeedState(): MarinaState {
     reservations: RESERVATIONS,
     launchTasks: buildSaturdayTasks(),
     invoices: [],
+    portalLinks: PORTAL_LINKS,
+    activity: ACTIVITY,
+    messages: MESSAGES,
     selectedReservationId: null,
     selectedDate: SATURDAY,
   };

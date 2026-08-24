@@ -34,7 +34,6 @@ import {
   useSidebar,
 } from "../components/ui/sidebar";
 import { cn } from "../lib/utils";
-import { kindLabel } from "../lib/labels";
 import { useMarina } from "../store/marina-store";
 import { UserMenu } from "./user-menu";
 
@@ -63,6 +62,7 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { state } = useMarina();
   const pathname = location.pathname;
+  const pendingRequests = state.launchTasks.filter((task) => task.status === "requested").length;
 
   const navMain: NavItem[] = [
     {
@@ -90,7 +90,7 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
                 title: "Launch board",
                 url: "/operations/launch-board",
                 live: true,
-                badge: kindLabel("dry_storage", state.settings),
+                badge: pendingRequests > 0 ? String(pendingRequests) : undefined,
               },
             ]
           : []),

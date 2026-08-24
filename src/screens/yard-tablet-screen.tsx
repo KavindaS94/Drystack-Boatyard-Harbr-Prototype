@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { TabletJob } from "../components/tablet/tablet-job";
+import { DnlBadge } from "../components/dnl-badge";
+import { dnlStatus } from "../lib/dnl";
 import { useMarina } from "../store/marina-store";
 import type { Customer, Reservation, Vessel } from "../types/domain";
 
@@ -85,6 +87,7 @@ export function YardTabletScreen() {
                       const customer = state.customers.find((item) => item.id === reservation.customerId);
                       const berth = state.berths.find((item) => item.id === reservation.berthId);
                       const jobType = state.jobTypes.find((item) => item.id === reservation.job?.typeId);
+                      const dnl = dnlStatus(vessel, customer, state.settings);
                       if (!vessel || !customer || !berth) return null;
                       return (
                         <li key={reservation.id}>
@@ -94,7 +97,10 @@ export function YardTabletScreen() {
                             onClick={() => openJob(reservation.id)}
                             className="flex w-full flex-col items-start gap-0.5 py-3 text-left hover:bg-neutral-50"
                           >
-                            <span className="text-sm font-medium text-neutral-900">{vessel.name}</span>
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium text-neutral-900">{vessel.name}</span>
+                              <DnlBadge status={dnl} />
+                            </span>
                             <span className="text-xs text-neutral-500">
                               {customer.name} · {berth.name}
                               {jobType ? ` · ${jobType.name}` : ""}

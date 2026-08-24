@@ -48,6 +48,20 @@ export const DEMO_SCRIPTS: DemoScript[] = [
     steps:
       "A14 Shearwater is To be approved → Review Agreement → Approve → footer becomes View Agreement + Edit / Move / Archive (Archive blocked while a yard job is open).",
   },
+  {
+    id: "portal",
+    title: "Customer portal round trip",
+    to: "/portal/demo-pelican-portal",
+    steps:
+      "Open portal as Priya (Pelican) → request launch → staff Launch board Approve → Start → Done → portal shows In the water. Or from a reservation: Send status link → Open as customer.",
+  },
+  {
+    id: "dnl",
+    title: "Do not launch",
+    to: "/portal/demo-tern-portal",
+    steps:
+      "Tern (Mark Chen) is overdue → portal and board show Do not launch. Or Heron (Sarah Quinn) has expired insurance → update insurance on portal → block clears. Launch board Friday shows customer requests.",
+  },
 ];
 
 const SCRIPT_RESERVATION_IDS: Record<string, string> = {

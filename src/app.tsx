@@ -3,6 +3,7 @@ import { AppShell } from "./layout/app-shell";
 import { CalendarScreen } from "./screens/calendar-screen";
 import { DraftInvoiceScreen } from "./screens/draft-invoice-screen";
 import { LaunchBoardScreen } from "./screens/launch-board-screen";
+import { PortalScreen } from "./screens/portal-screen";
 import { SettingsScreen } from "./screens/settings-screen";
 import { YardTabletScreen } from "./screens/yard-tablet-screen";
 import { MarinaProvider } from "./store/marina-store";
@@ -12,6 +13,7 @@ function App() {
     <MarinaProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/portal/:token" element={<PortalScreen />} />
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/operations/calendar" replace />} />
             <Route path="/calendar" element={<Navigate to="/operations/calendar" replace />} />

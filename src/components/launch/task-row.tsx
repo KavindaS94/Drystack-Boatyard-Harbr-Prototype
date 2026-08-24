@@ -1,7 +1,9 @@
+import { dnlStatus } from "../../lib/dnl";
 import { statusAfterTaskDone } from "../../lib/status";
 import { useMarina } from "../../store/marina-store";
 import type { LaunchTask, TaskType, VesselStorageStatus } from "../../types/domain";
 import { toast } from "sonner";
+import { DnlBadge } from "../dnl-badge";
 
 interface TaskRowProps {
   task: LaunchTask;
@@ -23,6 +25,14 @@ const STATUS_BADGE: Record<VesselStorageStatus, string> = {
   departed: "bg-amber-50 text-amber-900",
 };
 
+const TASK_STATUS_LABEL: Record<LaunchTask["status"], string> = {
+  requested: "Requested",
+  open: "Scheduled",
+  in_progress: "In progress",
+  done: "Done",
+  declined: "Declined",
+};
+
 function illegalDoneMessage(kind: TaskType["kind"], current: VesselStorageStatus): string | null {
   if (kind === "other") return null;
   if (statusAfterTaskDone(kind, current) !== null) return null;
@@ -36,7 +46,7 @@ function illegalDoneMessage(kind: TaskType["kind"], current: VesselStorageStatus
 }
 
 export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowProps) {
-  const { state, toggleTaskCheck, markTaskDone, setVesselDeparted } = useMarina();
+  const { state, toggleTaskCheck, markTaskDone, startTask, setVesselDeparted } = useMarina();
   const taskType = state.taskTypes.find((item) => item.id === task.taskTypeId);
   const customer = state.customers.find((item) => item.id === task.customerId);
   const vessel = state.vessels.find((item) => item.id === task.vesselId);
@@ -49,8 +59,23 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
   const doneCount = task.checklist.filter((item) => item.done).length;
   const kind = taskType.kind;
   const storageStatus = vessel.storageStatus;
+  const dnl = dnlStatus(vessel, customer, state.settings);
+
+  function onStart() {
+    if (dnl.blocked) {
+      onError(`Cannot start — ${dnl.reasons.join("; ")}`);
+      return;
+    }
+    onError(null);
+    startTask(task.id);
+    toast.success(`${taskTypeName} started — customer notified`);
+  }
 
   function onMarkDone() {
+    if (dnl.blocked) {
+      onError(`Cannot mark done — ${dnl.reasons.join("; ")}`);
+      return;
+    }
     const message = illegalDoneMessage(kind, storageStatus);
     if (message) {
       onError(message);
@@ -76,6 +101,7 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
       data-task-time={task.time}
       data-task-status={task.status}
       data-storage-status={storageStatus}
+      data-dnl={dnl.blocked ? "blocked" : "clear"}
       className="rounded-lg border border-neutral-200 bg-white p-3"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -95,6 +121,10 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
           >
             {STATUS_LABEL[storageStatus]}
           </span>
+          <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-800">
+            {TASK_STATUS_LABEL[task.status]}
+          </span>
+          <DnlBadge status={dnl} />
           <span data-checklist-progress className="text-xs tabular-nums text-neutral-500">
             {doneCount}/{task.checklist.length}
           </span>
@@ -104,15 +134,27 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
           {task.status === "open" ? (
             <button
               type="button"
+              onClick={onStart}
+              data-start-task
+              disabled={dnl.blocked}
+              className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Start
+            </button>
+          ) : null}
+          {task.status === "open" || task.status === "in_progress" ? (
+            <button
+              type="button"
               onClick={onMarkDone}
               data-mark-done
-              className="rounded-md bg-[hsl(252,75%,70%)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[hsl(252,75%,60%)]"
+              disabled={dnl.blocked}
+              className="rounded-md bg-[hsl(252,75%,70%)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[hsl(252,75%,60%)] disabled:cursor-not-allowed disabled:bg-neutral-300"
             >
               Done
             </button>
-          ) : (
+          ) : task.status === "done" ? (
             <span className="rounded-md bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600">Done</span>
-          )}
+          ) : null}
           {storageStatus === "launched" ? (
             <button
               type="button"
@@ -128,6 +170,11 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
 
       {isOpen ? (
         <div className="mt-3 space-y-2 border-t border-neutral-100 pt-3" data-open-task>
+          {dnl.blocked ? (
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              Do not launch: {dnl.reasons.join("; ")}
+            </p>
+          ) : null}
           <p className="text-xs font-medium text-neutral-500">Checklist</p>
           <ul className="space-y-1">
             {task.checklist.map((item, index) => (
@@ -136,7 +183,7 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
                   <input
                     type="checkbox"
                     checked={item.done}
-                    disabled={task.status === "done"}
+                    disabled={task.status === "done" || task.status === "declined"}
                     onChange={() => toggleTaskCheck(task.id, index)}
                   />
                   {item.label}

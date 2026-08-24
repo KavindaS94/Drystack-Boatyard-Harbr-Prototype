@@ -20,6 +20,14 @@ const STATUS_TONE: Record<VesselStorageStatus, "neutral" | "success" | "warning"
   departed: "warning",
 };
 
+const TASK_STATUS_LABEL: Record<string, string> = {
+  requested: "Requested",
+  open: "Scheduled",
+  in_progress: "In progress",
+  done: "Done",
+  declined: "Declined",
+};
+
 export function DryStoragePanel({ vesselId, storageStatus }: DryStoragePanelProps) {
   const { state } = useMarina();
   const tasks = state.launchTasks
@@ -46,7 +54,8 @@ export function DryStoragePanel({ vesselId, storageStatus }: DryStoragePanelProp
               const taskType = state.taskTypes.find((item) => item.id === task.taskTypeId);
               return (
                 <li key={task.id} className="text-sm text-neutral-800">
-                  {task.time} · {taskType?.name ?? task.taskTypeId} · {task.status === "done" ? "Done" : "Open"}
+                  {task.time} · {taskType?.name ?? task.taskTypeId} ·{" "}
+                  {TASK_STATUS_LABEL[task.status] ?? task.status}
                 </li>
               );
             })}

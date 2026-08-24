@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { dnlStatus } from "../../lib/dnl";
 import { useMarina } from "../../store/marina-store";
 import type { LaunchTask } from "../../types/domain";
+import { DnlBadge } from "../dnl-badge";
+import { Button } from "../ui/button";
 import { TaskRow } from "./task-row";
 
 interface TaskListProps {
@@ -12,31 +16,48 @@ function sortByTime(tasks: LaunchTask[]): LaunchTask[] {
 }
 
 export function TaskList({ date }: TaskListProps) {
-  const { state } = useMarina();
+  const { state, approveRequest, declineRequest } = useMarina();
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { launchTasks, liftTasks, otherTasks } = useMemo(() => {
+  const { requests, runSheet, totals } = useMemo(() => {
     const dayTasks = state.launchTasks.filter((task) => task.date === date);
-    const launch: LaunchTask[] = [];
-    const lift: LaunchTask[] = [];
-    const other: LaunchTask[] = [];
+    const requested: LaunchTask[] = [];
+    const scheduled: LaunchTask[] = [];
+    let launches = 0;
+    let lifts = 0;
 
     for (const task of dayTasks) {
+      if (task.status === "requested") {
+        requested.push(task);
+        continue;
+      }
+      if (task.status === "declined") continue;
+      scheduled.push(task);
       const kind = state.taskTypes.find((item) => item.id === task.taskTypeId)?.kind;
-      if (kind === "retrieval") lift.push(task);
-      else if (kind === "other") other.push(task);
-      else launch.push(task);
+      if (kind === "retrieval") lifts += 1;
+      else if (kind !== "other") launches += 1;
+    }
+
+    const byTime = new Map<string, LaunchTask[]>();
+    for (const task of sortByTime(scheduled)) {
+      const group = byTime.get(task.time) ?? [];
+      group.push(task);
+      byTime.set(task.time, group);
     }
 
     return {
-      launchTasks: sortByTime(launch),
-      liftTasks: sortByTime(lift),
-      otherTasks: sortByTime(other),
+      requests: sortByTime(requested),
+      runSheet: [...byTime.entries()],
+      totals: {
+        launches,
+        lifts,
+        requested: requested.length,
+      },
     };
   }, [date, state.launchTasks, state.taskTypes]);
 
-  const rowCount = launchTasks.length + liftTasks.length + otherTasks.length;
+  const rowCount = runSheet.reduce((sum, [, tasks]) => sum + tasks.length, 0);
 
   function onToggleOpen(taskId: string) {
     setOpenTaskId((current) => (current === taskId ? null : taskId));
@@ -53,69 +74,91 @@ export function TaskList({ date }: TaskListProps) {
     });
   }
 
+  function onApprove(taskId: string) {
+    approveRequest(taskId);
+    toast.success("Request approved — customer notified");
+  }
+
+  function onDecline(taskId: string) {
+    const reason = window.prompt("Decline reason (shown to customer)", "No travel-lift slot available");
+    if (!reason) return;
+    declineRequest(taskId, reason);
+    toast.message("Request declined");
+  }
+
   return (
     <div className="flex flex-col gap-6" data-task-list data-task-count={rowCount}>
-      <p className="text-sm text-neutral-500">{rowCount} tasks</p>
-      <TaskGroup
-        title="Launch"
-        tasks={launchTasks}
-        openTaskId={openTaskId}
-        errors={errors}
-        onToggleOpen={onToggleOpen}
-        onError={onError}
-      />
-      <TaskGroup
-        title="Lift"
-        tasks={liftTasks}
-        openTaskId={openTaskId}
-        errors={errors}
-        onToggleOpen={onToggleOpen}
-        onError={onError}
-      />
-      {otherTasks.length > 0 ? (
-        <TaskGroup
-          title="Other"
-          tasks={otherTasks}
-          openTaskId={openTaskId}
-          errors={errors}
-          onToggleOpen={onToggleOpen}
-          onError={onError}
-        />
+      <p className="text-sm text-neutral-500" data-run-sheet-totals>
+        {totals.launches} launches · {totals.lifts} lifts
+        {totals.requested > 0 ? ` · ${totals.requested} customer requests` : ""}
+      </p>
+
+      {requests.length > 0 ? (
+        <section className="space-y-2" data-customer-requests>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-amber-700">
+            Customer requests
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {requests.map((task) => {
+              const taskType = state.taskTypes.find((item) => item.id === task.taskTypeId);
+              const customer = state.customers.find((item) => item.id === task.customerId);
+              const vessel = state.vessels.find((item) => item.id === task.vesselId);
+              const dnl =
+                vessel && customer
+                  ? dnlStatus(vessel, customer, state.settings)
+                  : { blocked: false, reasons: [] as string[] };
+              return (
+                <li
+                  key={task.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3"
+                  data-request-task={task.id}
+                >
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-800">
+                    <span className="font-semibold tabular-nums">{task.time}</span>
+                    <span>
+                      {taskType?.name ?? "Task"} · {customer?.name} · {vessel?.name}
+                    </span>
+                    <DnlBadge status={dnl} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={() => onDecline(task.id)}>
+                      Decline
+                    </Button>
+                    <Button type="button" size="sm" variant="harbr" onClick={() => onApprove(task.id)}>
+                      Approve
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       ) : null}
-    </div>
-  );
-}
 
-interface TaskGroupProps {
-  title: string;
-  tasks: LaunchTask[];
-  openTaskId: string | null;
-  errors: Record<string, string>;
-  onToggleOpen: (taskId: string) => void;
-  onError: (taskId: string, message: string | null) => void;
-}
-
-function TaskGroup({ title, tasks, openTaskId, errors, onToggleOpen, onError }: TaskGroupProps) {
-  return (
-    <section className="space-y-2" data-task-group={title.toLowerCase()}>
-      <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-500">{title}</h2>
-      {tasks.length === 0 ? (
-        <p className="text-sm text-neutral-500">None.</p>
+      {runSheet.length === 0 ? (
+        <p className="text-sm text-neutral-500">No scheduled launches or lifts.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {tasks.map((task) => (
-            <li key={task.id}>
-              <TaskRow
-                task={task}
-                isOpen={openTaskId === task.id}
-                error={errors[task.id]}
-                onToggleOpen={() => onToggleOpen(task.id)}
-                onError={(message) => onError(task.id, message)}
-              />
-            </li>
+        <div className="space-y-4" data-run-sheet>
+          {runSheet.map(([time, tasks]) => (
+            <section key={time} className="space-y-2" data-time-group={time}>
+              <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-500">{time}</h2>
+              <ul className="flex flex-col gap-2">
+                {tasks.map((task) => (
+                  <li key={task.id}>
+                    <TaskRow
+                      task={task}
+                      isOpen={openTaskId === task.id}
+                      error={errors[task.id]}
+                      onToggleOpen={() => onToggleOpen(task.id)}
+                      onError={(message) => onError(task.id, message)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
-    </section>
+    </div>
   );
 }

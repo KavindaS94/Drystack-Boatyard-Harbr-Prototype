@@ -62,6 +62,41 @@ export function WordsTab() {
           Hide prices for yard
         </label>
       </section>
+
+      <section className="space-y-3 rounded-md border border-border p-3">
+        <h2 className="text-sm font-semibold text-neutral-900">Do not launch</h2>
+        <label className="flex items-center gap-2 text-sm text-neutral-800">
+          <input
+            type="checkbox"
+            checked={settings.autoDnlOverdue}
+            onChange={(event) => updateSettings({ autoDnlOverdue: event.target.checked })}
+            data-auto-dnl-overdue
+          />
+          Auto-block when account is overdue
+        </label>
+        <label className="flex items-center gap-2 text-sm text-neutral-800">
+          <input
+            type="checkbox"
+            checked={settings.autoDnlInsurance}
+            onChange={(event) => updateSettings({ autoDnlInsurance: event.target.checked })}
+            data-auto-dnl-insurance
+          />
+          Auto-block when insurance is expired
+        </label>
+      </section>
+
+      <section className="space-y-3 rounded-md border border-border p-3">
+        <h2 className="text-sm font-semibold text-neutral-900">Customer portal</h2>
+        <label className="flex items-center gap-2 text-sm text-neutral-800">
+          <input
+            type="checkbox"
+            checked={settings.allowPortalRequests}
+            onChange={(event) => updateSettings({ allowPortalRequests: event.target.checked })}
+            data-allow-portal-requests
+          />
+          Allow customers to request launches
+        </label>
+      </section>
     </div>
   );
 }

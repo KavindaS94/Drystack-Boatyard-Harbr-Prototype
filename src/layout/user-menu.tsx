@@ -2,7 +2,7 @@ import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { createSeedState } from "../data/seed";
+import { DEMO_FRIDAY, DEMO_SATURDAY } from "../lib/demo-dates";
 import { DEMO_SCRIPTS, resolveDemoReservationId } from "../lib/demo-scripts";
 import { useMarina } from "../store/marina-store";
 import type { Role } from "../types/domain";
@@ -32,7 +32,14 @@ export function UserMenu() {
 
   function onScriptClick(scriptId: string) {
     if (scriptId === "saturday") {
-      setSelectedDate(createSeedState().selectedDate);
+      setSelectedDate(DEMO_SATURDAY);
+      return;
+    }
+    if (scriptId === "dnl") {
+      setSelectedDate(DEMO_FRIDAY);
+      return;
+    }
+    if (scriptId === "portal") {
       return;
     }
     const reservationId = resolveDemoReservationId(state, { script: scriptId, boat: null });
