@@ -3,6 +3,7 @@ import { statusAfterTaskDone } from "../../lib/status";
 import { useMarina } from "../../store/marina-store";
 import type { LaunchTask, TaskType, VesselStorageStatus } from "../../types/domain";
 import { toast } from "sonner";
+import { EditableChecklist } from "../checklist/editable-checklist";
 import { DnlBadge } from "../dnl-badge";
 
 interface TaskRowProps {
@@ -46,7 +47,7 @@ function illegalDoneMessage(kind: TaskType["kind"], current: VesselStorageStatus
 }
 
 export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowProps) {
-  const { state, toggleTaskCheck, markTaskDone, startTask, setVesselDeparted } = useMarina();
+  const { state, setTaskChecklist, markTaskDone, startTask, setVesselDeparted } = useMarina();
   const taskType = state.taskTypes.find((item) => item.id === task.taskTypeId);
   const customer = state.customers.find((item) => item.id === task.customerId);
   const vessel = state.vessels.find((item) => item.id === task.vesselId);
@@ -176,21 +177,13 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
             </p>
           ) : null}
           <p className="text-xs font-medium text-neutral-500">Checklist</p>
-          <ul className="space-y-1">
-            {task.checklist.map((item, index) => (
-              <li key={`${item.label}-${index}`}>
-                <label className="flex items-center gap-2 text-sm text-neutral-800">
-                  <input
-                    type="checkbox"
-                    checked={item.done}
-                    disabled={task.status === "done" || task.status === "declined"}
-                    onChange={() => toggleTaskCheck(task.id, index)}
-                  />
-                  {item.label}
-                </label>
-              </li>
-            ))}
-          </ul>
+          <EditableChecklist
+            items={task.checklist}
+            disabled={task.status === "done" || task.status === "declined"}
+            onChange={(checklist) => setTaskChecklist(task.id, checklist)}
+            addLabel="Add checklist item"
+            emptyHint="No items — add the checks for this task."
+          />
         </div>
       ) : null}
 

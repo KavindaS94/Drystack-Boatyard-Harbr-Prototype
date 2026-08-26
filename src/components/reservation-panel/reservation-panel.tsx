@@ -15,11 +15,13 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { DnlBadge } from "../dnl-badge";
 import { dnlStatus } from "../../lib/dnl";
 import { kindLabel } from "../../lib/labels";
+import { conflictDetailsForBerth } from "../../lib/availability";
 import {
   agreementPrimaryLabel,
   archiveBlockReason,
@@ -34,6 +36,7 @@ import type { MessageTemplate, Reservation, ReservationStatus } from "../../type
 import { DryStoragePanel } from "./dry-storage-panel";
 import { JobPanel } from "./job-panel";
 import { WetPanel } from "./wet-panel";
+import { ConflictModal } from "./conflict-modal";
 
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 
@@ -287,9 +290,11 @@ function SendMessageDialog({
 
 function SendPortalLinkDialog({
   customerId,
+  reservationId,
   onClose,
 }: {
   customerId: string;
+  reservationId: string;
   onClose: () => void;
 }) {
   const { createPortalLink } = useMarina();
@@ -298,7 +303,8 @@ function SendPortalLinkDialog({
 
   function onSend() {
     const link = createPortalLink(customerId);
-    setResult({ url: link.url, expiresAt: link.expiresAt });
+    const url = `${link.url}?focus=${encodeURIComponent(reservationId)}`;
+    setResult({ url, expiresAt: link.expiresAt });
     toast.success(`Status link sent via ${channel.toUpperCase()}`);
   }
 
@@ -386,10 +392,28 @@ function EditReservationModal({
   const [startDate, setStartDate] = useState(reservation.startDate);
   const [endDate, setEndDate] = useState(reservation.endDate);
   const [berthId, setBerthId] = useState(reservation.berthId);
+  const [conflict, setConflict] = useState<ReturnType<typeof conflictDetailsForBerth>>(null);
+
+  function occupancyLabel(id: string): string {
+    const taken = conflictDetailsForBerth(state.reservations, state.berths, id, startDate, endDate, reservation.id);
+    return taken ? " — unavailable" : "";
+  }
 
   function onSave() {
     if (startDate > endDate) {
       toast.error("End date must be on or after start date");
+      return;
+    }
+    const nextConflict = conflictDetailsForBerth(
+      state.reservations,
+      state.berths,
+      berthId,
+      startDate,
+      endDate,
+      reservation.id
+    );
+    if (nextConflict) {
+      setConflict(nextConflict);
       return;
     }
     updateReservation(reservation.id, { startDate, endDate, berthId });
@@ -432,6 +456,7 @@ function EditReservationModal({
               {sameKind.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
+                  {occupancyLabel(item.id)}
                 </option>
               ))}
             </select>
@@ -446,6 +471,126 @@ function EditReservationModal({
           </Button>
         </div>
       </div>
+      {conflict ? (
+        <ConflictModal
+          conflict={conflict}
+          onClose={() => setConflict(null)}
+          onViewCalendar={() => {
+            setConflict(null);
+            onClose();
+          }}
+        />
+      ) : null}
+    </div>,
+    document.body
+  );
+}
+
+function MoveReservationModal({
+  reservation,
+  onClose,
+}: {
+  reservation: Reservation;
+  onClose: () => void;
+}) {
+  const { state, updateReservation } = useMarina();
+  const [startDate, setStartDate] = useState(reservation.startDate);
+  const [endDate, setEndDate] = useState(reservation.endDate);
+  const [berthId, setBerthId] = useState(reservation.berthId);
+  const [conflict, setConflict] = useState<ReturnType<typeof conflictDetailsForBerth>>(null);
+
+  function occupancyLabel(id: string): string {
+    const taken = conflictDetailsForBerth(state.reservations, state.berths, id, startDate, endDate, reservation.id);
+    return taken ? " — unavailable" : "";
+  }
+
+  function onSave() {
+    if (startDate > endDate) {
+      toast.error("End date must be on or after start date");
+      return;
+    }
+    const nextConflict = conflictDetailsForBerth(
+      state.reservations,
+      state.berths,
+      berthId,
+      startDate,
+      endDate,
+      reservation.id
+    );
+    if (nextConflict) {
+      setConflict(nextConflict);
+      return;
+    }
+    updateReservation(reservation.id, { startDate, endDate, berthId });
+    toast.success("Reservation moved");
+    onClose();
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-4 shadow-lg" data-move-reservation-modal>
+        <h2 className="text-sm font-semibold text-neutral-900">Move reservation</h2>
+        <p className="mt-1 text-xs text-neutral-500">
+          Includes berths, {state.settings.boatyardLabel.toLowerCase()} pads, and {state.settings.dryStorageLabel.toLowerCase()}{" "}
+          racks. Occupied spaces show as unavailable.
+        </p>
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-neutral-500">Start</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+                className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-neutral-500">End</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+                className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+              />
+            </label>
+          </div>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-neutral-500">Move to</span>
+            <select
+              value={berthId}
+              onChange={(event) => setBerthId(event.target.value)}
+              data-move-berth-select
+              className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+            >
+              {state.berths.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} · {kindLabel(item.kind, state.settings)}
+                  {occupancyLabel(item.id)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="mt-4 flex gap-2">
+          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" variant="harbr" className="flex-1" onClick={onSave}>
+            Move
+          </Button>
+        </div>
+      </div>
+      {conflict ? (
+        <ConflictModal
+          conflict={conflict}
+          onClose={() => setConflict(null)}
+          onViewCalendar={() => {
+            setConflict(null);
+            onClose();
+          }}
+        />
+      ) : null}
     </div>,
     document.body
   );
@@ -454,10 +599,12 @@ function EditReservationModal({
 function FooterActions({
   reservation,
   onEdit,
+  onMove,
   onSendPortal,
 }: {
   reservation: Reservation;
   onEdit: () => void;
+  onMove: () => void;
   onSendPortal: () => void;
 }) {
   const { archiveReservation, setReservationStatus } = useMarina();
@@ -521,7 +668,7 @@ function FooterActions({
 
       {agreementOpen ? (
         <div className="mb-4 rounded-lg border border-border bg-neutral-50 p-3 text-sm">
-          <p className="font-medium text-neutral-900">Harbour Demo — berth agreement</p>
+          <p className="font-medium text-neutral-900">Harbr — berth agreement</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {status === "approved"
               ? "Signed. This is a read-only preview for the prototype."
@@ -559,7 +706,8 @@ function FooterActions({
               className="bg-white text-gray-700 hover:bg-gray-50"
               disabled={Boolean(moveReason)}
               title={moveReason ?? undefined}
-              onClick={() => inert("Berth-to-berth move")}
+              data-open-move
+              onClick={onMove}
             >
               Move
             </Button>
@@ -594,6 +742,7 @@ export function ReservationPanel() {
   const [mounted, setMounted] = useState(isOpen);
   const [portalOpen, setPortalOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
 
   useEffect(() => {
@@ -732,7 +881,7 @@ export function ReservationPanel() {
                   ) : null}
                 </InfoRow>
                 <InfoRow icon={<MapPin className="h-5 w-5" />}>
-                  Harbour Demo • {kindLabel(berth.kind, state.settings) === "Berth" ? "Berth" : kindLabel(berth.kind, state.settings)}{" "}
+                  Harbr • {kindLabel(berth.kind, state.settings) === "Berth" ? "Berth" : kindLabel(berth.kind, state.settings)}{" "}
                   {berth.name}
                   <span className="text-gray-500">
                     {" "}
@@ -797,6 +946,22 @@ export function ReservationPanel() {
 
                 <NotesBlock reservationId={reservation.id} notes={reservation.notes} />
 
+                {state.changeRequests.some(
+                  (item) => item.customerId === customer.id && item.status === "pending"
+                ) ? (
+                  <div
+                    className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                    data-pending-changes-notice
+                  >
+                    Pending changes (
+                    {state.changeRequests.filter((item) => item.customerId === customer.id && item.status === "pending").length}
+                    ) —{" "}
+                    <Link to="/dashboard/actions" className="font-medium underline">
+                      Review in Actions
+                    </Link>
+                  </div>
+                ) : null}
+
                 <CollapsibleBlock
                   title="Messages"
                   preview={messages[0] ? `${messages[0].subject} · ${messages.length} total` : "No messages yet"}
@@ -854,7 +1019,11 @@ export function ReservationPanel() {
                   />
                 ) : null}
                 {berth.kind === "dry_storage" ? (
-                  <DryStoragePanel vesselId={vessel.id} storageStatus={vessel.storageStatus} />
+                  <DryStoragePanel
+                    reservationId={reservation.id}
+                    vesselId={vessel.id}
+                    storageStatus={vessel.storageStatus}
+                  />
                 ) : null}
               </div>
             </div>
@@ -862,20 +1031,28 @@ export function ReservationPanel() {
             <FooterActions
               reservation={reservation}
               onEdit={() => setEditOpen(true)}
+              onMove={() => setMoveOpen(true)}
               onSendPortal={() => setPortalOpen(true)}
             />
           </div>
         )}
       </div>
 
-      {portalOpen && customer ? (
-        <SendPortalLinkDialog customerId={customer.id} onClose={() => setPortalOpen(false)} />
+      {portalOpen && customer && reservation ? (
+        <SendPortalLinkDialog
+          customerId={customer.id}
+          reservationId={reservation.id}
+          onClose={() => setPortalOpen(false)}
+        />
       ) : null}
       {messageOpen && customer ? (
         <SendMessageDialog customerId={customer.id} onClose={() => setMessageOpen(false)} />
       ) : null}
       {editOpen && reservation ? (
         <EditReservationModal reservation={reservation} onClose={() => setEditOpen(false)} />
+      ) : null}
+      {moveOpen && reservation ? (
+        <MoveReservationModal reservation={reservation} onClose={() => setMoveOpen(false)} />
       ) : null}
     </>
   );

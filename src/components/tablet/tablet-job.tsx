@@ -1,4 +1,6 @@
 import { DnlBadge } from "../dnl-badge";
+import { EditableChecklist } from "../checklist/editable-checklist";
+import { itemsFromLabels, photosFromLabels } from "../../lib/checklist";
 import { dnlStatus } from "../../lib/dnl";
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus } from "../../types/domain";
@@ -16,17 +18,6 @@ const TC_LABEL: Record<TcStatus, string> = {
   signed: "Signed",
 };
 
-function checklistFromType(jobType: JobType): Job["checklist"] {
-  return jobType.checklist.map((label) => ({ label, done: false }));
-}
-
-function defaultPhotos(): Job["photos"] {
-  return [
-    { stage: "lift_out", done: false },
-    { stage: "relaunch", done: false },
-  ];
-}
-
 function jobFromType(jobType: JobType, previous?: Job): Job {
   return {
     typeId: jobType.id,
@@ -38,8 +29,8 @@ function jobFromType(jobType: JobType, previous?: Job): Job {
     launchDate: previous?.launchDate,
     tcStatus: previous?.tcStatus ?? "not_sent",
     tcSignedAt: previous?.tcSignedAt,
-    checklist: checklistFromType(jobType),
-    photos: previous?.photos ?? defaultPhotos(),
+    checklist: itemsFromLabels(jobType.checklist),
+    photos: photosFromLabels(jobType.photoChecklist),
     hours: previous?.hours ?? [],
     materials: previous?.materials ?? [],
     status: previous?.status ?? "open",
@@ -47,7 +38,7 @@ function jobFromType(jobType: JobType, previous?: Job): Job {
 }
 
 export function TabletJob({ reservationId, onBack }: TabletJobProps) {
-  const { state, updateJob, addJobLine, toggleJobPhoto } = useMarina();
+  const { state, updateJob, addJobLine } = useMarina();
   const reservation = state.reservations.find((item) => item.id === reservationId);
   const job = reservation?.job;
   const jobType = state.jobTypes.find((item) => item.id === job?.typeId);
@@ -68,8 +59,9 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
   function onTypeChange(typeId: string) {
     const nextType = activeTypes.find((item) => item.id === typeId);
     if (!nextType || nextType.id === currentJob.typeId) return;
-    const hasTicks = currentJob.checklist.some((item) => item.done);
-    if (hasTicks && !window.confirm("Replace the checklist with the new type’s defaults?")) return;
+    const hasTicks =
+      currentJob.checklist.some((item) => item.done) || currentJob.photos.some((item) => item.done);
+    if (hasTicks && !window.confirm("Replace the checklist and photos with the new type’s defaults?")) return;
     applyJob(jobFromType(nextType, currentJob));
   }
 
@@ -142,46 +134,36 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
 
       <div>
         <p className="text-xs font-medium text-neutral-500">Checklist</p>
-        <ul className="mt-1.5 space-y-1">
-          {job.checklist.map((item, index) => (
-            <li key={`${item.label}-${index}`}>
-              <label className="flex items-center gap-2 text-sm text-neutral-800">
-                <input
-                  type="checkbox"
-                  checked={item.done}
-                  onChange={() => {
-                    applyJob({
-                      ...job,
-                      checklist: job.checklist.map((entry, i) =>
-                        i === index ? { ...entry, done: !entry.done } : entry
-                      ),
-                    });
-                  }}
-                />
-                {item.label}
-              </label>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-1.5">
+          <EditableChecklist
+            items={job.checklist}
+            onChange={(checklist) => applyJob({ ...job, checklist })}
+            addLabel="Add checklist item"
+            emptyHint="No items — add the checks for this job."
+          />
+        </div>
       </div>
 
       <div>
         <p className="text-xs font-medium text-neutral-500">QA photos</p>
-        <ul className="mt-1.5 space-y-1">
-          {job.photos.map((photo) => (
-            <li key={photo.stage}>
-              <label className="flex items-center gap-2 text-sm text-neutral-800">
-                <input
-                  type="checkbox"
-                  checked={photo.done}
-                  onChange={() => toggleJobPhoto(reservationId, photo.stage)}
-                  data-photo-stage={photo.stage}
-                />
-                📷 {photo.stage === "lift_out" ? "Lift-out photo taken" : "Relaunch photo taken"}
-              </label>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-1.5">
+          <EditableChecklist
+            items={job.photos}
+            prefix="📷"
+            onChange={(photos) =>
+              applyJob({
+                ...job,
+                photos: photos.map((item) => ({
+                  id: item.id ?? `photo-${crypto.randomUUID()}`,
+                  label: item.label,
+                  done: item.done,
+                })),
+              })
+            }
+            addLabel="Add photo item"
+            emptyHint="No photo prompts — add any this job needs."
+          />
+        </div>
       </div>
 
       <JobLines

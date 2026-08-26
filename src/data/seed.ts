@@ -1,4 +1,5 @@
 import { DEMO_FRIDAY, DEMO_SATURDAY } from "../lib/demo-dates";
+import { itemsFromLabels, photosFromLabels } from "../lib/checklist";
 import type {
   ActivityEvent,
   Berth,
@@ -35,7 +36,11 @@ const PRODUCTS: Product[] = [
   { id: "prod-disc-anode", name: "Disc anode", unitType: "UNIT", unitPrice: 45, bankAccount: "Holding", active: true },
   { id: "prod-travel-lift", name: "Travel lift", unitType: "UNIT", unitPrice: 350, bankAccount: "Holding", active: true },
   { id: "prod-boat-wash", name: "Boat wash", unitType: "UNIT", unitPrice: 80, bankAccount: "Holding", active: true },
+  { id: "prod-launch", name: "Launch", unitType: "UNIT", unitPrice: 85, bankAccount: "Marina", active: true },
+  { id: "prod-lift", name: "Lift", unitType: "UNIT", unitPrice: 85, bankAccount: "Marina", active: true },
 ];
+
+const QA_PHOTOS = ["Lift-out photo taken", "Relaunch photo taken"];
 
 const JOB_TYPES: JobType[] = [
   {
@@ -44,6 +49,7 @@ const JOB_TYPES: JobType[] = [
     colour: "#f59e0b",
     defaultDurationDays: 5,
     checklist: ["Wash hull", "Mask fittings", "Apply antifoul"],
+    photoChecklist: [...QA_PHOTOS],
     productIds: ["prod-labour-hour", "prod-disc-anode", "prod-dockyard-fee"],
     requiresTc: false,
     active: true,
@@ -54,6 +60,7 @@ const JOB_TYPES: JobType[] = [
     colour: "#3b82f6",
     defaultDurationDays: 3,
     checklist: ["Site induction", "Stands in place"],
+    photoChecklist: [...QA_PHOTOS],
     productIds: ["prod-labour-hour", "prod-dockyard-fee"],
     requiresTc: false,
     active: true,
@@ -64,6 +71,7 @@ const JOB_TYPES: JobType[] = [
     colour: "#14b8a6",
     defaultDurationDays: 1,
     checklist: ["Path clear", "Straps checked", "Lift complete"],
+    photoChecklist: [...QA_PHOTOS],
     productIds: ["prod-travel-lift", "prod-labour-hour"],
     requiresTc: true,
     active: true,
@@ -74,6 +82,7 @@ const JOB_TYPES: JobType[] = [
     colour: "#0ea5e9",
     defaultDurationDays: 2,
     checklist: ["Isolate batteries", "Drain coolant", "Service log"],
+    photoChecklist: [],
     productIds: ["prod-labour-hour"],
     requiresTc: false,
     active: true,
@@ -86,6 +95,7 @@ const TASK_TYPES: TaskType[] = [
     name: "Launch",
     kind: "launch",
     checklist: ["Check straps", "Engine ok"],
+    productId: "prod-launch",
     active: true,
   },
   {
@@ -93,6 +103,7 @@ const TASK_TYPES: TaskType[] = [
     name: "Lift",
     kind: "retrieval",
     checklist: ["Rinse hull", "Secure stands"],
+    productId: "prod-lift",
     active: true,
   },
 ];
@@ -206,26 +217,15 @@ const VESSELS: Vessel[] = [
   vessel("ves-sea-sprite", "Sea Sprite", "cust-voss", 11.5, 3.6, 7, "stored", "2027-01-15"),
   vessel("ves-riviera", "Riviera", "cust-bridger", 13, 4, 10, "stored", "2026-12-01"),
   vessel("ves-pelican", "Pelican", "cust-shah", 8.5, 2.8, 3, "stored", "2027-06-01"),
-  vessel("ves-tern", "Tern", "cust-chen", 7.8, 2.6, 2.5, "launched", "2027-02-01"),
+  vessel("ves-tern", "Tern", "cust-chen", 7.8, 2.6, 2.5, "stored", "2027-02-01"),
   vessel("ves-heron", "Heron", "cust-quinn", 9, 2.9, 3.2, "stored", "2026-07-01"),
   vessel("ves-kingfisher", "Kingfisher", "cust-ortiz", 8.2, 2.7, 2.8, "stored", "2027-04-01"),
-  vessel("ves-osprey", "Osprey", "cust-blake", 9.4, 3.1, 3.6, "stored", "2027-05-01"),
+  vessel("ves-osprey", "Osprey", "cust-blake", 9.4, 3.1, 3.6, "launched", "2027-05-01"),
   vessel("ves-curlew", "Curlew", "cust-reed", 7.5, 2.5, 2.2, "stored", "2027-08-01"),
   vessel("ves-shearwater", "Shearwater", "cust-kim", 8.8, 2.9, 3, "stored", "2027-09-01"),
   vessel("ves-gannet", "Gannet", "cust-cole", 8, 2.7, 2.6, "stored", "2027-10-01"),
   vessel("ves-corsair", "Corsair", "cust-frost", 15, 4.6, 12, "stored", "2027-01-01"),
 ];
-
-function checklistFrom(labels: string[]): { label: string; done: boolean }[] {
-  return labels.map((label) => ({ label, done: false }));
-}
-
-function defaultPhotos(): Job["photos"] {
-  return [
-    { stage: "lift_out", done: false },
-    { stage: "relaunch", done: false },
-  ];
-}
 
 function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
   const jobType = JOB_TYPES.find((t) => t.id === typeId);
@@ -235,8 +235,8 @@ function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
     location: "dockyard",
     workBy: "marina",
     tcStatus: "not_sent",
-    checklist: checklistFrom(jobType.checklist),
-    photos: defaultPhotos(),
+    checklist: itemsFromLabels(jobType.checklist),
+    photos: photosFromLabels(jobType.photoChecklist),
     hours: [],
     materials: [],
     status: "open",
@@ -407,7 +407,7 @@ function makeLaunchTask(
     berthId: client.berthId,
     date: SATURDAY,
     time,
-    checklist: checklistFrom(taskType.checklist),
+    checklist: itemsFromLabels(taskType.checklist),
     status: "open",
     source: "staff",
     ...extras,
@@ -420,6 +420,7 @@ function buildSaturdayTasks(): LaunchTask[] {
   if (!launchType || !retrievalType) throw new Error("Launch and Lift task types are required");
 
   const pelican = LAUNCH_FLEET[0];
+  const osprey = LAUNCH_FLEET[4];
   const tasks: LaunchTask[] = [
     makeLaunchTask("lt-01", launchType, pelican, "09:00"),
     makeLaunchTask("lt-02", retrievalType, pelican, "15:00"),
@@ -438,25 +439,23 @@ function buildSaturdayTasks(): LaunchTask[] {
     const taskType = slot % 2 === 0 ? launchType : retrievalType;
     const key = `${client.vesselId}|${taskType.id}|${time}`;
     slot += 1;
+    if (client.vesselId === pelican.vesselId || client.vesselId === osprey.vesselId) continue;
     if (reserved.has(key)) continue;
     reserved.add(key);
     tasks.push(makeLaunchTask(`lt-${String(serial).padStart(2, "0")}`, taskType, client, time));
     serial += 1;
   }
 
-  // Busy Friday customer requests (Western Port scenario)
+  // Busy Friday customer requests (Western Port). Pelican is left off so the
+  // portal round-trip can place her request live. Osprey is in the water, arriving
+  // for storage — her Lift is the “onto the rack” demo.
   const fridayRequests: LaunchTask[] = [
-    makeLaunchTask("lt-req-01", launchType, LAUNCH_FLEET[0], "08:00", {
+    makeLaunchTask("lt-in-osprey", retrievalType, osprey, "08:00", {
       date: FRIDAY,
-      status: "requested",
-      source: "customer",
+      status: "open",
+      source: "staff",
     }),
     makeLaunchTask("lt-req-02", launchType, LAUNCH_FLEET[2], "08:30", {
-      date: FRIDAY,
-      status: "requested",
-      source: "customer",
-    }),
-    makeLaunchTask("lt-req-03", launchType, LAUNCH_FLEET[4], "09:00", {
       date: FRIDAY,
       status: "requested",
       source: "customer",
@@ -502,15 +501,6 @@ const PORTAL_LINKS: PortalLink[] = [
 
 const ACTIVITY: ActivityEvent[] = [
   {
-    id: "act-1",
-    at: "2026-08-14T08:05:00.000Z",
-    actor: "customer",
-    message: "Requested Launch for 2026-08-14 08:00",
-    taskId: "lt-req-01",
-    vesselId: "ves-pelican",
-    customerId: "cust-shah",
-  },
-  {
     id: "act-2",
     at: "2026-08-12T10:00:00.000Z",
     actor: "office",
@@ -522,16 +512,6 @@ const ACTIVITY: ActivityEvent[] = [
 ];
 
 const MESSAGES: Message[] = [
-  {
-    id: "msg-1",
-    at: "2026-08-14T08:05:00.000Z",
-    customerId: "cust-shah",
-    channel: "sms",
-    template: "custom",
-    subject: "Request received",
-    body: "We received your launch request for 2026-08-14 at 08:00. The marina will confirm shortly.",
-    read: false,
-  },
   {
     id: "msg-2",
     at: "2026-08-12T10:00:00.000Z",
@@ -558,9 +538,10 @@ export function createSeedState(): MarinaState {
     launchTasks: buildSaturdayTasks(),
     invoices: [],
     portalLinks: PORTAL_LINKS,
+    changeRequests: [],
     activity: ACTIVITY,
     messages: MESSAGES,
     selectedReservationId: null,
-    selectedDate: SATURDAY,
+    selectedDate: FRIDAY,
   };
 }

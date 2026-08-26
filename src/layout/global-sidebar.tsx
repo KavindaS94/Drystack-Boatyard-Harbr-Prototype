@@ -63,6 +63,9 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
   const { state } = useMarina();
   const pathname = location.pathname;
   const pendingRequests = state.launchTasks.filter((task) => task.status === "requested").length;
+  const pendingActions =
+    state.changeRequests.filter((item) => item.status === "pending").length +
+    state.reservations.filter((item) => item.status === "to_be_approved").length;
 
   const navMain: NavItem[] = [
     {
@@ -71,7 +74,7 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
       icon: LayoutDashboard,
       items: [
         { title: "Insights", url: "/dashboard/insights" },
-        { title: "Actions", url: "/dashboard/actions" },
+        { title: "Actions", url: "/dashboard/actions", live: true, badge: pendingActions > 0 ? String(pendingActions) : undefined },
       ],
     },
     {
@@ -130,6 +133,7 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
         { title: "Marina Connect", url: "/settings/external-integration" },
         { title: "Integrations", url: "/settings/payments" },
         { title: "Activity Log", url: "/settings/activity-log" },
+        { title: "Demo routines", url: "/settings/demo-routines", live: true },
       ],
     },
   ];
@@ -164,7 +168,7 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
                   <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-[hsl(252,75%,70%)] text-[11px] font-bold text-white">
                     H
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">Harbour Demo</span>
+                  <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">Harbr</span>
                   <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
                 </button>
               </div>

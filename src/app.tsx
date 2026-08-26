@@ -3,7 +3,9 @@ import { AppShell } from "./layout/app-shell";
 import { CalendarScreen } from "./screens/calendar-screen";
 import { DraftInvoiceScreen } from "./screens/draft-invoice-screen";
 import { LaunchBoardScreen } from "./screens/launch-board-screen";
+import { ActionsScreen } from "./screens/actions-screen";
 import { PortalScreen } from "./screens/portal-screen";
+import { DemoRoutinesScreen } from "./screens/demo-routines-screen";
 import { SettingsScreen } from "./screens/settings-screen";
 import { YardTabletScreen } from "./screens/yard-tablet-screen";
 import { MarinaProvider } from "./store/marina-store";
@@ -20,10 +22,12 @@ function App() {
             <Route path="/launch-board" element={<Navigate to="/operations/launch-board" replace />} />
             <Route path="/tablet" element={<Navigate to="/operations/tablet" replace />} />
             <Route path="/settings" element={<Navigate to="/settings/general-info" replace />} />
+            <Route path="/dashboard/actions" element={<ActionsScreen />} />
             <Route path="/operations/calendar" element={<CalendarScreen />} />
             <Route path="/operations/launch-board" element={<LaunchBoardScreen />} />
             <Route path="/operations/tablet" element={<YardTabletScreen />} />
             <Route path="/settings/general-info" element={<SettingsScreen />} />
+            <Route path="/settings/demo-routines" element={<DemoRoutinesScreen />} />
             <Route path="/invoices/:id" element={<DraftInvoiceScreen />} />
           </Route>
         </Routes>

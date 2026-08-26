@@ -1,4 +1,4 @@
-import type { BankAccount, DraftInvoice, Product, Reservation } from "../types/domain";
+import type { BankAccount, DraftInvoice, LaunchTask, Product, Reservation, TaskType } from "../types/domain";
 
 const WET_RENT_PRODUCT_ID = "prod-wet-night";
 const DOCKYARD_FEE_PRODUCT_ID = "prod-dockyard-fee";
@@ -55,6 +55,25 @@ export function draftFromJob(
   }
 
   return lines;
+}
+
+export function draftFromLaunchTasks(
+  tasks: LaunchTask[],
+  taskTypes: TaskType[],
+  products: Product[]
+): DraftInvoice["lines"] {
+  const grouped = new Map<string, { product: Product; qty: number }>();
+  for (const task of tasks) {
+    const taskType = taskTypes.find((item) => item.id === task.taskTypeId);
+    const productId = taskType?.productId;
+    if (!productId) continue;
+    const product = products.find((item) => item.id === productId);
+    if (!product) continue;
+    const current = grouped.get(product.id);
+    if (current) current.qty += 1;
+    else grouped.set(product.id, { product, qty: 1 });
+  }
+  return [...grouped.values()].map(({ product, qty }) => toInvoiceLine(product, qty));
 }
 
 export function invoiceBankBanner(lines: DraftInvoice["lines"]): BankAccount | "Mixed" {

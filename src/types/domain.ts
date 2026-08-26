@@ -23,6 +23,8 @@ export type MessageTemplate =
   | "tc_sent"
   | "contractor_notified"
   | "relaunch_moved"
+  | "change_approved"
+  | "change_rejected"
   | "custom";
 
 export interface Product {
@@ -40,6 +42,8 @@ export interface JobType {
   colour: string;
   defaultDurationDays: number;
   checklist: string[];
+  /** QA photo prompts copied onto each new job. Empty = none unless staff add some on the job. */
+  photoChecklist: string[];
   productIds: string[];
   requiresTc: boolean;
   active: boolean;
@@ -96,7 +100,8 @@ export interface JobLine {
 }
 
 export interface JobPhoto {
-  stage: "lift_out" | "relaunch";
+  id: string;
+  label: string;
   done: boolean;
 }
 
@@ -144,6 +149,7 @@ export interface LaunchTask {
   status: LaunchTaskStatus;
   source: LaunchTaskSource;
   declineReason?: string;
+  invoiceId?: string;
 }
 
 export interface DraftInvoice {
@@ -151,6 +157,26 @@ export interface DraftInvoice {
   reservationId?: string;
   customerId: string;
   lines: { productId: string; qty: number; unitPrice: number; bankAccount: BankAccount }[];
+}
+
+export type ChangeRequestStatus = "pending" | "approved" | "rejected";
+
+export interface ChangeRequestField {
+  key: string;
+  label: string;
+  from: string;
+  to: string;
+}
+
+export interface ChangeRequest {
+  id: string;
+  customerId: string;
+  vesselId?: string;
+  createdAt: string;
+  status: ChangeRequestStatus;
+  fields: ChangeRequestField[];
+  rejectReason?: string;
+  resolvedAt?: string;
 }
 
 export interface PortalLink {
@@ -208,6 +234,7 @@ export interface MarinaState {
   launchTasks: LaunchTask[];
   invoices: DraftInvoice[];
   portalLinks: PortalLink[];
+  changeRequests: ChangeRequest[];
   activity: ActivityEvent[];
   messages: Message[];
   selectedReservationId: string | null;

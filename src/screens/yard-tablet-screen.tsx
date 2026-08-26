@@ -87,8 +87,8 @@ export function YardTabletScreen() {
                       const customer = state.customers.find((item) => item.id === reservation.customerId);
                       const berth = state.berths.find((item) => item.id === reservation.berthId);
                       const jobType = state.jobTypes.find((item) => item.id === reservation.job?.typeId);
-                      const dnl = dnlStatus(vessel, customer, state.settings);
                       if (!vessel || !customer || !berth) return null;
+                      const dnl = dnlStatus(vessel, customer, state.settings);
                       return (
                         <li key={reservation.id}>
                           <button

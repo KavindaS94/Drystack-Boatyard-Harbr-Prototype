@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { TemplateChecklist } from "../checklist/editable-checklist";
+import { trimChecklist } from "../../lib/checklist";
 import { useMarina } from "../../store/marina-store";
 import type { TaskType } from "../../types/domain";
 
@@ -7,15 +9,9 @@ const KINDS: TaskType["kind"][] = ["launch", "retrieval", "other"];
 const EMPTY = {
   name: "",
   kind: "launch" as TaskType["kind"],
-  checklistText: "",
+  checklist: [] as string[],
+  productId: "",
 };
-
-function linesFromText(value: string): string[] {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
 
 export function TaskTypesTab() {
   const { state, upsertTaskType } = useMarina();
@@ -32,7 +28,8 @@ export function TaskTypesTab() {
     setForm({
       name: taskType.name,
       kind: taskType.kind,
-      checklistText: taskType.checklist.join("\n"),
+      checklist: [...taskType.checklist],
+      productId: taskType.productId ?? "",
     });
   }
 
@@ -43,15 +40,15 @@ export function TaskTypesTab() {
       id: editingId ?? `tt-${crypto.randomUUID()}`,
       name: form.name.trim(),
       kind: form.kind,
-      checklist: linesFromText(form.checklistText),
-      productId: existing?.productId,
+      checklist: trimChecklist(form.checklist),
+      productId: form.productId || undefined,
       active: existing?.active ?? true,
     });
     resetForm();
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_20rem]" data-settings-tab="task-types">
+    <div className="grid gap-6 lg:grid-cols-[1fr_22rem]" data-settings-tab="task-types">
       <ul className="space-y-2">
         {state.taskTypes.map((taskType) => (
           <li key={taskType.id}>
@@ -66,7 +63,13 @@ export function TaskTypesTab() {
               }`}
             >
               <span className="text-sm font-medium text-neutral-900">{taskType.name}</span>
-              <span className="text-xs capitalize text-muted-foreground">{taskType.kind}</span>
+              <span className="text-xs capitalize text-muted-foreground">
+                {taskType.kind}
+                {(() => {
+                  const product = state.products.find((item) => item.id === taskType.productId);
+                  return product ? ` · ${product.name}` : " · no product";
+                })()}
+              </span>
             </button>
           </li>
         ))}
@@ -82,6 +85,9 @@ export function TaskTypesTab() {
         <h2 className="text-sm font-semibold text-neutral-900">
           {editingId ? "Edit task type" : "Add task type"}
         </h2>
+        <p className="text-xs text-muted-foreground">
+          New launch/lift tasks copy this list. You can still add or change items on a single task.
+        </p>
         <label className="block space-y-1">
           <span className="text-xs font-medium text-muted-foreground">Name</span>
           <input
@@ -108,14 +114,30 @@ export function TaskTypesTab() {
           </select>
         </label>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Checklist (one line each)</span>
-          <textarea
-            rows={3}
-            value={form.checklistText}
-            onChange={(event) => setForm((prev) => ({ ...prev, checklistText: event.target.value }))}
-            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
-          />
+          <span className="text-xs font-medium text-muted-foreground">Invoice product</span>
+          <select
+            value={form.productId}
+            onChange={(event) => setForm((prev) => ({ ...prev, productId: event.target.value }))}
+            className="w-full rounded-md border border-border bg-white px-2 py-1.5 text-sm"
+          >
+            <option value="">None — not billed</option>
+            {state.products
+              .filter((product) => product.active)
+              .map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name} ({product.bankAccount})
+                </option>
+              ))}
+          </select>
         </label>
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Checklist</span>
+          <TemplateChecklist
+            items={form.checklist}
+            onChange={(checklist) => setForm((prev) => ({ ...prev, checklist }))}
+            addLabel="Add checklist item"
+          />
+        </div>
         <div className="flex gap-2">
           {editingId ? (
             <button

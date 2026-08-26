@@ -2,6 +2,8 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { EditableChecklist } from "../checklist/editable-checklist";
+import { itemsFromLabels, photosFromLabels } from "../../lib/checklist";
 import { draftFromJob, invoiceBannerText } from "../../lib/invoice";
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus, WorkBy } from "../../types/domain";
@@ -24,17 +26,6 @@ const WORK_BY_LABEL: Record<WorkBy, string> = {
   contractor: "Contractor",
 };
 
-function checklistFromType(jobType: JobType): Job["checklist"] {
-  return jobType.checklist.map((label) => ({ label, done: false }));
-}
-
-function defaultPhotos(): Job["photos"] {
-  return [
-    { stage: "lift_out", done: false },
-    { stage: "relaunch", done: false },
-  ];
-}
-
 function jobFromType(jobType: JobType, previous?: Job): Job {
   return {
     typeId: jobType.id,
@@ -46,8 +37,8 @@ function jobFromType(jobType: JobType, previous?: Job): Job {
     launchDate: previous?.launchDate,
     tcStatus: previous?.tcStatus ?? "not_sent",
     tcSignedAt: previous?.tcSignedAt,
-    checklist: checklistFromType(jobType),
-    photos: previous?.photos ?? defaultPhotos(),
+    checklist: itemsFromLabels(jobType.checklist),
+    photos: photosFromLabels(jobType.photoChecklist),
     hours: previous?.hours ?? [],
     materials: previous?.materials ?? [],
     status: previous?.status ?? "open",
@@ -65,7 +56,6 @@ export function JobPanel({ reservationId }: JobPanelProps) {
     assignContractor,
     notifyContractor,
     rescheduleRelaunch,
-    toggleJobPhoto,
   } = useMarina();
   const reservation = state.reservations.find((item) => item.id === reservationId);
   const berth = state.berths.find((item) => item.id === reservation?.berthId);
@@ -96,8 +86,9 @@ export function JobPanel({ reservationId }: JobPanelProps) {
   function onTypeChange(typeId: string) {
     const nextType = activeTypes.find((item) => item.id === typeId);
     if (!nextType || nextType.id === currentJob.typeId) return;
-    const hasTicks = currentJob.checklist.some((item) => item.done);
-    if (hasTicks && !window.confirm("Replace the checklist with the new type’s defaults?")) return;
+    const hasTicks =
+      currentJob.checklist.some((item) => item.done) || currentJob.photos.some((item) => item.done);
+    if (hasTicks && !window.confirm("Replace the checklist and photos with the new type’s defaults?")) return;
     applyJob(jobFromType(nextType, currentJob));
   }
 
@@ -318,46 +309,36 @@ export function JobPanel({ reservationId }: JobPanelProps) {
 
           <div>
             <p className="text-xs font-medium text-neutral-500">Checklist</p>
-            <ul className="mt-1.5 space-y-1">
-              {job.checklist.map((item, index) => (
-                <li key={`${item.label}-${index}`}>
-                  <label className="flex items-center gap-2 text-sm text-neutral-800">
-                    <input
-                      type="checkbox"
-                      checked={item.done}
-                      onChange={() => {
-                        applyJob({
-                          ...job,
-                          checklist: job.checklist.map((entry, i) =>
-                            i === index ? { ...entry, done: !entry.done } : entry
-                          ),
-                        });
-                      }}
-                    />
-                    {item.label}
-                  </label>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-1.5">
+              <EditableChecklist
+                items={job.checklist}
+                onChange={(checklist) => applyJob({ ...job, checklist })}
+                addLabel="Add checklist item"
+                emptyHint="No items — add the checks for this job."
+              />
+            </div>
           </div>
 
           {job.location === "dockyard" ? (
             <div>
               <p className="text-xs font-medium text-neutral-500">QA photos</p>
-              <ul className="mt-1.5 space-y-1">
-                {job.photos.map((photo) => (
-                  <li key={photo.stage}>
-                    <label className="flex items-center gap-2 text-sm text-neutral-800">
-                      <input
-                        type="checkbox"
-                        checked={photo.done}
-                        onChange={() => toggleJobPhoto(reservationId, photo.stage)}
-                      />
-                      {photo.stage === "lift_out" ? "Lift-out photo taken" : "Relaunch photo taken"}
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-1.5">
+                <EditableChecklist
+                  items={job.photos}
+                  onChange={(photos) =>
+                    applyJob({
+                      ...job,
+                      photos: photos.map((item) => ({
+                        id: item.id ?? `photo-${crypto.randomUUID()}`,
+                        label: item.label,
+                        done: item.done,
+                      })),
+                    })
+                  }
+                  addLabel="Add photo item"
+                  emptyHint="No photo prompts — add any this job needs."
+                />
+              </div>
             </div>
           ) : null}
 
@@ -387,8 +368,18 @@ export function JobPanel({ reservationId }: JobPanelProps) {
                 variant="outline"
                 className="w-full"
                 onClick={() => {
+                  const includeDockyardFee = job.location === "dockyard";
+                  const previewLines = draftFromJob(reservation, state.products, includeDockyardFee);
+                  if (previewLines.length === 0) {
+                    toast.error("Add hours or materials first");
+                    return;
+                  }
                   const invoiceId = createDraftFromJob(reservationId);
-                  toast.success(invoiceBannerText(draftFromJob(reservation, state.products, true)));
+                  if (!invoiceId) {
+                    toast.error("Add hours or materials first");
+                    return;
+                  }
+                  toast.success(invoiceBannerText(previewLines));
                   navigate(`/invoices/${invoiceId}`);
                 }}
               >

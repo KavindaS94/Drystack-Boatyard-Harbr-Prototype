@@ -1,11 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createInitialStoreState, clearDemoState, loadDemoState, saveDemoState, DEMO_STORAGE_KEY, type PersistedDemoState } from "../lib/demo-persist";
+import { itemsFromLabels, photosFromLabels } from "../lib/checklist";
 import { dnlStatus } from "../lib/dnl";
-import { draftFromJob } from "../lib/invoice";
+import { draftFromJob, draftFromLaunchTasks } from "../lib/invoice";
+import { conflictDetailsForBerth } from "../lib/availability";
 import { statusAfterTaskDone } from "../lib/status";
 import type {
   ActivityActor,
   ActivityEvent,
+  ChangeRequestField,
   Job,
   JobType,
   Message,
@@ -57,6 +60,12 @@ export interface SendMessageInput {
   body: string;
 }
 
+export interface SubmitChangeRequestInput {
+  customerId: string;
+  vesselId?: string;
+  fields: ChangeRequestField[];
+}
+
 export interface UpdateReservationInput {
   startDate?: string;
   endDate?: string;
@@ -81,9 +90,11 @@ export interface MarinaStore {
   addAfloatJob: (reservationId: string) => void;
   addJobLine: (reservationId: string, kind: "hours" | "materials", productId: string, qty: number) => void;
   createDraftFromJob: (reservationId: string) => string;
+  createDraftFromDryStack: (reservationId: string) => string;
   sendToYard: (input: SendToYardInput) => void;
   addLaunchTask: (input: AddLaunchTaskInput) => void;
   toggleTaskCheck: (taskId: string, index: number) => void;
+  setTaskChecklist: (taskId: string, checklist: { label: string; done: boolean }[]) => void;
   markTaskDone: (taskId: string) => void;
   startTask: (taskId: string) => void;
   requestLaunch: (input: RequestLaunchInput) => string;
@@ -97,11 +108,13 @@ export interface MarinaStore {
   signTc: (reservationId: string) => void;
   sendTc: (reservationId: string) => void;
   updateInsuranceExpiry: (vesselId: string, expiry: string) => void;
+  submitChangeRequest: (input: SubmitChangeRequestInput) => string;
+  approveChangeRequest: (id: string) => void;
+  rejectChangeRequest: (id: string, reason: string) => void;
   setDnlOverride: (vesselId: string, active: boolean, reason: string) => void;
   assignContractor: (reservationId: string, workBy: WorkBy, contractorName?: string) => void;
   notifyContractor: (reservationId: string) => void;
   rescheduleRelaunch: (reservationId: string, launchDate: string, launchTime?: string) => void;
-  toggleJobPhoto: (reservationId: string, stage: "lift_out" | "relaunch") => void;
   sendMessage: (input: SendMessageInput) => void;
   updateReservation: (reservationId: string, patch: UpdateReservationInput) => void;
   updateNotes: (reservationId: string, notes: string) => void;
@@ -124,13 +137,6 @@ function addDaysIso(days: number): string {
   return date.toISOString();
 }
 
-function defaultPhotos(): Job["photos"] {
-  return [
-    { stage: "lift_out", done: false },
-    { stage: "relaunch", done: false },
-  ];
-}
-
 function jobFromType(
   jobType: JobType,
   liftTime?: string,
@@ -142,8 +148,8 @@ function jobFromType(
     workBy: "marina",
     liftTime,
     tcStatus: "not_sent",
-    checklist: jobType.checklist.map((label) => ({ label, done: false })),
-    photos: defaultPhotos(),
+    checklist: itemsFromLabels(jobType.checklist),
+    photos: photosFromLabels(jobType.photoChecklist),
     hours: [],
     materials: [],
     status: "open",
@@ -340,11 +346,52 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
     const current = stateRef.current;
     const reservation = current.reservations.find((item) => item.id === reservationId);
     if (!reservation) throw new Error(`Unknown reservation ${reservationId}`);
-    const lines = draftFromJob(reservation, current.products, true);
+    const includeDockyardFee = reservation.job?.location === "dockyard";
+    const lines = draftFromJob(reservation, current.products, includeDockyardFee);
+    if (lines.length === 0) return "";
     const id = newId("inv");
     setState((prev) => ({
       ...prev,
       invoices: [...prev.invoices, { id, reservationId, customerId: reservation.customerId, lines }],
+      activity: [
+        makeActivity(actorFromRole(prev.role), "Draft invoice created", {
+          reservationId,
+          customerId: reservation.customerId,
+        }),
+        ...prev.activity,
+      ],
+    }));
+    return id;
+  }, []);
+
+  const createDraftFromDryStack = useCallback((reservationId: string) => {
+    const current = stateRef.current;
+    const reservation = current.reservations.find((item) => item.id === reservationId);
+    if (!reservation) throw new Error(`Unknown reservation ${reservationId}`);
+    const billable = current.launchTasks.filter(
+      (task) =>
+        task.vesselId === reservation.vesselId &&
+        task.status === "done" &&
+        !task.invoiceId
+    );
+    const lines = draftFromLaunchTasks(billable, current.taskTypes, current.products);
+    if (lines.length === 0) return "";
+    const id = newId("inv");
+    const billedIds = new Set(
+      billable
+        .filter((task) => {
+          const taskType = current.taskTypes.find((item) => item.id === task.taskTypeId);
+          const productId = taskType?.productId;
+          return Boolean(productId && current.products.some((product) => product.id === productId));
+        })
+        .map((task) => task.id)
+    );
+    setState((prev) => ({
+      ...prev,
+      invoices: [...prev.invoices, { id, reservationId, customerId: reservation.customerId, lines }],
+      launchTasks: prev.launchTasks.map((task) =>
+        billedIds.has(task.id) ? { ...task, invoiceId: id } : task
+      ),
       activity: [
         makeActivity(actorFromRole(prev.role), "Draft invoice created", {
           reservationId,
@@ -361,6 +408,15 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       const wet = prev.reservations.find((item) => item.id === input.wetReservationId);
       const jobType = prev.jobTypes.find((item) => item.id === input.jobTypeId);
       if (!wet || !jobType) return prev;
+      const occupied = conflictDetailsForBerth(
+        prev.reservations,
+        prev.berths,
+        input.yardBerthId,
+        input.start,
+        input.end,
+        wet.id
+      );
+      if (occupied) return prev;
       const job = jobFromType(jobType, input.liftTime);
       const actor = actorFromRole(prev.role);
 
@@ -436,7 +492,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
             berthId: input.berthId,
             date: input.date,
             time: input.time,
-            checklist: taskType.checklist.map((label) => ({ label, done: false })),
+            checklist: itemsFromLabels(taskType.checklist),
             status: "open",
             source: input.source ?? "staff",
           },
@@ -474,7 +530,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
             berthId: input.berthId,
             date: input.date,
             time: input.time,
-            checklist: taskType.checklist.map((label) => ({ label, done: false })),
+            checklist: itemsFromLabels(taskType.checklist),
             status: "requested",
             source: "customer",
           },
@@ -576,6 +632,13 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
           checklist: task.checklist.map((item, i) => (i === index ? { ...item, done: !item.done } : item)),
         };
       }),
+    }));
+  }, []);
+
+  const setTaskChecklist = useCallback((taskId: string, checklist: { label: string; done: boolean }[]) => {
+    setState((prev) => ({
+      ...prev,
+      launchTasks: prev.launchTasks.map((task) => (task.id === taskId ? { ...task, checklist } : task)),
     }));
   }, []);
 
@@ -825,6 +888,149 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const submitChangeRequest = useCallback((input: SubmitChangeRequestInput) => {
+    const id = newId("cr");
+    setState((prev) => {
+      const customer = prev.customers.find((item) => item.id === input.customerId);
+      const vessel = input.vesselId
+        ? prev.vessels.find((item) => item.id === input.vesselId)
+        : undefined;
+      const scopeKey = input.vesselId ?? "";
+      const remaining = prev.changeRequests.filter(
+        (item) =>
+          !(
+            item.customerId === input.customerId &&
+            (item.vesselId ?? "") === scopeKey &&
+            item.status === "pending"
+          )
+      );
+      const summary = input.fields.map((field) => field.label).join(", ");
+      return {
+        ...prev,
+        changeRequests: [
+          {
+            id,
+            customerId: input.customerId,
+            vesselId: input.vesselId,
+            createdAt: nowIso(),
+            status: "pending",
+            fields: input.fields,
+          },
+          ...remaining,
+        ],
+        activity: [
+          makeActivity(
+            "customer",
+            `Submitted changes for marina approval: ${summary}${vessel ? ` (${vessel.name})` : ""}`,
+            { customerId: input.customerId, vesselId: input.vesselId }
+          ),
+          ...prev.activity,
+        ],
+        messages: [
+          makeMessage({
+            customerId: input.customerId,
+            channel: "email",
+            template: "custom",
+            subject: "Changes submitted",
+            body: `${customer?.name ?? "You"} submitted ${summary} for marina approval.`,
+          }),
+          ...prev.messages,
+        ],
+      };
+    });
+    return id;
+  }, []);
+
+  const approveChangeRequest = useCallback((id: string) => {
+    setState((prev) => {
+      const request = prev.changeRequests.find((item) => item.id === id);
+      if (!request || request.status !== "pending") return prev;
+      const resolvedAt = nowIso();
+      const customers = prev.customers.map((customer) => {
+        if (customer.id !== request.customerId) return customer;
+        const next = { ...customer };
+        for (const field of request.fields) {
+          if (field.key === "name") next.name = field.to;
+          if (field.key === "email") next.email = field.to;
+          if (field.key === "phone") next.phone = field.to;
+        }
+        return next;
+      });
+      const vessels = prev.vessels.map((vessel) => {
+        if (request.vesselId && vessel.id !== request.vesselId) return vessel;
+        if (!request.vesselId && vessel.customerId !== request.customerId) return vessel;
+        const insurance = request.fields.find((field) => field.key === "insuranceExpiry");
+        if (!insurance) return vessel;
+        if (request.vesselId || vessel.id === request.vesselId) {
+          return { ...vessel, insuranceExpiry: insurance.to };
+        }
+        return vessel;
+      });
+      const summary = request.fields.map((field) => field.label).join(", ");
+      return {
+        ...prev,
+        customers,
+        vessels,
+        changeRequests: prev.changeRequests.map((item) =>
+          item.id === id ? { ...item, status: "approved" as const, resolvedAt } : item
+        ),
+        activity: [
+          makeActivity(
+            actorFromRole(prev.role),
+            `Approved owner changes: ${summary}`,
+            { customerId: request.customerId, vesselId: request.vesselId }
+          ),
+          ...prev.activity,
+        ],
+        messages: [
+          makeMessage({
+            customerId: request.customerId,
+            channel: "email",
+            template: "change_approved",
+            subject: "Your changes were approved",
+            body: "Your changes were approved and are now on your account.",
+          }),
+          ...prev.messages,
+        ],
+      };
+    });
+  }, []);
+
+  const rejectChangeRequest = useCallback((id: string, reason: string) => {
+    const trimmed = reason.trim();
+    if (!trimmed) return;
+    setState((prev) => {
+      const request = prev.changeRequests.find((item) => item.id === id);
+      if (!request || request.status !== "pending") return prev;
+      return {
+        ...prev,
+        changeRequests: prev.changeRequests.map((item) =>
+          item.id === id
+            ? { ...item, status: "rejected" as const, rejectReason: trimmed, resolvedAt: nowIso() }
+            : item
+        ),
+        activity: [
+          makeActivity(
+            actorFromRole(prev.role),
+            `Rejected owner changes: ${trimmed}`,
+            { customerId: request.customerId, vesselId: request.vesselId }
+          ),
+          ...prev.activity,
+        ],
+        messages: [
+          makeMessage({
+            customerId: request.customerId,
+            channel: "email",
+            template: "change_rejected",
+            subject: "Please resubmit your changes",
+            body: `The marina could not approve your changes: ${trimmed}. Please edit and resubmit.`,
+          }),
+          ...prev.messages,
+        ],
+      };
+    });
+  }, []);
+
   const setDnlOverride = useCallback((vesselId: string, active: boolean, reason: string) => {
     setState((prev) => {
       const vessel = prev.vessels.find((item) => item.id === vesselId);
@@ -949,19 +1155,6 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const toggleJobPhoto = useCallback((reservationId: string, stage: "lift_out" | "relaunch") => {
-    setState((prev) => ({
-      ...prev,
-      reservations: prev.reservations.map((item) => {
-        if (item.id !== reservationId || !item.job) return item;
-        const photos = item.job.photos.map((photo) =>
-          photo.stage === stage ? { ...photo, done: !photo.done } : photo
-        );
-        return { ...item, job: { ...item.job, photos } };
-      }),
-    }));
-  }, []);
-
   const sendMessage = useCallback((input: SendMessageInput) => {
     setState((prev) => ({
       ...prev,
@@ -976,16 +1169,32 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateReservation = useCallback((reservationId: string, patch: UpdateReservationInput) => {
-    setState((prev) => ({
-      ...prev,
-      reservations: prev.reservations.map((item) =>
-        item.id === reservationId ? { ...item, ...patch } : item
-      ),
-      activity: [
-        makeActivity(actorFromRole(prev.role), "Reservation edited", { reservationId }),
-        ...prev.activity,
-      ],
-    }));
+    setState((prev) => {
+      const current = prev.reservations.find((item) => item.id === reservationId);
+      if (!current) return prev;
+      const nextBerthId = patch.berthId ?? current.berthId;
+      const nextStart = patch.startDate ?? current.startDate;
+      const nextEnd = patch.endDate ?? current.endDate;
+      const occupied = conflictDetailsForBerth(
+        prev.reservations,
+        prev.berths,
+        nextBerthId,
+        nextStart,
+        nextEnd,
+        reservationId
+      );
+      if (occupied) return prev;
+      return {
+        ...prev,
+        reservations: prev.reservations.map((item) =>
+          item.id === reservationId ? { ...item, ...patch } : item
+        ),
+        activity: [
+          makeActivity(actorFromRole(prev.role), "Reservation edited", { reservationId }),
+          ...prev.activity,
+        ],
+      };
+    });
   }, []);
 
   const updateNotes = useCallback((reservationId: string, notes: string) => {
@@ -1023,9 +1232,11 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       addAfloatJob,
       addJobLine,
       createDraftFromJob,
+      createDraftFromDryStack,
       sendToYard,
       addLaunchTask,
       toggleTaskCheck,
+      setTaskChecklist,
       markTaskDone,
       startTask,
       requestLaunch,
@@ -1039,11 +1250,13 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       signTc,
       sendTc,
       updateInsuranceExpiry,
+      submitChangeRequest,
+      approveChangeRequest,
+      rejectChangeRequest,
       setDnlOverride,
       assignContractor,
       notifyContractor,
       rescheduleRelaunch,
-      toggleJobPhoto,
       sendMessage,
       updateReservation,
       updateNotes,
@@ -1065,9 +1278,11 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       addAfloatJob,
       addJobLine,
       createDraftFromJob,
+      createDraftFromDryStack,
       sendToYard,
       addLaunchTask,
       toggleTaskCheck,
+      setTaskChecklist,
       markTaskDone,
       startTask,
       requestLaunch,
@@ -1081,11 +1296,13 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       signTc,
       sendTc,
       updateInsuranceExpiry,
+      submitChangeRequest,
+      approveChangeRequest,
+      rejectChangeRequest,
       setDnlOverride,
       assignContractor,
       notifyContractor,
       rescheduleRelaunch,
-      toggleJobPhoto,
       sendMessage,
       updateReservation,
       updateNotes,

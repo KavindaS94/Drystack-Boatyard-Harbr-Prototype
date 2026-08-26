@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
+import { conflictDetailsForBerth, datesOverlap } from "../../lib/availability";
 import { useMarina, type SendToYardInput } from "../../store/marina-store";
+import type { Berth, Reservation } from "../../types/domain";
+import { ConflictModal } from "./conflict-modal";
 
 interface SendToYardModalProps {
   reservationId: string;
@@ -18,6 +21,25 @@ function addDays(iso: string, days: number): string {
   return `${date.getFullYear()}-${nextMonth}-${nextDay}`;
 }
 
+function firstFreeYardBerth(
+  berths: Berth[],
+  reservations: Reservation[],
+  start: string,
+  end: string
+): string {
+  const live = reservations.filter((item) => item.status !== "archived");
+  const unused = berths.find((berth) => !live.some((item) => item.berthId === berth.id));
+  if (unused) return unused.id;
+  const freeForDates = berths.find(
+    (berth) =>
+      !live.some(
+        (item) =>
+          item.berthId === berth.id && datesOverlap(item.startDate, item.endDate, start, end)
+      )
+  );
+  return freeForDates?.id ?? berths[0]?.id ?? "";
+}
+
 export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendToYardModalProps) {
   const { state, sendToYard } = useMarina();
   const reservation = state.reservations.find((item) => item.id === reservationId);
@@ -28,17 +50,36 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
   );
   const jobTypes = useMemo(() => state.jobTypes.filter((item) => item.active), [state.jobTypes]);
 
-  const [yardBerthId, setYardBerthId] = useState(yardBerths[0]?.id ?? "");
-  const [start, setStart] = useState(reservation?.startDate ?? state.selectedDate);
-  const [end, setEnd] = useState(reservation?.endDate ?? state.selectedDate);
-  const [jobTypeId, setJobTypeId] = useState(jobTypes[0]?.id ?? "");
-  const [liftTime, setLiftTime] = useState("");
+  const preferredType = jobTypes.find((item) => item.requiresTc) ?? jobTypes[0];
+  const initialStart = reservation?.startDate ?? state.selectedDate;
+  const initialEnd = addDays(initialStart, Math.max(preferredType?.defaultDurationDays ?? 1, 1) - 1);
+
+  const [yardBerthId, setYardBerthId] = useState(() =>
+    firstFreeYardBerth(yardBerths, state.reservations, initialStart, initialEnd)
+  );
+  const [start, setStart] = useState(initialStart);
+  const [end, setEnd] = useState(initialEnd);
+  const [jobTypeId, setJobTypeId] = useState(preferredType?.id ?? "");
+  const [liftTime, setLiftTime] = useState("09:00");
   const [mode, setMode] = useState<SendToYardInput["mode"]>("keep_wet");
+  const [conflict, setConflict] = useState<ReturnType<typeof conflictDetailsForBerth>>(null);
 
   const yardBerth = yardBerths.find((berth) => berth.id === yardBerthId);
   const jobType = jobTypes.find((item) => item.id === jobTypeId);
   const isTooLong = Boolean(vessel && yardBerth && vessel.lengthM > yardBerth.lengthM);
   const canConfirm = Boolean(reservation && yardBerth && jobType && start && end && start <= end);
+
+  function occupancyLabel(berthId: string): string {
+    const taken = conflictDetailsForBerth(
+      state.reservations,
+      state.berths,
+      berthId,
+      start,
+      end,
+      reservationId
+    );
+    return taken ? " — unavailable" : "";
+  }
 
   function onJobTypeChange(nextId: string) {
     setJobTypeId(nextId);
@@ -48,6 +89,18 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
 
   function onConfirm() {
     if (!canConfirm) return;
+    const nextConflict = conflictDetailsForBerth(
+      state.reservations,
+      state.berths,
+      yardBerthId,
+      start,
+      end,
+      reservationId
+    );
+    if (nextConflict) {
+      setConflict(nextConflict);
+      return;
+    }
     sendToYard({ wetReservationId: reservationId, yardBerthId, start, end, jobTypeId, liftTime, mode });
     toast.success(`Sent to ${boatyardLabel}`);
     onClose();
@@ -77,11 +130,12 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
             <select
               value={yardBerthId}
               onChange={(event) => setYardBerthId(event.target.value)}
+              data-yard-berth-select
               className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
             >
               {yardBerths.map((berth) => (
                 <option key={berth.id} value={berth.id}>
-                  {berth.name} · {berth.lengthM} m
+                  {berth.name} · {berth.lengthM} m{occupancyLabel(berth.id)}
                 </option>
               ))}
             </select>
@@ -187,6 +241,16 @@ export function SendToYardModal({ reservationId, boatyardLabel, onClose }: SendT
           </button>
         </div>
       </div>
+      {conflict ? (
+        <ConflictModal
+          conflict={conflict}
+          onClose={() => setConflict(null)}
+          onViewCalendar={() => {
+            setConflict(null);
+            onClose();
+          }}
+        />
+      ) : null}
     </div>,
     document.body
   );

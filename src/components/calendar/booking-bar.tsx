@@ -84,7 +84,13 @@ export function BookingBar({
   const dnl =
     vessel && customer ? dnlStatus(vessel, customer, state.settings) : { blocked: false, reasons: [] };
   const label = bookingBarLabel(vesselName, reservation.job, jobType?.name);
-  const tone = barTone(berthKind, reservation.job ? jobType : undefined);
+  const tone = dnl.blocked
+    ? {
+        backgroundColor: "hsl(0, 86%, 96%)",
+        border: "1px solid hsl(0, 70%, 80%)",
+        color: "hsl(0, 70%, 32%)",
+      }
+    : barTone(berthKind, reservation.job ? jobType : undefined);
   const workTag = reservation.job ? WORK_BY_TAG[reservation.job.workBy] : "";
 
   return (
@@ -94,20 +100,26 @@ export function BookingBar({
       data-reservation-id={reservation.id}
       data-dnl={dnl.blocked ? "blocked" : "clear"}
       onClick={() => onSelect(reservation.id)}
-      className={`absolute top-1.5 bottom-1.5 truncate rounded-[4px] px-2 text-left text-xs font-medium transition-shadow ${
+      className={`absolute top-1.5 bottom-1.5 flex items-center gap-1 overflow-hidden rounded-[4px] px-2 text-left text-xs font-medium transition-shadow ${
         selected
           ? "z-10 ring-2 ring-[hsl(252,75%,70%)] ring-offset-1"
           : "hover:brightness-[0.97] hover:shadow-sm"
-      } ${dnl.blocked ? "ring-1 ring-red-400" : ""}`}
+      }`}
       style={{
         left: `calc(${(startOffset / 7) * 100}% + 3px)`,
         width: `calc(${(span / 7) * 100}% - 6px)`,
         ...tone,
       }}
     >
-      {dnl.blocked ? "🚫 " : ""}
-      {label}
-      {workTag ? ` · ${workTag}` : ""}
+      <span className="min-w-0 truncate">
+        {label}
+        {workTag ? ` · ${workTag}` : ""}
+      </span>
+      {dnl.blocked ? (
+        <span className="shrink-0 rounded bg-red-100 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-red-800">
+          Do not launch
+        </span>
+      ) : null}
     </button>
   );
 }

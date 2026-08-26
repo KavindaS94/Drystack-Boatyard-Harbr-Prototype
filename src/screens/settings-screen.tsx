@@ -50,7 +50,7 @@ export function SettingsScreen() {
             id: "task-types" as const,
             label: "Task types",
             title: "Launch / lift task types",
-            description: "The tasks the ground crew logs — launch, lift, or the marina's own, each with a checklist.",
+            description: "The tasks the ground crew logs — launch, lift, or the marina's own, each with a checklist and the product billed when Office creates a draft.",
           },
         ]
       : []),

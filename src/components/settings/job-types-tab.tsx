@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { TemplateChecklist } from "../checklist/editable-checklist";
+import { trimChecklist } from "../../lib/checklist";
 import { useMarina } from "../../store/marina-store";
 import type { JobType } from "../../types/domain";
 
@@ -6,17 +8,11 @@ const EMPTY = {
   name: "",
   colour: "#22c55e",
   defaultDurationDays: 1,
-  checklistText: "",
+  checklist: [] as string[],
+  photoChecklist: [] as string[],
   requiresTc: false,
   productIds: [] as string[],
 };
-
-function linesFromText(value: string): string[] {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
 
 export function JobTypesTab() {
   const { state, upsertJobType } = useMarina();
@@ -34,7 +30,8 @@ export function JobTypesTab() {
       name: jobType.name,
       colour: jobType.colour,
       defaultDurationDays: jobType.defaultDurationDays,
-      checklistText: jobType.checklist.join("\n"),
+      checklist: [...jobType.checklist],
+      photoChecklist: [...(jobType.photoChecklist ?? [])],
       requiresTc: jobType.requiresTc,
       productIds: jobType.productIds,
     });
@@ -48,7 +45,8 @@ export function JobTypesTab() {
       name: form.name.trim(),
       colour: form.colour,
       defaultDurationDays: Math.max(1, form.defaultDurationDays),
-      checklist: linesFromText(form.checklistText),
+      checklist: trimChecklist(form.checklist),
+      photoChecklist: trimChecklist(form.photoChecklist),
       productIds: form.productIds,
       requiresTc: form.requiresTc,
       active: existing?.active ?? true,
@@ -66,7 +64,7 @@ export function JobTypesTab() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_20rem]" data-settings-tab="job-types">
+    <div className="grid gap-6 lg:grid-cols-[1fr_22rem]" data-settings-tab="job-types">
       <ul className="space-y-2">
         {state.jobTypes.map((jobType) => (
           <li key={jobType.id}>
@@ -86,6 +84,7 @@ export function JobTypesTab() {
                 <span className="block text-xs text-muted-foreground">
                   {jobType.defaultDurationDays} day{jobType.defaultDurationDays === 1 ? "" : "s"}
                   {jobType.requiresTc ? " · Requires T&Cs" : ""}
+                  {` · ${jobType.checklist.length} checks`}
                 </span>
               </span>
             </button>
@@ -103,6 +102,9 @@ export function JobTypesTab() {
         <h2 className="text-sm font-semibold text-neutral-900">
           {editingId ? "Edit job type" : "Add job type"}
         </h2>
+        <p className="text-xs text-muted-foreground">
+          New jobs copy these lists. You can still add or change items on a single job.
+        </p>
         <label className="block space-y-1">
           <span className="text-xs font-medium text-muted-foreground">Name</span>
           <input
@@ -136,15 +138,23 @@ export function JobTypesTab() {
             />
           </label>
         </div>
-        <label className="block space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Checklist (one line each)</span>
-          <textarea
-            rows={3}
-            value={form.checklistText}
-            onChange={(event) => setForm((prev) => ({ ...prev, checklistText: event.target.value }))}
-            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Checklist</span>
+          <TemplateChecklist
+            items={form.checklist}
+            onChange={(checklist) => setForm((prev) => ({ ...prev, checklist }))}
+            addLabel="Add checklist item"
           />
-        </label>
+        </div>
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">QA photos</span>
+          <TemplateChecklist
+            items={form.photoChecklist}
+            onChange={(photoChecklist) => setForm((prev) => ({ ...prev, photoChecklist }))}
+            addLabel="Add photo item"
+            emptyHint="No photo prompts — add any this marina wants ticked on the job."
+          />
+        </div>
         <label className="flex items-center gap-2 text-sm text-neutral-800">
           <input
             type="checkbox"
