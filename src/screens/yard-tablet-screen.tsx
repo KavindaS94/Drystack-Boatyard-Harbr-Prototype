@@ -1,12 +1,10 @@
 import { useMemo, useState } from "react";
 import { TabletJob } from "../components/tablet/tablet-job";
 import { DnlBadge } from "../components/dnl-badge";
+import { DEMO_TODAY } from "../lib/demo-dates";
 import { dnlStatus } from "../lib/dnl";
 import { useMarina } from "../store/marina-store";
 import type { Customer, Reservation, Vessel } from "../types/domain";
-
-/** Demo “today” so the calendar-week jobs (Sea Sprite, Riviera) appear. */
-const TABLET_TODAY = "2026-08-12";
 
 function includesDay(reservation: Reservation, day: string): boolean {
   return reservation.startDate <= day && reservation.endDate >= day;
@@ -38,7 +36,7 @@ export function YardTabletScreen() {
         if (!reservation.job) return false;
         const berth = state.berths.find((item) => item.id === reservation.berthId);
         if (berth?.kind !== "boatyard") return false;
-        return includesDay(reservation, TABLET_TODAY) || includesDay(reservation, state.selectedDate);
+        return includesDay(reservation, DEMO_TODAY) || includesDay(reservation, state.selectedDate);
       })
       .filter((reservation) => {
         const vessel = state.vessels.find((item) => item.id === reservation.vesselId);

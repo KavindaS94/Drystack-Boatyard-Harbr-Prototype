@@ -58,7 +58,7 @@ export const DEMO_ROUTINES: DemoRoutine[] = [
     extra: { label: "Open Pelican portal (new tab)", href: "/portal/demo-pelican-portal", newTab: true },
     steps: [
       "Keep this tab on the Calendar. Open the Pelican portal in a second tab.",
-      "Owner: Request a launch, date 14 Aug 2026, Send request.",
+      "Owner: Request a launch, date today, Send request.",
       "Staff: Launch board. Requests tab — Pelican. Approve — she moves onto the Launch tab. Start, then Done.",
       "Owner status goes Launching now → In the water.",
       "Calendar → Pelican → Create draft invoice (Launch, Marina).",
@@ -87,7 +87,7 @@ export const DEMO_ROUTINES: DemoRoutine[] = [
     openLabel: "Open Saturday board",
     to: "/operations/launch-board?script=saturday",
     steps: [
-      "Date becomes 15 Aug 2026. About 25 launches and 25 lifts, on the Launch and Lift tabs.",
+      "Date becomes this Saturday. About 25 launches and 25 lifts, on the Launch and Lift tabs.",
       "Use Pelican: Launch tab 09:00 Launch → Start → Done (Stored → Launched). Departed. Lift tab 15:00 Lift → Start → Done (Stored).",
       "Calendar → Pelican → Create draft invoice. Launch + Lift. Banner Marina.",
       "If Pelican is already in the water from an earlier demo, Reset demo first.",

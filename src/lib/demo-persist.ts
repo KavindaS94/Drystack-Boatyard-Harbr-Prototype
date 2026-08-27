@@ -1,5 +1,6 @@
 import { DEFAULT_CHECKLIST_CATEGORIES, DEFAULT_QA_PHOTOS, migrateChecklistItem, migrateChecklistOptions, migrateJobPhoto } from "./checklist";
 import { createSeedState } from "../data/seed";
+import { DEMO_TODAY, DEMO_WEEK_END, DEMO_WEEK_START } from "./demo-dates";
 import type { JobType, MarinaState, SpaceKind } from "../types/domain";
 import { withReservationDefaults } from "./reservation-footer";
 
@@ -66,6 +67,7 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
         : [...DEFAULT_KIND_FILTER],
     selectedReservationId:
       parsed.selectedReservationId === "res-ds5-osprey" ? "res-a10-osprey" : parsed.selectedReservationId,
+    selectedDate: DEMO_TODAY,
     portalLinks: Array.isArray(parsed.portalLinks) ? parsed.portalLinks : seed.portalLinks,
     changeRequests: Array.isArray(parsed.changeRequests) ? parsed.changeRequests : seed.changeRequests,
     activity: Array.isArray(parsed.activity) ? parsed.activity : seed.activity,
@@ -132,9 +134,11 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
       .filter((task) => task.id !== "lt-in-osprey")
       .map((task) => {
       const taskType = seed.taskTypes.find((item) => item.id === task.taskTypeId);
+      const seededTask = seed.launchTasks.find((item) => item.id === task.id);
       const fallback = taskType?.kind === "retrieval" ? "Lift" : "Launch";
       return {
         ...task,
+        date: seededTask?.date ?? task.date,
         source: task.source ?? ("staff" as const),
         invoiceId: task.invoiceId,
         checklist: Array.isArray(task.checklist)
@@ -145,9 +149,27 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
     reservations: (parsed.reservations ?? seed.reservations).map((reservation) => {
       const relocated =
         ospreyStillOnRack && reservation.id === "res-ds5-osprey"
-          ? { ...reservation, id: "res-a10-osprey", berthId: "berth-a10", startDate: "2026-08-10", endDate: "2026-08-16" }
+          ? {
+              ...reservation,
+              id: "res-a10-osprey",
+              berthId: "berth-a10",
+              startDate: DEMO_WEEK_START,
+              endDate: DEMO_WEEK_END,
+            }
           : reservation;
-      const withDefaults = withReservationDefaults(relocated);
+      const seeded = seed.reservations.find((item) => item.id === relocated.id);
+      const dated = seeded
+        ? {
+            ...relocated,
+            startDate: seeded.startDate,
+            endDate: seeded.endDate,
+            job:
+              relocated.job && seeded.job
+                ? { ...relocated.job, launchDate: seeded.job.launchDate ?? relocated.job.launchDate }
+                : relocated.job,
+          }
+        : relocated;
+      const withDefaults = withReservationDefaults(dated);
       if (!withDefaults.job) return withDefaults;
       return {
         ...withDefaults,

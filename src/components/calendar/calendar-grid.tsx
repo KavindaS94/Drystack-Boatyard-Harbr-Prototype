@@ -1,5 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { addDays, toLocalDate } from "../../lib/iso-date";
 import { occupiesDryRack } from "../../lib/status";
 import { useMarina } from "../../store/marina-store";
@@ -68,6 +68,10 @@ function clipToWeek(reservation: Reservation, weekStart: string, weekEnd: string
 export function CalendarGrid() {
   const { state, setSelectedReservationId } = useMarina();
   const [weekStart, setWeekStart] = useState(() => mondayOf(state.selectedDate));
+
+  useEffect(() => {
+    setWeekStart(mondayOf(state.selectedDate));
+  }, [state.selectedDate]);
   const [addTarget, setAddTarget] = useState<{ berthId: string; start: string } | null>(null);
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
   const weekEnd = days[6];

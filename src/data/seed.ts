@@ -1,4 +1,5 @@
-import { DEMO_FRIDAY, DEMO_SATURDAY } from "../lib/demo-dates";
+import { DEMO_MONTH_END, DEMO_MONTH_START, DEMO_SATURDAY, DEMO_TODAY, DEMO_WEEK_END, DEMO_WEEK_START } from "../lib/demo-dates";
+import { addDays } from "../lib/iso-date";
 import { itemsFromOptions, photosFromOptions } from "../lib/checklist";
 import type {
   ActivityEvent,
@@ -245,7 +246,7 @@ const VESSELS: Vessel[] = [
   vessel("ves-riviera", "Riviera", "cust-bridger", 13, 4, 10, "stored", "2026-12-01"),
   vessel("ves-pelican", "Pelican", "cust-shah", 8.5, 2.8, 3, "stored", "2027-06-01"),
   vessel("ves-tern", "Tern", "cust-chen", 7.8, 2.6, 2.5, "stored", "2027-02-01"),
-  vessel("ves-heron", "Heron", "cust-quinn", 9, 2.9, 3.2, "stored", "2026-07-01"),
+  vessel("ves-heron", "Heron", "cust-quinn", 9, 2.9, 3.2, "stored", addDays(DEMO_TODAY, -45)),
   vessel("ves-kingfisher", "Kingfisher", "cust-ortiz", 8.2, 2.7, 2.8, "stored", "2027-04-01"),
   vessel("ves-osprey", "Osprey", "cust-blake", 9.4, 3.1, 3.6, "stored", "2027-05-01"),
   vessel("ves-curlew", "Curlew", "cust-reed", 7.5, 2.5, 2.2, "stored", "2027-08-01"),
@@ -271,6 +272,12 @@ function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
   };
 }
 
+const WEEK_MON = DEMO_WEEK_START;
+const WEEK_TUE = addDays(WEEK_MON, 1);
+const WEEK_WED = addDays(WEEK_MON, 2);
+const MONTH_START = DEMO_MONTH_START;
+const MONTH_END = DEMO_MONTH_END;
+
 const RESERVATIONS: Reservation[] = [
   {
     id: "res-a12-mako",
@@ -278,8 +285,8 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-a12",
     customerId: "cust-hale",
     vesselId: "ves-mako",
-    startDate: "2026-08-10",
-    endDate: "2026-08-16",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
   },
   {
     id: "res-b3-corsair",
@@ -287,8 +294,8 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-b3",
     customerId: "cust-frost",
     vesselId: "ves-corsair",
-    startDate: "2026-08-10",
-    endDate: "2026-08-16",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
     job: jobFromType("jt-engine", { location: "afloat" }),
   },
   {
@@ -297,12 +304,12 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-h4",
     customerId: "cust-voss",
     vesselId: "ves-sea-sprite",
-    startDate: "2026-08-10",
-    endDate: "2026-08-14",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
     job: jobFromType("jt-antifoul", {
       liftTime: "08:15",
       launchTime: "14:00",
-      launchDate: "2026-08-14",
+      launchDate: DEMO_TODAY,
       workBy: "marina",
     }),
   },
@@ -312,8 +319,8 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-h2",
     customerId: "cust-bridger",
     vesselId: "ves-riviera",
-    startDate: "2026-08-11",
-    endDate: "2026-08-13",
+    startDate: WEEK_TUE,
+    endDate: DEMO_WEEK_END,
     job: jobFromType("jt-diy", {
       workBy: "diy",
       tcStatus: "sent",
@@ -325,12 +332,12 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-h1",
     customerId: "cust-ortiz",
     vesselId: "ves-kingfisher",
-    startDate: "2026-08-12",
-    endDate: "2026-08-13",
+    startDate: WEEK_WED,
+    endDate: DEMO_WEEK_END,
     job: jobFromType("jt-travel-lift", {
       liftTime: "09:00",
       launchTime: "16:00",
-      launchDate: "2026-08-13",
+      launchDate: DEMO_TODAY,
       workBy: "contractor",
       contractorName: "Marine Works",
       tcStatus: "sent",
@@ -342,8 +349,8 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-ds1",
     customerId: "cust-shah",
     vesselId: "ves-pelican",
-    startDate: "2026-08-01",
-    endDate: "2026-08-31",
+    startDate: MONTH_START,
+    endDate: MONTH_END,
   },
   {
     id: "res-ds2-tern",
@@ -351,8 +358,8 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-ds2",
     customerId: "cust-chen",
     vesselId: "ves-tern",
-    startDate: "2026-08-01",
-    endDate: "2026-08-31",
+    startDate: MONTH_START,
+    endDate: MONTH_END,
   },
   {
     id: "res-ds3-heron",
@@ -360,8 +367,8 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-ds3",
     customerId: "cust-quinn",
     vesselId: "ves-heron",
-    startDate: "2026-08-01",
-    endDate: "2026-08-31",
+    startDate: MONTH_START,
+    endDate: MONTH_END,
   },
   {
     id: "res-ds4-kingfisher",
@@ -369,8 +376,8 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-ds4",
     customerId: "cust-ortiz",
     vesselId: "ves-kingfisher",
-    startDate: "2026-08-01",
-    endDate: "2026-08-31",
+    startDate: MONTH_START,
+    endDate: MONTH_END,
   },
   {
     id: "res-a10-osprey",
@@ -378,8 +385,8 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-a10",
     customerId: "cust-blake",
     vesselId: "ves-osprey",
-    startDate: "2026-08-10",
-    endDate: "2026-08-16",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
   },
   {
     id: "res-ds6-curlew",
@@ -387,8 +394,8 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-ds6",
     customerId: "cust-reed",
     vesselId: "ves-curlew",
-    startDate: "2026-08-01",
-    endDate: "2026-08-31",
+    startDate: MONTH_START,
+    endDate: MONTH_END,
   },
   {
     id: "res-a14-shearwater",
@@ -396,13 +403,13 @@ const RESERVATIONS: Reservation[] = [
     berthId: "berth-a14",
     customerId: "cust-kim",
     vesselId: "ves-shearwater",
-    startDate: "2026-08-10",
-    endDate: "2026-08-16",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
   },
 ];
 
 const SATURDAY = DEMO_SATURDAY;
-const FRIDAY = DEMO_FRIDAY;
+const FRIDAY = DEMO_TODAY;
 
 const LAUNCH_FLEET: { customerId: string; vesselId: string; berthId: string }[] = [
   { customerId: "cust-shah", vesselId: "ves-pelican", berthId: "berth-ds1" },
@@ -502,21 +509,21 @@ const PORTAL_LINKS: PortalLink[] = [
     id: "plink-pelican",
     token: "demo-pelican-portal",
     customerId: "cust-shah",
-    createdAt: "2026-08-10T09:00:00.000Z",
+    createdAt: `${DEMO_WEEK_START}T09:00:00.000Z`,
     expiresAt: "2027-12-31T23:59:59.000Z",
   },
   {
     id: "plink-tern",
     token: "demo-tern-portal",
     customerId: "cust-chen",
-    createdAt: "2026-08-10T09:00:00.000Z",
+    createdAt: `${DEMO_WEEK_START}T09:00:00.000Z`,
     expiresAt: "2027-12-31T23:59:59.000Z",
   },
   {
     id: "plink-heron",
     token: "demo-heron-portal",
     customerId: "cust-quinn",
-    createdAt: "2026-08-10T09:00:00.000Z",
+    createdAt: `${DEMO_WEEK_START}T09:00:00.000Z`,
     expiresAt: "2027-12-31T23:59:59.000Z",
   },
 ];
@@ -524,7 +531,7 @@ const PORTAL_LINKS: PortalLink[] = [
 const ACTIVITY: ActivityEvent[] = [
   {
     id: "act-2",
-    at: "2026-08-12T10:00:00.000Z",
+    at: `${WEEK_WED}T10:00:00.000Z`,
     actor: "office",
     message: "T&Cs sent to customer",
     reservationId: "res-h1-travel-lift",
@@ -536,7 +543,7 @@ const ACTIVITY: ActivityEvent[] = [
 const MESSAGES: Message[] = [
   {
     id: "msg-2",
-    at: "2026-08-12T10:00:00.000Z",
+    at: `${WEEK_WED}T10:00:00.000Z`,
     customerId: "cust-ortiz",
     channel: "email",
     template: "tc_sent",

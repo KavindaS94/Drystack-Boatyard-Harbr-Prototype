@@ -53,10 +53,10 @@ The boat is already on the rack. Phone request → marina says yes → yard puts
 Do not use the “Customer portal round trip” script in the staff tab — that would leave the staff screen.
 
 1. Owner tab: you are Priya. Boat is **Pelican**, status **Stored** (already on the rack).
-2. Under **Request a launch or lift**, leave **Launch** on, date **14 Aug 2026**, pick a time.
+2. Under **Request a launch or lift**, leave **Launch** on, date **today**, pick a time.
 3. Click **Send request** — this is the owner asking the marina.
 4. **Updates** at the bottom says the marina received it.
-5. Staff tab: left menu **Launch board**. Date should be **14 Aug 2026**.
+5. Staff tab: left menu **Launch board**. Date should be **today**.
 6. Open the **Requests** tab. **Pelican** is waiting. (Ignore Tern / Heron — they are blocked; that is the next demo.)
 7. Click **Approve** — the marina accepts. Pelican moves onto the **Launch** tab as **Scheduled**.
 8. Click **Start** — the yard has begun. Owner tab status becomes **Launching now**.
@@ -93,7 +93,7 @@ Overdue account or expired insurance: the owner cannot request, and the yard can
 1. Open [Tern portal](http://localhost:5173/portal/demo-tern-portal) — Mark Chen / **Tern**.
 2. Status is **Stored**. A red card says **Account overdue**. There is no **Send request**.
 3. Calendar: **Tern** on DS2 has a red **Do not launch** label. Click it. The panel shows **Do not launch** and **Overdue**.
-4. **Launch board** (14 Aug): Tern’s request has a **Do not launch** badge. You can still **Approve**, but **Start** and **Done** stay grey until the account is clear.
+4. **Launch board** (today): Tern’s request has a **Do not launch** badge. You can still **Approve**, but **Start** and **Done** stay grey until the account is clear.
 
 ### Expired insurance (Heron) — owner can fix it (needs marina approval)
 
@@ -120,7 +120,7 @@ Overdue account or expired insurance: the owner cannot request, and the yard can
 
 Replaces a printed Word list of ~50 launches and lifts. Invoice **after** the boat’s trips are Done, not after every tap.
 
-1. **Settings → Demo routines → Busy Saturday**. Date becomes **15 Aug 2026**.
+1. **Settings → Demo routines → Busy Saturday**. Date becomes **this Saturday**.
 2. About **25 launches · 25 lifts**, on the **Launch** and **Lift** tabs (still ordered by time in each).
 3. Use **Pelican** — she has both sides of the trip (already on the rack):
    - **Launch** tab: **09:00 Launch** → **Start** then **Done**. Badge: **Stored → Launched**.
@@ -209,7 +209,7 @@ Same **Reservation Conflict** dialog as live Harbr. **Move** can send a boat ont
 2. Footer **Move**.
 3. **Move to** lists every space, including dockyard pads.
 4. Pick **H1 · Dockyard** (Kingfisher is already there) → **Move**.
-5. **Reservation Conflict** — berth **H1**, **12 Aug 2026** – **13 Aug 2026**.
+5. **Reservation Conflict** — berth **H1**, the dates already booked this week.
 6. **Cancel** — change the pad. **View Calendar** — close and look at the grid.
 7. Pick a free pad (H3 or H5) → **Move**. Sea Sprite’s bar moves.
 
