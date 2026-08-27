@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { TemplateChecklist } from "../checklist/editable-checklist";
-import { trimChecklist } from "../../lib/checklist";
+import { trimChecklistOptions } from "../../lib/checklist";
 import { useMarina } from "../../store/marina-store";
-import type { TaskType } from "../../types/domain";
+import type { ChecklistOption, TaskType } from "../../types/domain";
 
 const KINDS: TaskType["kind"][] = ["launch", "retrieval", "other"];
 
 const EMPTY = {
   name: "",
   kind: "launch" as TaskType["kind"],
-  checklist: [] as string[],
+  checklist: [] as ChecklistOption[],
   productId: "",
 };
 
@@ -28,7 +28,7 @@ export function TaskTypesTab() {
     setForm({
       name: taskType.name,
       kind: taskType.kind,
-      checklist: [...taskType.checklist],
+      checklist: taskType.checklist.map((item) => ({ ...item })),
       productId: taskType.productId ?? "",
     });
   }
@@ -40,7 +40,7 @@ export function TaskTypesTab() {
       id: editingId ?? `tt-${crypto.randomUUID()}`,
       name: form.name.trim(),
       kind: form.kind,
-      checklist: trimChecklist(form.checklist),
+      checklist: trimChecklistOptions(form.checklist),
       productId: form.productId || undefined,
       active: existing?.active ?? true,
     });
@@ -136,6 +136,8 @@ export function TaskTypesTab() {
             items={form.checklist}
             onChange={(checklist) => setForm((prev) => ({ ...prev, checklist }))}
             addLabel="Add checklist item"
+            categories={state.settings.checklistCategories}
+            fallbackCategory={form.kind === "retrieval" ? "Lift" : "Launch"}
           />
         </div>
         <div className="flex gap-2">

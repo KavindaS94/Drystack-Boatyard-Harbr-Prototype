@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BerthsTab } from "../components/settings/berths-tab";
+import { ChecklistsTab } from "../components/settings/checklists-tab";
 import { JobTypesTab } from "../components/settings/job-types-tab";
 import { ProductsTab } from "../components/settings/products-tab";
 import { TaskTypesTab } from "../components/settings/task-types-tab";
@@ -7,7 +8,7 @@ import { WordsTab } from "../components/settings/words-tab";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { useMarina } from "../store/marina-store";
 
-type SettingsTabId = "words" | "berths" | "job-types" | "task-types" | "products";
+type SettingsTabId = "words" | "berths" | "job-types" | "task-types" | "checklists" | "products";
 
 interface TabDef {
   id: SettingsTabId;
@@ -55,6 +56,12 @@ export function SettingsScreen() {
         ]
       : []),
     {
+      id: "checklists",
+      label: "Checklists",
+      title: "Checklists",
+      description: "The option labels that sit under each checklist item. Job types and launch types pick one per row.",
+    },
+    {
       id: "products",
       label: "Products",
       title: "Products",
@@ -73,7 +80,7 @@ export function SettingsScreen() {
 
       {/* Full-width grid tabs — mirrors Harbr General Info TabsList */}
       <div
-        className="grid w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-3 lg:grid-cols-5"
+        className="grid w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-3 lg:grid-cols-6"
         role="tablist"
       >
         {tabs.map((item) => (
@@ -105,6 +112,7 @@ export function SettingsScreen() {
           {active.id === "berths" ? <BerthsTab /> : null}
           {active.id === "job-types" ? <JobTypesTab /> : null}
           {active.id === "task-types" ? <TaskTypesTab /> : null}
+          {active.id === "checklists" ? <ChecklistsTab /> : null}
           {active.id === "products" ? <ProductsTab /> : null}
         </CardContent>
       </Card>

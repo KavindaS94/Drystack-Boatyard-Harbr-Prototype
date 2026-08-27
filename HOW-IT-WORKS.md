@@ -289,8 +289,9 @@ Left menu **Settings → General Info**, or **Demo routines → Settings**.
 |-----|----------|
 | **Modules & words** | Turn **Boatyard** or **Dry stack** off — that module disappears. Rename the labels. Turn off auto-block for overdue / insurance — Tern / Heron unblock. Turn off **Allow customers to request launches** — portal form hides. |
 | **Berths** | Change a space’s kind (Berth / Dockyard / Dry stack). |
-| **Job types** | Boatyard colours, checklists, QA photos, T&Cs. Add/remove items, then **Save**. New jobs copy the lists; you can still change them on the job. |
-| **Launch / lift task types** | Dry stack names, checklists, and **Invoice product** (Launch / Lift). That product is what **Create draft invoice** puts on the dry-stack draft. Checklists on a launch row can be edited too. |
+| **Job types** | Boatyard colours, checklists, QA photos, T&Cs. Each row has a title and a checklist option. **Save**. New jobs copy the lists. |
+| **Launch / lift task types** | Dry stack names, checklists, and **Invoice product** (Launch / Lift). That product is what **Create draft invoice** puts on the dry-stack draft. |
+| **Checklists** | The option labels under each row (Yard job, Launch, QA photo, …). Add or rename them here, then pick one per item on Job types / Task types. |
 | **Products** | Name, price, bank (**Marina** or **Holding**). That bank is the invoice banner. Launch and Lift are Marina. Dockyard fee, labour, and parts are Holding. |
 
 ---

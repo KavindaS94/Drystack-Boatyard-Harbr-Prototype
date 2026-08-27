@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createInitialStoreState, clearDemoState, loadDemoState, saveDemoState, DEMO_STORAGE_KEY, type PersistedDemoState } from "../lib/demo-persist";
-import { itemsFromLabels, photosFromLabels } from "../lib/checklist";
+import { itemsFromOptions, photosFromOptions } from "../lib/checklist";
 import { dnlStatus } from "../lib/dnl";
 import { draftFromJob, draftFromLaunchTasks } from "../lib/invoice";
 import { conflictDetailsForBerth } from "../lib/availability";
@@ -94,7 +94,7 @@ export interface MarinaStore {
   sendToYard: (input: SendToYardInput) => void;
   addLaunchTask: (input: AddLaunchTaskInput) => void;
   toggleTaskCheck: (taskId: string, index: number) => void;
-  setTaskChecklist: (taskId: string, checklist: { label: string; done: boolean }[]) => void;
+  setTaskChecklist: (taskId: string, checklist: { label: string; category: string; done: boolean }[]) => void;
   markTaskDone: (taskId: string) => void;
   startTask: (taskId: string) => void;
   requestLaunch: (input: RequestLaunchInput) => string;
@@ -148,8 +148,8 @@ function jobFromType(
     workBy: "marina",
     liftTime,
     tcStatus: "not_sent",
-    checklist: itemsFromLabels(jobType.checklist),
-    photos: photosFromLabels(jobType.photoChecklist),
+    checklist: itemsFromOptions(jobType.checklist),
+    photos: photosFromOptions(jobType.photoChecklist),
     hours: [],
     materials: [],
     status: "open",
@@ -492,7 +492,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
             berthId: input.berthId,
             date: input.date,
             time: input.time,
-            checklist: itemsFromLabels(taskType.checklist),
+            checklist: itemsFromOptions(taskType.checklist),
             status: "open",
             source: input.source ?? "staff",
           },
@@ -530,7 +530,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
             berthId: input.berthId,
             date: input.date,
             time: input.time,
-            checklist: itemsFromLabels(taskType.checklist),
+            checklist: itemsFromOptions(taskType.checklist),
             status: "requested",
             source: "customer",
           },
@@ -635,7 +635,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const setTaskChecklist = useCallback((taskId: string, checklist: { label: string; done: boolean }[]) => {
+  const setTaskChecklist = useCallback((taskId: string, checklist: { label: string; category: string; done: boolean }[]) => {
     setState((prev) => ({
       ...prev,
       launchTasks: prev.launchTasks.map((task) => (task.id === taskId ? { ...task, checklist } : task)),

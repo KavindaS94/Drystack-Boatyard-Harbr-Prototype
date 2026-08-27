@@ -1,6 +1,6 @@
 import { DnlBadge } from "../dnl-badge";
 import { EditableChecklist } from "../checklist/editable-checklist";
-import { itemsFromLabels, photosFromLabels } from "../../lib/checklist";
+import { itemsFromOptions, photosFromOptions } from "../../lib/checklist";
 import { dnlStatus } from "../../lib/dnl";
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus } from "../../types/domain";
@@ -29,8 +29,8 @@ function jobFromType(jobType: JobType, previous?: Job): Job {
     launchDate: previous?.launchDate,
     tcStatus: previous?.tcStatus ?? "not_sent",
     tcSignedAt: previous?.tcSignedAt,
-    checklist: itemsFromLabels(jobType.checklist),
-    photos: photosFromLabels(jobType.photoChecklist),
+    checklist: itemsFromOptions(jobType.checklist),
+    photos: photosFromOptions(jobType.photoChecklist),
     hours: previous?.hours ?? [],
     materials: previous?.materials ?? [],
     status: previous?.status ?? "open",
@@ -137,6 +137,8 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
         <div className="mt-1.5">
           <EditableChecklist
             items={job.checklist}
+            categories={state.settings.checklistCategories}
+            fallbackCategory="Yard job"
             onChange={(checklist) => applyJob({ ...job, checklist })}
             addLabel="Add checklist item"
             emptyHint="No items — add the checks for this job."
@@ -149,13 +151,15 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
         <div className="mt-1.5">
           <EditableChecklist
             items={job.photos}
-            prefix="📷"
+            categories={state.settings.checklistCategories}
+            fallbackCategory="QA photo"
             onChange={(photos) =>
               applyJob({
                 ...job,
                 photos: photos.map((item) => ({
                   id: item.id ?? `photo-${crypto.randomUUID()}`,
                   label: item.label,
+                  category: item.category,
                   done: item.done,
                 })),
               })

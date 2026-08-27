@@ -207,7 +207,7 @@ export const DEMO_ROUTINES: DemoRoutine[] = [
     to: "/settings/general-info",
     steps: [
       "Modules & words — hide Boatyard or Dry stack, or turn off auto DNL / portal requests.",
-      "Job types and Launch / lift task types set checklists and QA photos. Add, rename, or remove items there, or on the job / launch row itself.",
+      "Settings → Checklists sets the option labels under each row. Job types and Launch / lift task types pick one per item, and assign the product on the draft.",
       "Products carry the price and bank (Marina or Holding). That bank is the invoice banner.",
     ],
   },

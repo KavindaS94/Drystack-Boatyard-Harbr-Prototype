@@ -36,14 +36,25 @@ export interface Product {
   active: boolean;
 }
 
+export interface ChecklistOption {
+  label: string;
+  category: string;
+}
+
+export interface ChecklistItem {
+  label: string;
+  category: string;
+  done: boolean;
+}
+
 export interface JobType {
   id: string;
   name: string;
   colour: string;
   defaultDurationDays: number;
-  checklist: string[];
+  checklist: ChecklistOption[];
   /** QA photo prompts copied onto each new job. Empty = none unless staff add some on the job. */
-  photoChecklist: string[];
+  photoChecklist: ChecklistOption[];
   productIds: string[];
   requiresTc: boolean;
   active: boolean;
@@ -53,7 +64,7 @@ export interface TaskType {
   id: string;
   name: string; // marina word, e.g. Launch / Lift
   kind: "launch" | "retrieval" | "other";
-  checklist: string[];
+  checklist: ChecklistOption[];
   productId?: string;
   active: boolean;
 }
@@ -102,6 +113,7 @@ export interface JobLine {
 export interface JobPhoto {
   id: string;
   label: string;
+  category: string;
   done: boolean;
 }
 
@@ -115,7 +127,7 @@ export interface Job {
   launchDate?: string; // YYYY-MM-DD — relaunch day
   tcStatus: TcStatus;
   tcSignedAt?: string;
-  checklist: { label: string; done: boolean }[];
+  checklist: ChecklistItem[];
   photos: JobPhoto[];
   hours: JobLine[];
   materials: JobLine[];
@@ -145,7 +157,7 @@ export interface LaunchTask {
   berthId: string;
   date: string;
   time: string; // "09:00"
-  checklist: { label: string; done: boolean }[];
+  checklist: ChecklistItem[];
   status: LaunchTaskStatus;
   source: LaunchTaskSource;
   declineReason?: string;
@@ -219,6 +231,8 @@ export interface Settings {
   autoDnlOverdue: boolean;
   autoDnlInsurance: boolean;
   allowPortalRequests: boolean;
+  /** Subtitle options on checklist rows — set in Settings → Checklists. */
+  checklistCategories: string[];
 }
 
 export interface MarinaState {

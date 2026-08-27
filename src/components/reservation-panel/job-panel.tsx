@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { EditableChecklist } from "../checklist/editable-checklist";
-import { itemsFromLabels, photosFromLabels } from "../../lib/checklist";
+import { itemsFromOptions, photosFromOptions } from "../../lib/checklist";
 import { draftFromJob, invoiceBannerText } from "../../lib/invoice";
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus, WorkBy } from "../../types/domain";
@@ -37,8 +37,8 @@ function jobFromType(jobType: JobType, previous?: Job): Job {
     launchDate: previous?.launchDate,
     tcStatus: previous?.tcStatus ?? "not_sent",
     tcSignedAt: previous?.tcSignedAt,
-    checklist: itemsFromLabels(jobType.checklist),
-    photos: photosFromLabels(jobType.photoChecklist),
+    checklist: itemsFromOptions(jobType.checklist),
+    photos: photosFromOptions(jobType.photoChecklist),
     hours: previous?.hours ?? [],
     materials: previous?.materials ?? [],
     status: previous?.status ?? "open",
@@ -312,6 +312,8 @@ export function JobPanel({ reservationId }: JobPanelProps) {
             <div className="mt-1.5">
               <EditableChecklist
                 items={job.checklist}
+                categories={state.settings.checklistCategories}
+                fallbackCategory="Yard job"
                 onChange={(checklist) => applyJob({ ...job, checklist })}
                 addLabel="Add checklist item"
                 emptyHint="No items — add the checks for this job."
@@ -325,12 +327,15 @@ export function JobPanel({ reservationId }: JobPanelProps) {
               <div className="mt-1.5">
                 <EditableChecklist
                   items={job.photos}
+                  categories={state.settings.checklistCategories}
+                  fallbackCategory="QA photo"
                   onChange={(photos) =>
                     applyJob({
                       ...job,
                       photos: photos.map((item) => ({
                         id: item.id ?? `photo-${crypto.randomUUID()}`,
                         label: item.label,
+                        category: item.category,
                         done: item.done,
                       })),
                     })

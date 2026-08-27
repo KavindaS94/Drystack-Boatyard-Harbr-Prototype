@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { TemplateChecklist } from "../checklist/editable-checklist";
-import { trimChecklist } from "../../lib/checklist";
+import { trimChecklistOptions } from "../../lib/checklist";
 import { useMarina } from "../../store/marina-store";
-import type { JobType } from "../../types/domain";
+import type { ChecklistOption, JobType } from "../../types/domain";
 
 const EMPTY = {
   name: "",
   colour: "#22c55e",
   defaultDurationDays: 1,
-  checklist: [] as string[],
-  photoChecklist: [] as string[],
+  checklist: [] as ChecklistOption[],
+  photoChecklist: [] as ChecklistOption[],
   requiresTc: false,
   productIds: [] as string[],
 };
@@ -30,8 +30,8 @@ export function JobTypesTab() {
       name: jobType.name,
       colour: jobType.colour,
       defaultDurationDays: jobType.defaultDurationDays,
-      checklist: [...jobType.checklist],
-      photoChecklist: [...(jobType.photoChecklist ?? [])],
+      checklist: jobType.checklist.map((item) => ({ ...item })),
+      photoChecklist: (jobType.photoChecklist ?? []).map((item) => ({ ...item })),
       requiresTc: jobType.requiresTc,
       productIds: jobType.productIds,
     });
@@ -45,8 +45,8 @@ export function JobTypesTab() {
       name: form.name.trim(),
       colour: form.colour,
       defaultDurationDays: Math.max(1, form.defaultDurationDays),
-      checklist: trimChecklist(form.checklist),
-      photoChecklist: trimChecklist(form.photoChecklist),
+      checklist: trimChecklistOptions(form.checklist),
+      photoChecklist: trimChecklistOptions(form.photoChecklist),
       productIds: form.productIds,
       requiresTc: form.requiresTc,
       active: existing?.active ?? true,
@@ -103,7 +103,7 @@ export function JobTypesTab() {
           {editingId ? "Edit job type" : "Add job type"}
         </h2>
         <p className="text-xs text-muted-foreground">
-          New jobs copy these lists. You can still add or change items on a single job.
+          New jobs copy these lists. Pick a checklist option for each row — edit the options in the Checklists tab.
         </p>
         <label className="block space-y-1">
           <span className="text-xs font-medium text-muted-foreground">Name</span>
@@ -144,6 +144,8 @@ export function JobTypesTab() {
             items={form.checklist}
             onChange={(checklist) => setForm((prev) => ({ ...prev, checklist }))}
             addLabel="Add checklist item"
+            categories={state.settings.checklistCategories}
+            fallbackCategory="Yard job"
           />
         </div>
         <div className="space-y-1">
@@ -152,6 +154,8 @@ export function JobTypesTab() {
             items={form.photoChecklist}
             onChange={(photoChecklist) => setForm((prev) => ({ ...prev, photoChecklist }))}
             addLabel="Add photo item"
+            categories={state.settings.checklistCategories}
+            fallbackCategory="QA photo"
             emptyHint="No photo prompts — add any this marina wants ticked on the job."
           />
         </div>

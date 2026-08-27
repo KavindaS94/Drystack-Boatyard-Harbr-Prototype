@@ -1,5 +1,5 @@
 import { DEMO_FRIDAY, DEMO_SATURDAY } from "../lib/demo-dates";
-import { itemsFromLabels, photosFromLabels } from "../lib/checklist";
+import { itemsFromOptions, photosFromOptions } from "../lib/checklist";
 import type {
   ActivityEvent,
   Berth,
@@ -27,6 +27,7 @@ const SETTINGS: Settings = {
   autoDnlOverdue: true,
   autoDnlInsurance: true,
   allowPortalRequests: true,
+  checklistCategories: ["Yard job", "QA photo", "Launch", "Lift", "Safety", "Prep"],
 };
 
 const PRODUCTS: Product[] = [
@@ -40,7 +41,10 @@ const PRODUCTS: Product[] = [
   { id: "prod-lift", name: "Lift", unitType: "UNIT", unitPrice: 85, bankAccount: "Marina", active: true },
 ];
 
-const QA_PHOTOS = ["Lift-out photo taken", "Relaunch photo taken"];
+const QA_PHOTOS = [
+  { label: "Lift-out photo taken", category: "QA photo" },
+  { label: "Relaunch photo taken", category: "QA photo" },
+];
 
 const JOB_TYPES: JobType[] = [
   {
@@ -48,7 +52,11 @@ const JOB_TYPES: JobType[] = [
     name: "Antifoul",
     colour: "#f59e0b",
     defaultDurationDays: 5,
-    checklist: ["Wash hull", "Mask fittings", "Apply antifoul"],
+    checklist: [
+      { label: "Wash hull", category: "Yard job" },
+      { label: "Mask fittings", category: "Yard job" },
+      { label: "Apply antifoul", category: "Yard job" },
+    ],
     photoChecklist: [...QA_PHOTOS],
     productIds: ["prod-labour-hour", "prod-disc-anode", "prod-dockyard-fee"],
     requiresTc: false,
@@ -59,7 +67,10 @@ const JOB_TYPES: JobType[] = [
     name: "DIY",
     colour: "#3b82f6",
     defaultDurationDays: 3,
-    checklist: ["Site induction", "Stands in place"],
+    checklist: [
+      { label: "Site induction", category: "Safety" },
+      { label: "Stands in place", category: "Prep" },
+    ],
     photoChecklist: [...QA_PHOTOS],
     productIds: ["prod-labour-hour", "prod-dockyard-fee"],
     requiresTc: false,
@@ -70,7 +81,11 @@ const JOB_TYPES: JobType[] = [
     name: "Travel lift",
     colour: "#14b8a6",
     defaultDurationDays: 1,
-    checklist: ["Path clear", "Straps checked", "Lift complete"],
+    checklist: [
+      { label: "Path clear", category: "Safety" },
+      { label: "Straps checked", category: "Prep" },
+      { label: "Lift complete", category: "Yard job" },
+    ],
     photoChecklist: [...QA_PHOTOS],
     productIds: ["prod-travel-lift", "prod-labour-hour"],
     requiresTc: true,
@@ -81,7 +96,11 @@ const JOB_TYPES: JobType[] = [
     name: "Engine service",
     colour: "#0ea5e9",
     defaultDurationDays: 2,
-    checklist: ["Isolate batteries", "Drain coolant", "Service log"],
+    checklist: [
+      { label: "Isolate batteries", category: "Safety" },
+      { label: "Drain coolant", category: "Yard job" },
+      { label: "Service log", category: "Yard job" },
+    ],
     photoChecklist: [],
     productIds: ["prod-labour-hour"],
     requiresTc: false,
@@ -94,7 +113,10 @@ const TASK_TYPES: TaskType[] = [
     id: "tt-launch",
     name: "Launch",
     kind: "launch",
-    checklist: ["Check straps", "Engine ok"],
+    checklist: [
+      { label: "Check straps", category: "Launch" },
+      { label: "Engine ok", category: "Launch" },
+    ],
     productId: "prod-launch",
     active: true,
   },
@@ -102,7 +124,10 @@ const TASK_TYPES: TaskType[] = [
     id: "tt-retrieval",
     name: "Lift",
     kind: "retrieval",
-    checklist: ["Rinse hull", "Secure stands"],
+    checklist: [
+      { label: "Rinse hull", category: "Lift" },
+      { label: "Secure stands", category: "Lift" },
+    ],
     productId: "prod-lift",
     active: true,
   },
@@ -235,8 +260,8 @@ function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
     location: "dockyard",
     workBy: "marina",
     tcStatus: "not_sent",
-    checklist: itemsFromLabels(jobType.checklist),
-    photos: photosFromLabels(jobType.photoChecklist),
+    checklist: itemsFromOptions(jobType.checklist),
+    photos: photosFromOptions(jobType.photoChecklist),
     hours: [],
     materials: [],
     status: "open",
@@ -407,7 +432,7 @@ function makeLaunchTask(
     berthId: client.berthId,
     date: SATURDAY,
     time,
-    checklist: itemsFromLabels(taskType.checklist),
+    checklist: itemsFromOptions(taskType.checklist),
     status: "open",
     source: "staff",
     ...extras,

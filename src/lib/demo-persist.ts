@@ -1,12 +1,12 @@
-import { DEFAULT_QA_PHOTOS, migrateJobPhoto } from "./checklist";
+import { DEFAULT_CHECKLIST_CATEGORIES, DEFAULT_QA_PHOTOS, migrateChecklistItem, migrateChecklistOptions, migrateJobPhoto } from "./checklist";
 import { createSeedState } from "../data/seed";
 import type { JobType, MarinaState, SpaceKind } from "../types/domain";
 import { withReservationDefaults } from "./reservation-footer";
 
 export type PersistedDemoState = MarinaState & { kindFilter: SpaceKind[] };
 
-export const DEMO_STORAGE_KEY = "harbr-yard-demo:v8";
-const PREV_STORAGE_KEY = "harbr-yard-demo:v7";
+export const DEMO_STORAGE_KEY = "harbr-yard-demo:v9";
+const PREV_STORAGE_KEY = "harbr-yard-demo:v8";
 
 const DEFAULT_KIND_FILTER: SpaceKind[] = ["wet", "boatyard", "dry_storage"];
 
@@ -33,13 +33,12 @@ function isStoreState(value: unknown): value is PersistedDemoState {
 
 function migrateJobType(jobType: JobType, seedTypes: JobType[]): JobType {
   const seeded = seedTypes.find((item) => item.id === jobType.id);
-  const photoChecklist = Array.isArray(jobType.photoChecklist)
-    ? jobType.photoChecklist
-    : (seeded?.photoChecklist ?? [...DEFAULT_QA_PHOTOS]);
+  const checklist = migrateChecklistOptions(jobType.checklist, "Yard job");
+  const photoChecklist = migrateChecklistOptions(jobType.photoChecklist, "QA photo");
   return {
     ...jobType,
-    checklist: Array.isArray(jobType.checklist) ? jobType.checklist : (seeded?.checklist ?? []),
-    photoChecklist,
+    checklist: checklist.length ? checklist : (seeded?.checklist ?? []),
+    photoChecklist: photoChecklist.length ? photoChecklist : (seeded?.photoChecklist ?? [...DEFAULT_QA_PHOTOS]),
   };
 }
 
@@ -51,6 +50,10 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
     settings: {
       ...seed.settings,
       ...parsed.settings,
+      checklistCategories:
+        Array.isArray(parsed.settings?.checklistCategories) && parsed.settings.checklistCategories.length > 0
+          ? parsed.settings.checklistCategories
+          : [...DEFAULT_CHECKLIST_CATEGORIES],
     },
     kindFilter:
       Array.isArray(parsed.kindFilter) && parsed.kindFilter.length > 0
@@ -89,15 +92,26 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
       const seeded = seed.taskTypes.find((item) => item.id === taskType.id);
       return {
         ...taskType,
-        checklist: Array.isArray(taskType.checklist) ? taskType.checklist : (seeded?.checklist ?? []),
+        checklist: (() => {
+          const fallback = seeded?.kind === "retrieval" ? "Lift" : "Launch";
+          const migrated = migrateChecklistOptions(taskType.checklist, fallback);
+          return migrated.length ? migrated : (seeded?.checklist ?? []);
+        })(),
         productId: taskType.productId ?? seeded?.productId,
       };
     }),
-    launchTasks: (parsed.launchTasks ?? seed.launchTasks).map((task) => ({
-      ...task,
-      source: task.source ?? ("staff" as const),
-      invoiceId: task.invoiceId,
-    })),
+    launchTasks: (parsed.launchTasks ?? seed.launchTasks).map((task) => {
+      const taskType = seed.taskTypes.find((item) => item.id === task.taskTypeId);
+      const fallback = taskType?.kind === "retrieval" ? "Lift" : "Launch";
+      return {
+        ...task,
+        source: task.source ?? ("staff" as const),
+        invoiceId: task.invoiceId,
+        checklist: Array.isArray(task.checklist)
+          ? task.checklist.map((item) => migrateChecklistItem(item, fallback))
+          : [],
+      };
+    }),
     reservations: (parsed.reservations ?? seed.reservations).map((reservation) => {
       const withDefaults = withReservationDefaults(reservation);
       if (!withDefaults.job) return withDefaults;
@@ -106,7 +120,9 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
         job: {
           ...withDefaults.job,
           workBy: withDefaults.job.workBy ?? "marina",
-          checklist: Array.isArray(withDefaults.job.checklist) ? withDefaults.job.checklist : [],
+          checklist: Array.isArray(withDefaults.job.checklist)
+            ? withDefaults.job.checklist.map((item) => migrateChecklistItem(item, "Yard job"))
+            : [],
           photos: (withDefaults.job.photos ?? []).map(migrateJobPhoto),
         },
       };

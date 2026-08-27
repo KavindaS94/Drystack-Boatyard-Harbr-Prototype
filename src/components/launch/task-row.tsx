@@ -179,6 +179,8 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
           <p className="text-xs font-medium text-neutral-500">Checklist</p>
           <EditableChecklist
             items={task.checklist}
+            categories={state.settings.checklistCategories}
+            fallbackCategory={kind === "retrieval" ? "Lift" : "Launch"}
             disabled={task.status === "done" || task.status === "declined"}
             onChange={(checklist) => setTaskChecklist(task.id, checklist)}
             addLabel="Add checklist item"
