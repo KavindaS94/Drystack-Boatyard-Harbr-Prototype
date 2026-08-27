@@ -1,5 +1,10 @@
 import type { VesselStorageStatus } from "../types/domain";
 
+/** Dry-stack calendar: the boat sits on its rack slot only while stored. */
+export function occupiesDryRack(status: VesselStorageStatus): boolean {
+  return status === "stored";
+}
+
 export function canSetStorageStatus(
   current: VesselStorageStatus,
   next: VesselStorageStatus

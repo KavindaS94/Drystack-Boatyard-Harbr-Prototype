@@ -4,7 +4,7 @@ import { AddTaskModal } from "../components/launch/add-task-modal";
 import { TaskList } from "../components/launch/task-list";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { DEMO_SATURDAY } from "../lib/demo-dates";
+import { DEMO_FRIDAY, DEMO_SATURDAY } from "../lib/demo-dates";
 import { useMarina } from "../store/marina-store";
 
 export function LaunchBoardScreen() {
@@ -17,6 +17,8 @@ export function LaunchBoardScreen() {
   useEffect(() => {
     if (script === "saturday") {
       setSelectedDate(DEMO_SATURDAY);
+    } else if (script === "rack") {
+      setSelectedDate(DEMO_FRIDAY);
     }
   }, [script, setSelectedDate]);
 

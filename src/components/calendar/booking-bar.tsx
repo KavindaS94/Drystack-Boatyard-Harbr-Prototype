@@ -1,13 +1,14 @@
 import type { CSSProperties } from "react";
 import { dnlStatus } from "../../lib/dnl";
 import { useMarina } from "../../store/marina-store";
-import type { Job, JobType, Reservation, SpaceKind, WorkBy } from "../../types/domain";
+import type { Job, JobType, Reservation, SpaceKind, VesselStorageStatus, WorkBy } from "../../types/domain";
 
 export interface BookingBarProps {
   reservation: Reservation;
   vesselName: string;
   berthKind: SpaceKind;
   jobType?: JobType;
+  storageStatus?: VesselStorageStatus;
   selected: boolean;
   startOffset: number;
   span: number;
@@ -45,7 +46,25 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
  * job bars derive their pastel from the job-type colour so the colour still codes the job,
  * and wet / dry-storage bars use Harbr's green / blue pastels.
  */
-function barTone(berthKind: SpaceKind, jobType?: JobType): CSSProperties {
+function barTone(
+  berthKind: SpaceKind,
+  jobType?: JobType,
+  storageStatus?: VesselStorageStatus
+): CSSProperties {
+  if (berthKind !== "wet" && storageStatus === "launched") {
+    return {
+      backgroundColor: "hsl(173, 58%, 94%)",
+      border: "1px dashed hsl(173, 45%, 48%)",
+      color: "hsl(173, 70%, 24%)",
+    };
+  }
+  if (berthKind !== "wet" && storageStatus === "departed") {
+    return {
+      backgroundColor: "hsl(36, 100%, 96%)",
+      border: "1px dashed hsl(32, 70%, 62%)",
+      color: "hsl(32, 70%, 28%)",
+    };
+  }
   if (jobType) {
     const { r, g, b } = hexToRgb(jobType.colour);
     return {
@@ -73,6 +92,7 @@ export function BookingBar({
   vesselName,
   berthKind,
   jobType,
+  storageStatus,
   selected,
   startOffset,
   span,
@@ -90,19 +110,28 @@ export function BookingBar({
         border: "1px solid hsl(0, 70%, 80%)",
         color: "hsl(0, 70%, 32%)",
       }
-    : barTone(berthKind, reservation.job ? jobType : undefined);
+    : barTone(berthKind, reservation.job ? jobType : undefined, storageStatus);
   const workTag = reservation.job ? WORK_BY_TAG[reservation.job.workBy] : "";
+  const statusChip =
+    berthKind === "wet"
+      ? ""
+      : storageStatus === "launched"
+        ? "Launched"
+        : storageStatus === "departed"
+          ? "Departed"
+          : "";
 
   return (
     <button
       type="button"
       title={dnl.blocked ? `${label} — Do not launch: ${dnl.reasons.join("; ")}` : label}
       data-reservation-id={reservation.id}
+      data-storage-status={storageStatus ?? ""}
       data-dnl={dnl.blocked ? "blocked" : "clear"}
       onClick={() => onSelect(reservation.id)}
-      className={`absolute top-1.5 bottom-1.5 flex items-center gap-1 overflow-hidden rounded-[4px] px-2 text-left text-xs font-medium transition-shadow ${
+      className={`absolute top-1.5 bottom-1.5 z-10 flex items-center gap-1 overflow-hidden rounded-[4px] px-2 text-left text-xs font-medium transition-shadow ${
         selected
-          ? "z-10 ring-2 ring-[hsl(252,75%,70%)] ring-offset-1"
+          ? "ring-2 ring-[hsl(252,75%,70%)] ring-offset-1"
           : "hover:brightness-[0.97] hover:shadow-sm"
       }`}
       style={{
@@ -115,6 +144,17 @@ export function BookingBar({
         {label}
         {workTag ? ` · ${workTag}` : ""}
       </span>
+      {statusChip && !dnl.blocked ? (
+        <span
+          className={`shrink-0 rounded px-1 py-px text-[10px] font-semibold uppercase tracking-wide ${
+            storageStatus === "departed"
+              ? "bg-amber-100 text-amber-900"
+              : "bg-teal-100 text-teal-800"
+          }`}
+        >
+          {statusChip}
+        </span>
+      ) : null}
       {dnl.blocked ? (
         <span className="shrink-0 rounded bg-red-100 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-red-800">
           Do not launch

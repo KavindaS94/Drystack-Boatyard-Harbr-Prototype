@@ -3,7 +3,8 @@ import { createInitialStoreState, clearDemoState, loadDemoState, saveDemoState, 
 import { itemsFromOptions, photosFromOptions } from "../lib/checklist";
 import { dnlStatus } from "../lib/dnl";
 import { draftFromJob, draftFromLaunchTasks } from "../lib/invoice";
-import { conflictDetailsForBerth } from "../lib/availability";
+import { conflictDetailsForBerth, sourceReservationForVessel } from "../lib/availability";
+import { kindLabel } from "../lib/labels";
 import { statusAfterTaskDone } from "../lib/status";
 import type {
   ActivityActor,
@@ -20,6 +21,7 @@ import type {
   Settings,
   SpaceKind,
   TaskType,
+  VesselStorageStatus,
   WorkBy,
 } from "../types/domain";
 
@@ -31,6 +33,17 @@ export interface SendToYardInput {
   jobTypeId: string;
   liftTime: string;
   mode: "keep_wet" | "move";
+}
+
+export interface PlaceBookingInput {
+  vesselId: string;
+  destBerthId: string;
+  start: string;
+  end: string;
+  mode: "keep" | "move";
+  sourceReservationId?: string;
+  jobTypeId?: string;
+  liftTime?: string;
 }
 
 export interface AddLaunchTaskInput {
@@ -92,6 +105,7 @@ export interface MarinaStore {
   createDraftFromJob: (reservationId: string) => string;
   createDraftFromDryStack: (reservationId: string) => string;
   sendToYard: (input: SendToYardInput) => void;
+  placeBooking: (input: PlaceBookingInput) => boolean;
   addLaunchTask: (input: AddLaunchTaskInput) => void;
   toggleTaskCheck: (taskId: string, index: number) => void;
   setTaskChecklist: (taskId: string, checklist: { label: string; category: string; done: boolean }[]) => void;
@@ -154,6 +168,20 @@ function jobFromType(
     materials: [],
     status: "open",
   };
+}
+
+function jobAfterMove(current: Job | undefined, destKind: SpaceKind, yardJob?: Job): Job | undefined {
+  if (destKind === "boatyard") return yardJob;
+  if (destKind === "wet" && current?.location === "afloat") return current;
+  return undefined;
+}
+
+function storageStatusAfterPlace(
+  current: VesselStorageStatus,
+  destKind: SpaceKind
+): VesselStorageStatus {
+  if (destKind === "wet" || destKind === "dry_storage") return "stored";
+  return current;
 }
 
 function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
@@ -403,77 +431,127 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
     return id;
   }, []);
 
-  const sendToYard = useCallback((input: SendToYardInput) => {
+  const placeBooking = useCallback((input: PlaceBookingInput): boolean => {
+    let applied = false;
     setState((prev) => {
-      const wet = prev.reservations.find((item) => item.id === input.wetReservationId);
-      const jobType = prev.jobTypes.find((item) => item.id === input.jobTypeId);
-      if (!wet || !jobType) return prev;
-      const occupied = conflictDetailsForBerth(
-        prev.reservations,
-        prev.berths,
-        input.yardBerthId,
-        input.start,
-        input.end,
-        wet.id
-      );
-      if (occupied) return prev;
-      const job = jobFromType(jobType, input.liftTime);
-      const actor = actorFromRole(prev.role);
+      if (input.start > input.end) return prev;
+      const vessel = prev.vessels.find((item) => item.id === input.vesselId);
+      const dest = prev.berths.find((item) => item.id === input.destBerthId);
+      if (!vessel || !dest) return prev;
 
-      if (input.mode === "move") {
+      const source = input.sourceReservationId
+        ? prev.reservations.find((item) => item.id === input.sourceReservationId)
+        : sourceReservationForVessel(prev.reservations, prev.berths, input.vesselId, dest.id);
+      const destKind = dest.kind;
+      const jobType = input.jobTypeId
+        ? prev.jobTypes.find((item) => item.id === input.jobTypeId)
+        : undefined;
+      if (destKind === "boatyard" && !jobType) return prev;
+
+      const excludeId = input.mode === "move" && source ? source.id : undefined;
+      if (
+        conflictDetailsForBerth(
+          prev.reservations,
+          prev.berths,
+          dest.id,
+          input.start,
+          input.end,
+          excludeId
+        )
+      ) {
+        return prev;
+      }
+
+      const yardJob = destKind === "boatyard" && jobType ? jobFromType(jobType, input.liftTime) : undefined;
+      const storageStatus = storageStatusAfterPlace(vessel.storageStatus, destKind);
+      const actor = actorFromRole(prev.role);
+      const destLabel = `${dest.name} · ${kindLabel(destKind, prev.settings)}`;
+      const vessels = prev.vessels.map((item) =>
+        item.id === vessel.id ? { ...item, storageStatus } : item
+      );
+
+      if (input.mode === "move" && source) {
+        applied = true;
         return {
           ...prev,
-          selectedReservationId: wet.id,
+          selectedReservationId: source.id,
+          vessels,
           reservations: prev.reservations.map((item) =>
-            item.id === wet.id
+            item.id === source.id
               ? {
                   ...item,
-                  berthId: input.yardBerthId,
+                  berthId: dest.id,
                   startDate: input.start,
                   endDate: input.end,
-                  job,
+                  job: jobAfterMove(item.job, destKind, yardJob),
                 }
               : item
           ),
           activity: [
-            makeActivity(actor, `Moved to ${prev.settings.boatyardLabel}`, {
-              reservationId: wet.id,
-              vesselId: wet.vesselId,
-              customerId: wet.customerId,
+            makeActivity(actor, `Moved to ${destLabel}`, {
+              reservationId: source.id,
+              vesselId: vessel.id,
+              customerId: vessel.customerId,
             }),
             ...prev.activity,
           ],
         };
       }
 
-      const yardReservationId = newId("res");
+      const reservationId = newId("res");
+      applied = true;
+      const kept = Boolean(source);
       return {
         ...prev,
-        selectedReservationId: yardReservationId,
+        selectedReservationId: reservationId,
+        vessels,
         reservations: [
           ...prev.reservations,
           {
-            id: yardReservationId,
-            berthId: input.yardBerthId,
-            customerId: wet.customerId,
-            vesselId: wet.vesselId,
+            id: reservationId,
+            berthId: dest.id,
+            customerId: vessel.customerId,
+            vesselId: vessel.id,
             startDate: input.start,
             endDate: input.end,
-            status: "approved",
-            job,
+            status: "approved" as const,
+            job: destKind === "boatyard" ? yardJob : undefined,
           },
         ],
         activity: [
-          makeActivity(actor, `Sent to ${prev.settings.boatyardLabel} (kept wet berth)`, {
-            reservationId: yardReservationId,
-            vesselId: wet.vesselId,
-            customerId: wet.customerId,
-          }),
+          makeActivity(
+            actor,
+            kept ? `Booked ${destLabel} (kept previous space)` : `Booked ${destLabel}`,
+            {
+              reservationId,
+              vesselId: vessel.id,
+              customerId: vessel.customerId,
+            }
+          ),
           ...prev.activity,
         ],
       };
     });
+    return applied;
   }, []);
+
+  const sendToYard = useCallback(
+    (input: SendToYardInput) => {
+      const wet = stateRef.current.reservations.find((item) => item.id === input.wetReservationId);
+      if (!wet) return;
+      placeBooking({
+        vesselId: wet.vesselId,
+        destBerthId: input.yardBerthId,
+        start: input.start,
+        end: input.end,
+        mode: input.mode === "move" ? "move" : "keep",
+        sourceReservationId: input.wetReservationId,
+        jobTypeId: input.jobTypeId,
+        liftTime: input.liftTime,
+      });
+    },
+    [placeBooking]
+  );
 
   const addLaunchTask = useCallback((input: AddLaunchTaskInput) => {
     setState((prev) => {
@@ -1234,6 +1312,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       createDraftFromJob,
       createDraftFromDryStack,
       sendToYard,
+      placeBooking,
       addLaunchTask,
       toggleTaskCheck,
       setTaskChecklist,
@@ -1280,6 +1359,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       createDraftFromJob,
       createDraftFromDryStack,
       sendToYard,
+      placeBooking,
       addLaunchTask,
       toggleTaskCheck,
       setTaskChecklist,

@@ -6,7 +6,7 @@ All data is fake. If something already ran or a boat is missing: bottom-left **M
 
 Skip grey menu items (**Home**, **Map**, **Owners**, …). They are not in this prototype. **Dashboard → Actions** is live — pending owner edits and bookings to approve.
 
-On the Calendar, filter **Dry stack** or **Dockyard** to see only that module. Click a coloured bar to open the boat on the right.
+On the Calendar, filter **Dry stack** or **Dockyard** to see only that module. Click a coloured bar to open the boat on the right. Click an **empty** day on a rack, pad, or berth to add a booking.
 
 **Settings → Demo routines** is the click-by-click walkthrough. Bottom-left **MS** still has **Reset demo**. Calendar, Actions, and invoices are always **Office**. **Yard tablet** is the crew view (no prices).
 
@@ -18,29 +18,28 @@ Invoice from the Calendar (Office). The **Yard tablet** hides prices and cannot 
 
 # Dry stack
 
-Racks on land. The boat **lives on the rack**. First it is lifted onto the rack. Then the owner asks for a launch when they want it in the water. At the end of the day it is lifted back.
+Racks on land. Full cycle: **water berth → lift onto the rack → launch back into the water**.
 
-Filter the Calendar to **Dry stack**. Left menu **Launch board** is the day list.
+Filter the Calendar to **Dry stack**. Left menu **Launch board** is the day list — **Requests**, **Launch**, and **Lift** tabs.
 
-**Settings → Demo routines** jumps to Osprey (the arrival).
+**Settings → Demo routines → Dry stack: berth → rack → water** jumps to Osprey.
 
 ---
 
-## 1. Boat comes onto the rack
+## 1. Berth → rack → water (Osprey)
 
-The boat is in the water (or arriving). The yard lifts it onto the rack. Only then can anyone launch it.
+One boat, the whole cycle. **Reset demo** first if she is already on a rack.
 
-1. **Settings → Demo routines → Boat onto the rack**, or Calendar → **Dry stack** → click **Osprey** on DS5.
-2. Right panel status is **Launched** — she is still in the water, not on the rack yet.
-3. Left menu **Launch board**. Date **14 Aug 2026**.
-4. Find **08:00 Lift · Osprey**. It is already **Scheduled** (office booked it from a phone call).
-5. Click **Start**, then **Done**. Badge: **Launched → Stored**. She is on the rack.
-6. Calendar → click **Osprey**. Status is now **Stored**.
-7. **Create draft invoice**. One **Lift** line ($85). Banner **This invoice → Marina**.
+1. **Settings → Demo routines → Dry stack: berth → rack → water**, or Calendar → **Berth** → click **A10 Osprey**.
+2. Right panel is a normal water berth — **Send to Dry stack**.
+3. Pick empty **DS5**. Choose **Move (free berth)** so A10 is given up. **Confirm**. She is **Stored** on DS5. A10 is empty.
+4. Launch board → **Add task** → search **Osprey** → task type **Launch** → pick a time (e.g. **14:00**) → **Save**.
+5. Open the **Launch** tab: that Launch. **Start**, then **Done**. Badge: **Stored → Launched**.
+6. Calendar: Osprey is on **In the water**. **DS5** is empty.
+7. Footer **Move** → **A10 · Berth** → **Move**. She is back on a normal berth.
+8. Calendar → Osprey → **Create draft invoice**. **Launch** ($85). Banner **This invoice → Marina**.
 
-That Lift is the arrival charge. Monthly rack storage is on the booking, not this draft.
-
-**Other way in** if the Lift is not on the board: Launch board → **Add task** → search **Osprey** → task type **Lift** → pick a time → **Save**. **Start** / **Done** only work while she is still in the water.
+Monthly rack storage stays on the booking, not this draft.
 
 ---
 
@@ -58,8 +57,8 @@ Do not use the “Customer portal round trip” script in the staff tab — that
 3. Click **Send request** — this is the owner asking the marina.
 4. **Updates** at the bottom says the marina received it.
 5. Staff tab: left menu **Launch board**. Date should be **14 Aug 2026**.
-6. **Pelican** is in **Customer requests** at the top. (Ignore Tern / Heron — they are blocked; that is the next demo.)
-7. Click **Approve** — the marina accepts. Pelican moves onto the timed list as **Scheduled**.
+6. Open the **Requests** tab. **Pelican** is waiting. (Ignore Tern / Heron — they are blocked; that is the next demo.)
+7. Click **Approve** — the marina accepts. Pelican moves onto the **Launch** tab as **Scheduled**.
 8. Click **Start** — the yard has begun. Owner tab status becomes **Launching now**.
 9. Click **Done** — the boat is in. Owner tab status becomes **In the water**.
 10. Calendar → click **Pelican** → **Create draft invoice**. One **Launch** line, banner **This invoice → Marina**.
@@ -74,7 +73,7 @@ Monthly rack storage stays on the booking. It is **not** on this draft.
 
 Each **Lift** (onto the rack) and each **Launch** (into the water) is a movement charge. The yard marks the task **Done**. Office invoices later — do not auto-invoice on every **Done**, or a busy Saturday would create ~50 drafts.
 
-1. Finish the work first (Osprey onto the rack, Pelican’s launch, or the Saturday run below).
+1. Finish the work first (Osprey berth → rack → water, Pelican’s owner launch, or the Saturday run below).
 2. Calendar → click the boat.
 3. Under **Launch/lift tasks**, Done items that are not billed yet are ready.
 4. Click **Create draft invoice**.
@@ -122,11 +121,11 @@ Overdue account or expired insurance: the owner cannot request, and the yard can
 Replaces a printed Word list of ~50 launches and lifts. Invoice **after** the boat’s trips are Done, not after every tap.
 
 1. **Settings → Demo routines → Busy Saturday**. Date becomes **15 Aug 2026**.
-2. About **25 launches · 25 lifts**, grouped by time.
-3. Use **Pelican** — she has both sides of the trip:
-   - **09:00 Launch** → **Start** then **Done**. Badge: **Stored → Launched**.
+2. About **25 launches · 25 lifts**, on the **Launch** and **Lift** tabs (still ordered by time in each).
+3. Use **Pelican** — she has both sides of the trip (already on the rack):
+   - **Launch** tab: **09:00 Launch** → **Start** then **Done**. Badge: **Stored → Launched**.
    - **Departed** — the owner has left the marina.
-   - **15:00 Lift** → **Start** then **Done**. Badge: back to **Stored**.
+   - **Lift** tab: **15:00 Lift** → **Start** then **Done**. Badge: back to **Stored**.
 4. Click the left side of a row to open the **checklist** and tick items.
 5. **Add task** (top right) — search a customer, pick Launch or Lift, pick a time, **Save**. Same as booking from a phone call.
 6. Calendar → click **Pelican** → **Create draft invoice**. Two lines: **Launch** and **Lift**. Banner **This invoice → Marina**.
@@ -139,7 +138,9 @@ If you already ran dry-stack flow 2, Pelican may already be in the water. **Rese
 
 # Boatyard
 
-Pads on land for repair. Filter the Calendar to **Dockyard**. Left menu **Yard tablet** is the crew view (no prices). Office turns the same work into an invoice.
+Pads on land for repair. Full cycle: **water berth → lift into the dockyard → finish the job → move back onto a berth**.
+
+Filter the Calendar to **Dockyard**. Left menu **Yard tablet** is the crew view (no prices). Office turns the same work into an invoice.
 
 Occupied pads cannot be double-booked. **Send to Dockyard**, **Edit**, and **Move** all check the dockyard. If the pad is taken you get Harbr’s **Reservation Conflict** dialog.
 
@@ -158,7 +159,7 @@ Yard never sees dollar amounts. They log hours, parts, and photos on the job. Of
    - Mix Marina and Holding products → **Mixed banks — review lines**.
 6. What is on the draft:
    - Hours and materials logged on the job.
-   - **Dockyard fee × nights on the pad** — only when the boat is in the dockyard, not afloat.
+   - **Dockyard fee × nights on the pad** (minimum 1 day) — when the job is a dockyard lift, not afloat.
    - **Never** a **Berth night**. Water rent stays on the Marina berth, even if they **Keep berth**.
 7. **Yard** cannot open this screen (“You cannot view invoices”).
 
@@ -176,26 +177,27 @@ Yard never sees dollar amounts. They log hours, parts, and photos on the job. Of
 
 ---
 
-## 2. Berth boat into the dockyard — owner must sign T&Cs
+## 2. Berth → yard → berth — owner must sign T&Cs
 
-A water berth boat is lifted into the yard. The job cannot be marked done until T&Cs are signed.
+A water berth boat is lifted into the yard, the job is finished, then she goes back on the water. The job cannot be marked done until T&Cs are signed.
 
-Invoice this the same way as Sea Sprite **after** the yard has logged work. **Keep berth** vs **Move (free berth)** only changes the water berth — not what goes on the yard draft.
+**Keep berth** vs **Move (free berth)** only changes the water berth — not what goes on the yard draft. A same-day Travel lift still bills **1 × Dockyard fee** even if you skip hours.
 
-1. **Settings → Demo routines → Berth boat into the dockyard**, or click **A12 Mako**.
+**Reset demo** first if A12 is already empty.
+
+1. **Settings → Demo routines → Dockyard: berth → yard → berth**, or click **A12 Mako**.
 2. Click **Send to Dockyard**.
-3. The default pad is an empty one. Job type **Travel lift**, lift **09:00**.
-4. Occupied pads in the list say **unavailable** (H4 has Sea Sprite, H1 has Kingfisher, H3 has Riviera).
-5. **Keep berth** = they still pay for the water. **Move (free berth)** = give A12 up.
-6. To see the conflict dialog: pick **H4** → **Confirm**. **Reservation Conflict** shows berth **H4** and the dates already booked (**10 Aug 2026** – **14 Aug 2026**). **Cancel** stays in this form. **View Calendar** closes it.
-7. Pick an empty pad (H2 or H5) → **Confirm**. Mako now has a dockyard bar. The right panel is the yard job.
+3. Pick an empty pad (**H5**). Job type **Travel lift**, lift **09:00**.
+4. Occupied pads say **unavailable** (H4 Sea Sprite, H1 Kingfisher, H2 Riviera).
+5. Choose **Move (free berth)** so A12 is given up — you will put her back at the end. **Keep berth** = they still pay for A12 while she is in the yard (skip the Move-back step).
+6. To see the conflict dialog: pick **H4** → **Confirm**. **Reservation Conflict** shows berth **H4** and the dates already booked. **Cancel** stays in this form.
+7. **Confirm**. Mako’s bar is on the dockyard pad. **A12 is empty**.
 8. T&Cs say **Not sent**. Click **Send T&Cs**. **Mark job done** stays disabled.
-9. **Send status link** → **Send link** → **Open as customer**. The portal opens on the **Yard job** card (purple ring).
-10. On the portal, type the owner’s name → **Sign T&Cs**.
-11. Back on staff, T&Cs are **Signed**. **Mark job done** works.
-12. **Add** hours if needed, then **Create draft invoice**. Dockyard fee is included. Berth night is not.
-
-Shortcut if you skip the portal: **Mark signed** on the job.
+9. **Send status link** → **Send link** → **Open as customer**, type the owner’s name → **Sign T&Cs**. Shortcut: **Mark signed** on the job.
+10. Optional: **Yard tablet** → search **Mako** → tick checklist / photos, **Add** hours. No `$`.
+11. Back on the Calendar: **Mark job done**.
+12. Footer **Move** → **A12 · Berth** → **Move**. Mako is back on the water. The dockyard pad is free.
+13. **Create draft invoice**. Dockyard fee is included. Berth night is not. Banner **This invoice → Holding**.
 
 ---
 
@@ -209,7 +211,7 @@ Same **Reservation Conflict** dialog as live Harbr. **Move** can send a boat ont
 4. Pick **H1 · Dockyard** (Kingfisher is already there) → **Move**.
 5. **Reservation Conflict** — berth **H1**, **12 Aug 2026** – **13 Aug 2026**.
 6. **Cancel** — change the pad. **View Calendar** — close and look at the grid.
-7. Pick a free pad (H2 or H5) → **Move**. Sea Sprite’s bar moves.
+7. Pick a free pad (H3 or H5) → **Move**. Sea Sprite’s bar moves.
 
 **Edit** (same-type berth only) uses the same check. If the dates overlap another booking, you get the same dialog.
 
@@ -267,7 +269,8 @@ Sign T&Cs, **I've departed**, and launch/lift requests stay instant (launch/lift
 3. **Approve reservation** — header becomes **Approved**.
 4. After that you get **View Agreement**, **Edit**, **Move**, **Archive**.
 5. **Edit** = dates and same-type berth. **Move** = any space, including dockyard (see boatyard flow 3). Both show **Reservation Conflict** if the space is taken.
-6. **Book another** is not in this prototype. **Archive** is blocked while a yard job is still open.
+6. **Book another** — pick a berth, Dry stack rack, or Dockyard pad for this owner. **Keep berth** leaves the current space; **Move (free berth)** vacates it. Dockyard asks for a job type. Occupied spaces show **Reservation Conflict**.
+7. **Archive** is blocked while a yard job is still open.
 
 ---
 

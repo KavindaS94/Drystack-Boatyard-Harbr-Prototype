@@ -44,6 +44,11 @@ function migrateJobType(jobType: JobType, seedTypes: JobType[]): JobType {
 
 function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
   const seed = createInitialStoreState();
+  const ospreyStillOnRack =
+    (parsed.reservations ?? []).some(
+      (reservation) => reservation.id === "res-ds5-osprey" && reservation.berthId === "berth-ds5"
+    ) && !(parsed.reservations ?? []).some((reservation) => reservation.id === "res-a10-osprey");
+
   return {
     ...seed,
     ...parsed,
@@ -59,6 +64,8 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
       Array.isArray(parsed.kindFilter) && parsed.kindFilter.length > 0
         ? parsed.kindFilter
         : [...DEFAULT_KIND_FILTER],
+    selectedReservationId:
+      parsed.selectedReservationId === "res-ds5-osprey" ? "res-a10-osprey" : parsed.selectedReservationId,
     portalLinks: Array.isArray(parsed.portalLinks) ? parsed.portalLinks : seed.portalLinks,
     changeRequests: Array.isArray(parsed.changeRequests) ? parsed.changeRequests : seed.changeRequests,
     activity: Array.isArray(parsed.activity) ? parsed.activity : seed.activity,
@@ -77,8 +84,29 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
       return {
         ...vessel,
         insuranceExpiry: vessel.insuranceExpiry ?? seeded?.insuranceExpiry ?? "2027-01-01",
+        storageStatus:
+          ospreyStillOnRack && vessel.id === "ves-osprey" ? "stored" : vessel.storageStatus,
       };
     }),
+    berths: (() => {
+      const existing = parsed.berths ?? seed.berths;
+      const byId = new Map(existing.map((berth) => [berth.id, berth]));
+      const ordered = seed.berths.map((berth) => {
+        const current = byId.get(berth.id);
+        if (!current) return berth;
+        return {
+          ...current,
+          name: berth.name,
+          lengthM: berth.lengthM,
+          beamM: berth.beamM,
+        };
+      });
+      const seedIds = new Set(seed.berths.map((berth) => berth.id));
+      for (const berth of existing) {
+        if (!seedIds.has(berth.id)) ordered.push(berth);
+      }
+      return ordered;
+    })(),
     products: (() => {
       const existing = parsed.products ?? seed.products;
       const byId = new Map(existing.map((product) => [product.id, product]));
@@ -100,7 +128,9 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
         productId: taskType.productId ?? seeded?.productId,
       };
     }),
-    launchTasks: (parsed.launchTasks ?? seed.launchTasks).map((task) => {
+    launchTasks: (parsed.launchTasks ?? seed.launchTasks)
+      .filter((task) => task.id !== "lt-in-osprey")
+      .map((task) => {
       const taskType = seed.taskTypes.find((item) => item.id === task.taskTypeId);
       const fallback = taskType?.kind === "retrieval" ? "Lift" : "Launch";
       return {
@@ -113,7 +143,11 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
       };
     }),
     reservations: (parsed.reservations ?? seed.reservations).map((reservation) => {
-      const withDefaults = withReservationDefaults(reservation);
+      const relocated =
+        ospreyStillOnRack && reservation.id === "res-ds5-osprey"
+          ? { ...reservation, id: "res-a10-osprey", berthId: "berth-a10", startDate: "2026-08-10", endDate: "2026-08-16" }
+          : reservation;
+      const withDefaults = withReservationDefaults(relocated);
       if (!withDefaults.job) return withDefaults;
       return {
         ...withDefaults,

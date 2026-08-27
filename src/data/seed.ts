@@ -180,6 +180,7 @@ function dryBerth(id: string, name: string): Berth {
 }
 
 const BERTHS: Berth[] = [
+  wetBerth("berth-a10", "A10", "A", 12, 4),
   wetBerth("berth-a12", "A12", "A", 14, 4.5),
   wetBerth("berth-a14", "A14", "A", 12, 4),
   wetBerth("berth-b3", "B3", "B", 16, 5),
@@ -187,7 +188,7 @@ const BERTHS: Berth[] = [
   dockyardBerth("berth-h2", "H2", 16),
   dockyardBerth("berth-h3", "H3", 14),
   dockyardBerth("berth-h4", "H4", 15, true),
-  dockyardBerth("berth-h5", "H5", 12),
+  dockyardBerth("berth-h5", "H5", 14),
   dockyardBerth("berth-h6", "H6", 18),
   dockyardBerth("berth-h7", "H7", 14),
   dockyardBerth("berth-h8", "H8", 12),
@@ -197,6 +198,7 @@ const BERTHS: Berth[] = [
   dryBerth("berth-ds4", "DS4"),
   dryBerth("berth-ds5", "DS5"),
   dryBerth("berth-ds6", "DS6"),
+  dryBerth("berth-ds7", "DS7"),
 ];
 
 function customer(
@@ -245,7 +247,7 @@ const VESSELS: Vessel[] = [
   vessel("ves-tern", "Tern", "cust-chen", 7.8, 2.6, 2.5, "stored", "2027-02-01"),
   vessel("ves-heron", "Heron", "cust-quinn", 9, 2.9, 3.2, "stored", "2026-07-01"),
   vessel("ves-kingfisher", "Kingfisher", "cust-ortiz", 8.2, 2.7, 2.8, "stored", "2027-04-01"),
-  vessel("ves-osprey", "Osprey", "cust-blake", 9.4, 3.1, 3.6, "launched", "2027-05-01"),
+  vessel("ves-osprey", "Osprey", "cust-blake", 9.4, 3.1, 3.6, "stored", "2027-05-01"),
   vessel("ves-curlew", "Curlew", "cust-reed", 7.5, 2.5, 2.2, "stored", "2027-08-01"),
   vessel("ves-shearwater", "Shearwater", "cust-kim", 8.8, 2.9, 3, "stored", "2027-09-01"),
   vessel("ves-gannet", "Gannet", "cust-cole", 8, 2.7, 2.6, "stored", "2027-10-01"),
@@ -307,7 +309,7 @@ const RESERVATIONS: Reservation[] = [
   {
     id: "res-h2-riviera",
     status: "approved",
-    berthId: "berth-h3",
+    berthId: "berth-h2",
     customerId: "cust-bridger",
     vesselId: "ves-riviera",
     startDate: "2026-08-11",
@@ -371,13 +373,13 @@ const RESERVATIONS: Reservation[] = [
     endDate: "2026-08-31",
   },
   {
-    id: "res-ds5-osprey",
+    id: "res-a10-osprey",
     status: "approved",
-    berthId: "berth-ds5",
+    berthId: "berth-a10",
     customerId: "cust-blake",
     vesselId: "ves-osprey",
-    startDate: "2026-08-01",
-    endDate: "2026-08-31",
+    startDate: "2026-08-10",
+    endDate: "2026-08-16",
   },
   {
     id: "res-ds6-curlew",
@@ -407,7 +409,7 @@ const LAUNCH_FLEET: { customerId: string; vesselId: string; berthId: string }[] 
   { customerId: "cust-chen", vesselId: "ves-tern", berthId: "berth-ds2" },
   { customerId: "cust-quinn", vesselId: "ves-heron", berthId: "berth-ds3" },
   { customerId: "cust-ortiz", vesselId: "ves-kingfisher", berthId: "berth-ds4" },
-  { customerId: "cust-blake", vesselId: "ves-osprey", berthId: "berth-ds5" },
+  { customerId: "cust-blake", vesselId: "ves-osprey", berthId: "berth-a10" },
   { customerId: "cust-reed", vesselId: "ves-curlew", berthId: "berth-ds6" },
   { customerId: "cust-kim", vesselId: "ves-shearwater", berthId: "berth-ds1" },
   { customerId: "cust-cole", vesselId: "ves-gannet", berthId: "berth-ds2" },
@@ -472,14 +474,9 @@ function buildSaturdayTasks(): LaunchTask[] {
   }
 
   // Busy Friday customer requests (Western Port). Pelican is left off so the
-  // portal round-trip can place her request live. Osprey is in the water, arriving
-  // for storage — her Lift is the “onto the rack” demo.
+  // portal round-trip can place her request live. Osprey starts on berth A10 —
+  // send her to DS5, then launch her back onto the water.
   const fridayRequests: LaunchTask[] = [
-    makeLaunchTask("lt-in-osprey", retrievalType, osprey, "08:00", {
-      date: FRIDAY,
-      status: "open",
-      source: "staff",
-    }),
     makeLaunchTask("lt-req-02", launchType, LAUNCH_FLEET[2], "08:30", {
       date: FRIDAY,
       status: "requested",

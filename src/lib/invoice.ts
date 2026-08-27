@@ -49,8 +49,8 @@ export function draftFromJob(
     const fee = products.find((item) => isDockyardFee(item));
     const alreadyHasFee = fee ? lines.some((line) => line.productId === fee.id) : false;
     if (fee && !alreadyHasFee) {
-      const nights = nightsBetween(reservation.startDate, reservation.endDate);
-      if (nights > 0) lines.push(toInvoiceLine(fee, nights));
+      const nights = Math.max(1, nightsBetween(reservation.startDate, reservation.endDate));
+      lines.push(toInvoiceLine(fee, nights));
     }
   }
 

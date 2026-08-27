@@ -44,6 +44,28 @@ export function conflictDetailsForBerth(
   };
 }
 
+export function liveReservationsForVessel(
+  reservations: Reservation[],
+  vesselId: string
+): Reservation[] {
+  return reservations.filter((item) => item.vesselId === vesselId && item.status !== "archived");
+}
+
+/** Prefer the water berth when a boat already occupies more than one space. */
+export function sourceReservationForVessel(
+  reservations: Reservation[],
+  berths: Berth[],
+  vesselId: string,
+  destBerthId?: string
+): Reservation | undefined {
+  const live = liveReservationsForVessel(reservations, vesselId).filter(
+    (item) => item.berthId !== destBerthId
+  );
+  if (live.length === 0) return undefined;
+  const wet = live.find((item) => berths.find((berth) => berth.id === item.berthId)?.kind === "wet");
+  return wet ?? live[0];
+}
+
 export function formatIsoDate(iso: string): string {
   const [year, month, day] = iso.split("-").map(Number);
   return new Date(year, month - 1, day).toLocaleDateString("en-GB", {

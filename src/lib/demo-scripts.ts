@@ -5,7 +5,7 @@ const SCRIPT_RESERVATION_IDS: Record<string, string> = {
   "berth-yard": "res-a12-mako",
   afloat: "res-b3-corsair",
   approve: "res-a14-shearwater",
-  rack: "res-ds5-osprey",
+  rack: "res-a10-osprey",
   contractor: "res-h1-travel-lift",
 };
 

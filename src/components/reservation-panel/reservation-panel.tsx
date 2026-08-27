@@ -35,6 +35,7 @@ import { useMarina } from "../../store/marina-store";
 import type { MessageTemplate, Reservation, ReservationStatus } from "../../types/domain";
 import { DryStoragePanel } from "./dry-storage-panel";
 import { JobPanel } from "./job-panel";
+import { PlaceBookingModal } from "./place-booking-modal";
 import { WetPanel } from "./wet-panel";
 import { ConflictModal } from "./conflict-modal";
 
@@ -601,11 +602,13 @@ function FooterActions({
   onEdit,
   onMove,
   onSendPortal,
+  onBookAnother,
 }: {
   reservation: Reservation;
   onEdit: () => void;
   onMove: () => void;
   onSendPortal: () => void;
+  onBookAnother: () => void;
 }) {
   const { archiveReservation, setReservationStatus } = useMarina();
   const [agreementOpen, setAgreementOpen] = useState(false);
@@ -717,7 +720,8 @@ function FooterActions({
           type="button"
           variant="outline"
           className="bg-white text-gray-700 hover:bg-gray-50"
-          onClick={() => inert("Book another")}
+          data-book-another
+          onClick={onBookAnother}
         >
           Book another
         </Button>
@@ -743,6 +747,7 @@ export function ReservationPanel() {
   const [portalOpen, setPortalOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [bookAnotherOpen, setBookAnotherOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
 
   useEffect(() => {
@@ -1015,6 +1020,7 @@ export function ReservationPanel() {
                   <WetPanel
                     reservationId={reservation.id}
                     boatyardLabel={state.settings.boatyardLabel}
+                    dryStorageLabel={state.settings.dryStorageLabel}
                     hasJob={Boolean(reservation.job)}
                   />
                 ) : null}
@@ -1033,6 +1039,7 @@ export function ReservationPanel() {
               onEdit={() => setEditOpen(true)}
               onMove={() => setMoveOpen(true)}
               onSendPortal={() => setPortalOpen(true)}
+              onBookAnother={() => setBookAnotherOpen(true)}
             />
           </div>
         )}
@@ -1053,6 +1060,13 @@ export function ReservationPanel() {
       ) : null}
       {moveOpen && reservation ? (
         <MoveReservationModal reservation={reservation} onClose={() => setMoveOpen(false)} />
+      ) : null}
+      {bookAnotherOpen && reservation ? (
+        <PlaceBookingModal
+          title="Book another"
+          sourceReservationId={reservation.id}
+          onClose={() => setBookAnotherOpen(false)}
+        />
       ) : null}
     </>
   );
