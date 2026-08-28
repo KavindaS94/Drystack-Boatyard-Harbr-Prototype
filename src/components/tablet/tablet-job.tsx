@@ -173,6 +173,7 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
       <JobLines
         key={`${job.typeId}-hours`}
         title="Hours"
+        kind="hours"
         lines={job.hours}
         products={state.products}
         catalog={productsForType}
@@ -182,6 +183,7 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
       <JobLines
         key={`${job.typeId}-materials`}
         title="Materials"
+        kind="materials"
         lines={job.materials}
         products={state.products}
         catalog={productsForType}
@@ -189,21 +191,32 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
         onAdd={(productId, qty) => addJobLine(reservationId, "materials", productId, qty)}
       />
 
-      <div className="space-y-2">
-        <button
-          type="button"
-          disabled={job.status === "done" || markDoneBlocked}
-          onClick={() => {
-            applyJob({ ...job, status: "done" });
-            toast.success("Job marked done");
-          }}
-          className="w-full rounded-md bg-[hsl(252,75%,70%)] px-3 py-2 text-sm font-medium text-white hover:bg-[hsl(252,75%,60%)] disabled:cursor-not-allowed disabled:bg-neutral-300"
-        >
-          Mark job done
-        </button>
-        {markDoneBlocked ? (
-          <p className="text-xs text-neutral-500">T&Cs must be signed before the job can be marked done.</p>
-        ) : null}
+      <div className="space-y-2 border-t border-neutral-200 pt-3">
+        {job.status === "done" ? (
+          <div className="flex items-center gap-2 rounded-md bg-teal-50 px-3 py-2 text-sm font-medium text-teal-800">
+            Job done
+          </div>
+        ) : (
+          <>
+            {markDoneBlocked ? (
+              <p className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                T&Cs must be signed before this job can be marked done.
+              </p>
+            ) : null}
+            <button
+              type="button"
+              disabled={markDoneBlocked}
+              title={markDoneBlocked ? "T&Cs must be signed first" : undefined}
+              onClick={() => {
+                applyJob({ ...job, status: "done" });
+                toast.success("Job marked done");
+              }}
+              className="w-full rounded-md bg-[hsl(252,75%,70%)] px-3 py-2 text-sm font-medium text-white hover:bg-[hsl(252,75%,60%)] disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-400"
+            >
+              Mark job done
+            </button>
+          </>
+        )}
       </div>
     </section>
   );

@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   Key,
+  Link2,
   Mail,
   MapPin,
   MessageSquare,
@@ -638,7 +639,13 @@ function FooterActions({
   return (
     <div className="border-gray-200 border-t p-4">
       <div className="mb-4">
-        <Button type="button" variant="harbr" className="flex w-full items-center justify-center" onClick={onSendPortal}>
+        <Button
+          type="button"
+          variant="harbrOutline"
+          className="flex w-full items-center justify-center"
+          onClick={onSendPortal}
+        >
+          <Link2 className="h-4 w-4" />
           Send status link
         </Button>
       </div>

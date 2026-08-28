@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -281,28 +281,32 @@ export function JobPanel({ reservationId }: JobPanelProps) {
                 ) : null}
               </p>
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
                   onClick={() => {
                     sendTc(reservationId);
                     toast.success("T&Cs sent — customer notified");
                   }}
                   disabled={job.tcStatus !== "not_sent"}
-                  className="flex-1 rounded-md border border-neutral-200 px-2 py-1.5 text-xs font-medium text-neutral-800 disabled:text-neutral-400"
                 >
                   Send T&Cs
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
                   onClick={() => {
                     applyJob({ ...job, tcStatus: "signed", tcSignedAt: new Date().toISOString() });
                     toast.success("T&Cs marked signed (manual)");
                   }}
                   disabled={job.tcStatus === "signed"}
-                  className="flex-1 rounded-md border border-neutral-200 px-2 py-1.5 text-xs font-medium text-neutral-800 disabled:text-neutral-400"
                 >
                   Mark signed
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}
@@ -350,6 +354,7 @@ export function JobPanel({ reservationId }: JobPanelProps) {
           <JobLines
             key={`${job.typeId}-hours`}
             title="Hours"
+            kind="hours"
             lines={job.hours}
             products={state.products}
             catalog={productsForType}
@@ -359,6 +364,7 @@ export function JobPanel({ reservationId }: JobPanelProps) {
           <JobLines
             key={`${job.typeId}-materials`}
             title="Materials"
+            kind="materials"
             lines={job.materials}
             products={state.products}
             catalog={productsForType}
@@ -366,7 +372,34 @@ export function JobPanel({ reservationId }: JobPanelProps) {
             onAdd={(productId, qty) => addJobLine(reservationId, "materials", productId, qty)}
           />
 
-          <div className="space-y-2">
+          <div className="space-y-2 border-t border-neutral-200 pt-3">
+            {job.status === "done" ? (
+              <div className="flex items-center gap-2 rounded-md bg-teal-50 px-3 py-2 text-sm font-medium text-teal-800">
+                <Check className="h-4 w-4 shrink-0" />
+                Job done
+              </div>
+            ) : (
+              <>
+                {markDoneBlocked ? (
+                  <p className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                    T&Cs must be signed before this job can be marked done. Send or mark them signed above.
+                  </p>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="harbr"
+                  className="w-full disabled:bg-neutral-100 disabled:text-neutral-400 disabled:opacity-100"
+                  disabled={markDoneBlocked}
+                  title={markDoneBlocked ? "T&Cs must be signed first" : undefined}
+                  onClick={() => {
+                    applyJob({ ...job, status: "done" });
+                    toast.success("Job marked done");
+                  }}
+                >
+                  Mark job done
+                </Button>
+              </>
+            )}
             {canCreateDraft ? (
               <Button
                 type="button"
@@ -388,23 +421,9 @@ export function JobPanel({ reservationId }: JobPanelProps) {
                   navigate(`/invoices/${invoiceId}`);
                 }}
               >
+                <FileText className="h-4 w-4" />
                 Create draft invoice
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="harbr"
-              className="w-full"
-              disabled={job.status === "done" || markDoneBlocked}
-              onClick={() => {
-                applyJob({ ...job, status: "done" });
-                toast.success("Job marked done");
-              }}
-            >
-              Mark job done
-            </Button>
-            {markDoneBlocked ? (
-              <p className="text-xs text-neutral-500">T&Cs must be signed before the job can be marked done.</p>
             ) : null}
           </div>
         </div>
