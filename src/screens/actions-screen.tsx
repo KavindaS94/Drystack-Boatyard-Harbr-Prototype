@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { actionCounts } from "../lib/actions";
 import { RESERVATION_STATUS_COLOR } from "../lib/reservation-footer";
 import { cn } from "../lib/utils";
 import { useMarina } from "../store/marina-store";
@@ -100,6 +101,7 @@ export function ActionsScreen() {
   const [rejectReason, setRejectReason] = useState("");
   const [menuId, setMenuId] = useState<string | null>(null);
 
+  const counts = actionCounts(state);
   const pendingChanges = useMemo(
     () =>
       state.changeRequests
@@ -131,28 +133,28 @@ export function ActionsScreen() {
             value="pending-changes"
             current={activeTab}
             label="Pending Changes"
-            count={pendingChanges.length}
+            count={counts.pendingChanges}
             onSelect={setTab}
           />
           <TabTrigger
             value="pending-approvals"
             current={activeTab}
             label="Pending Approvals"
-            count={pendingApprovals.length}
+            count={counts.pendingApprovals}
             onSelect={setTab}
           />
           <TabTrigger
             value="outstanding-invoices"
             current={activeTab}
             label="Outstanding Invoices"
-            count={outstanding.length}
+            count={counts.outstandingInvoices}
             onSelect={setTab}
           />
           <TabTrigger
             value="draft-invoices"
             current={activeTab}
             label="Draft Invoices"
-            count={drafts.length}
+            count={counts.draftInvoices}
             onSelect={setTab}
           />
         </div>

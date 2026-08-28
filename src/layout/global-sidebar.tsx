@@ -33,6 +33,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "../components/ui/sidebar";
+import { actionCounts } from "../lib/actions";
 import { cn } from "../lib/utils";
 import { useMarina } from "../store/marina-store";
 import { UserMenu } from "./user-menu";
@@ -63,9 +64,7 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
   const { state } = useMarina();
   const pathname = location.pathname;
   const pendingRequests = state.launchTasks.filter((task) => task.status === "requested").length;
-  const pendingActions =
-    state.changeRequests.filter((item) => item.status === "pending").length +
-    state.reservations.filter((item) => item.status === "to_be_approved").length;
+  const pendingActions = actionCounts(state).total;
 
   const navMain: NavItem[] = [
     {
