@@ -67,7 +67,6 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
   const storageStatus = vessel.storageStatus;
   const dnl = dnlStatus(vessel, customer, state.settings);
   const unbilledDone = unbilledDoneLaunchTasks(state.launchTasks, vesselId);
-  const previewLines = draftFromLaunchTasks(unbilledDone, state.taskTypes, state.products);
   const draftLabel = launchLiftDraftLabel(unbilledDone, state.taskTypes);
   const canInvoice = state.role === "office" && task.status === "done" && unbilledDone.length > 0;
 
