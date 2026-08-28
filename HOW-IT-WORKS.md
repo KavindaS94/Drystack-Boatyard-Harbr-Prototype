@@ -32,12 +32,11 @@ One boat, the whole cycle. **Reset demo** first if she is already on a rack.
 
 1. **Settings → Demo routines → Dry stack: berth → rack → water**, or Calendar → **Berth** → click **A10 Osprey**.
 2. Right panel is a normal water berth — **Send to Dry stack**.
-3. Pick empty **DS5**. Choose **Move (free berth)** so A10 is given up. **Confirm**. She is **Stored** on DS5. A10 is empty.
+3. Pick empty **DS5**. Choose **Move (free berth)** so A10 is given up. **Confirm**. She is **Stored** on DS5. A10 is empty. A **Lift** task is already **Done** (water → rack). You can invoice the Lift now, or wait.
 4. Launch board → **Add task** → search **Osprey** → task type **Launch** → pick a time (e.g. **14:00**) → **Save**.
 5. Open the **Launch** tab: that Launch. **Start**, then **Done**. Badge: **Stored → Launched**.
-6. Calendar: Osprey is on **In the water**. **DS5** is empty.
-7. Footer **Move** → **A10 · Berth** → **Move**. She is back on a normal berth.
-8. Calendar → Osprey → **Create draft invoice**. **Launch** ($85). Banner **This invoice → Marina**.
+6. On that row: **Invoice Lift + Launch** (if the Lift is still unbilled). One draft: **Lift** + **Launch** ($85 each). Banner **This invoice → Marina**.
+7. Calendar: Osprey is on **In the water**. **Create draft invoice** still works here. Footer **Move** → **A10 · Berth** — you can still invoice unbilled Lift/Launch after she is back on a berth.
 
 Monthly rack storage stays on the booking, not this draft.
 

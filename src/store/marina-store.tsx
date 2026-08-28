@@ -12,6 +12,7 @@ import type {
   ChangeRequestField,
   Job,
   JobType,
+  LaunchTask,
   Message,
   MessageChannel,
   MessageTemplate,
@@ -182,6 +183,44 @@ function storageStatusAfterPlace(
 ): VesselStorageStatus {
   if (destKind === "wet" || destKind === "dry_storage") return "stored";
   return current;
+}
+
+function nowHhMm(): string {
+  const date = new Date();
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function shouldRecordLiftFromWater(
+  sourceKind: SpaceKind | undefined,
+  destKind: SpaceKind,
+  storageStatus: VesselStorageStatus
+): boolean {
+  if (destKind !== "dry_storage") return false;
+  if (sourceKind === "wet") return true;
+  if (sourceKind === "boatyard" || sourceKind === "dry_storage") return false;
+  return storageStatus === "launched" || storageStatus === "departed";
+}
+
+function completedLiftTask(input: {
+  taskType: TaskType;
+  customerId: string;
+  vesselId: string;
+  berthId: string;
+  date: string;
+  time: string;
+}): LaunchTask {
+  return {
+    id: newId("lt"),
+    taskTypeId: input.taskType.id,
+    customerId: input.customerId,
+    vesselId: input.vesselId,
+    berthId: input.berthId,
+    date: input.date,
+    time: input.time,
+    checklist: itemsFromOptions(input.taskType.checklist).map((item) => ({ ...item, done: true })),
+    status: "done",
+    source: "staff",
+  };
 }
 
 function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
@@ -469,6 +508,30 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       const vessels = prev.vessels.map((item) =>
         item.id === vessel.id ? { ...item, storageStatus } : item
       );
+      const sourceBerth = source ? prev.berths.find((item) => item.id === source.berthId) : undefined;
+      const liftType = prev.taskTypes.find((item) => item.kind === "retrieval" && item.active);
+      const liftTask =
+        liftType && shouldRecordLiftFromWater(sourceBerth?.kind, destKind, vessel.storageStatus)
+          ? completedLiftTask({
+              taskType: liftType,
+              customerId: vessel.customerId,
+              vesselId: vessel.id,
+              berthId: dest.id,
+              date: prev.selectedDate,
+              time: nowHhMm(),
+            })
+          : undefined;
+      const launchTasks = liftTask ? [...prev.launchTasks, liftTask] : prev.launchTasks;
+      const liftActivity = liftTask
+        ? [
+            makeActivity(actor, `Lifted onto ${destLabel}`, {
+              reservationId: source?.id,
+              vesselId: vessel.id,
+              customerId: vessel.customerId,
+              taskId: liftTask.id,
+            }),
+          ]
+        : [];
 
       if (input.mode === "move" && source) {
         applied = true;
@@ -476,6 +539,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
           ...prev,
           selectedReservationId: source.id,
           vessels,
+          launchTasks,
           reservations: prev.reservations.map((item) =>
             item.id === source.id
               ? {
@@ -488,6 +552,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
               : item
           ),
           activity: [
+            ...liftActivity,
             makeActivity(actor, `Moved to ${destLabel}`, {
               reservationId: source.id,
               vesselId: vessel.id,
@@ -505,6 +570,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
         ...prev,
         selectedReservationId: reservationId,
         vessels,
+        launchTasks,
         reservations: [
           ...prev.reservations,
           {
@@ -519,6 +585,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
           },
         ],
         activity: [
+          ...liftActivity.map((event) => ({ ...event, reservationId })),
           makeActivity(
             actor,
             kept ? `Booked ${destLabel} (kept previous space)` : `Booked ${destLabel}`,
@@ -1262,12 +1329,54 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
         reservationId
       );
       if (occupied) return prev;
+      const fromBerth = prev.berths.find((item) => item.id === current.berthId);
+      const toBerth = prev.berths.find((item) => item.id === nextBerthId);
+      const vessel = prev.vessels.find((item) => item.id === current.vesselId);
+      const destKind = toBerth?.kind;
+      const liftType = prev.taskTypes.find((item) => item.kind === "retrieval" && item.active);
+      const recordLift =
+        Boolean(vessel && destKind) &&
+        shouldRecordLiftFromWater(fromBerth?.kind, destKind ?? "wet", vessel?.storageStatus ?? "stored");
+      const liftTask =
+        recordLift && vessel && toBerth && liftType
+          ? completedLiftTask({
+              taskType: liftType,
+              customerId: vessel.customerId,
+              vesselId: vessel.id,
+              berthId: toBerth.id,
+              date: prev.selectedDate,
+              time: nowHhMm(),
+            })
+          : undefined;
+      const nextStatus =
+        vessel && destKind ? storageStatusAfterPlace(vessel.storageStatus, destKind) : undefined;
       return {
         ...prev,
         reservations: prev.reservations.map((item) =>
           item.id === reservationId ? { ...item, ...patch } : item
         ),
+        vessels:
+          vessel && nextStatus && nextStatus !== vessel.storageStatus
+            ? prev.vessels.map((item) =>
+                item.id === vessel.id ? { ...item, storageStatus: nextStatus } : item
+              )
+            : prev.vessels,
+        launchTasks: liftTask ? [...prev.launchTasks, liftTask] : prev.launchTasks,
         activity: [
+          ...(liftTask && toBerth
+            ? [
+                makeActivity(
+                  actorFromRole(prev.role),
+                  `Lifted onto ${toBerth.name} · ${kindLabel(toBerth.kind, prev.settings)}`,
+                  {
+                    reservationId,
+                    vesselId: vessel?.id,
+                    customerId: vessel?.customerId,
+                    taskId: liftTask.id,
+                  }
+                ),
+              ]
+            : []),
           makeActivity(actorFromRole(prev.role), "Reservation edited", { reservationId }),
           ...prev.activity,
         ],

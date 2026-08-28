@@ -1,10 +1,14 @@
+import { FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { dnlStatus } from "../../lib/dnl";
+import { draftFromLaunchTasks, invoiceBannerText, launchLiftDraftLabel, unbilledDoneLaunchTasks } from "../../lib/invoice";
 import { statusAfterTaskDone } from "../../lib/status";
 import { useMarina } from "../../store/marina-store";
 import type { LaunchTask, TaskType, VesselStorageStatus } from "../../types/domain";
-import { toast } from "sonner";
 import { EditableChecklist } from "../checklist/editable-checklist";
 import { DnlBadge } from "../dnl-badge";
+import { Button } from "../ui/button";
 
 interface TaskRowProps {
   task: LaunchTask;
@@ -47,7 +51,8 @@ function illegalDoneMessage(kind: TaskType["kind"], current: VesselStorageStatus
 }
 
 export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowProps) {
-  const { state, setTaskChecklist, markTaskDone, startTask, setVesselDeparted } = useMarina();
+  const navigate = useNavigate();
+  const { state, setTaskChecklist, markTaskDone, startTask, setVesselDeparted, createDraftFromDryStack } = useMarina();
   const taskType = state.taskTypes.find((item) => item.id === task.taskTypeId);
   const customer = state.customers.find((item) => item.id === task.customerId);
   const vessel = state.vessels.find((item) => item.id === task.vesselId);
@@ -61,6 +66,43 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
   const kind = taskType.kind;
   const storageStatus = vessel.storageStatus;
   const dnl = dnlStatus(vessel, customer, state.settings);
+  const unbilledDone = unbilledDoneLaunchTasks(state.launchTasks, vesselId);
+  const previewLines = draftFromLaunchTasks(unbilledDone, state.taskTypes, state.products);
+  const draftLabel = launchLiftDraftLabel(unbilledDone, state.taskTypes);
+  const canInvoice = state.role === "office" && task.status === "done" && unbilledDone.length > 0;
+
+  function invoiceReservationId(): string | undefined {
+    const live = state.reservations.filter(
+      (item) => item.vesselId === vesselId && item.status !== "archived"
+    );
+    const rack = live.find((item) => state.berths.find((space) => space.id === item.berthId)?.kind === "dry_storage");
+    return rack?.id ?? live[0]?.id;
+  }
+
+  function onCreateDraft() {
+    const reservationId = invoiceReservationId();
+    if (!reservationId) {
+      toast.error("No booking to invoice against");
+      return;
+    }
+    const unbilledDone = unbilledDoneLaunchTasks(state.launchTasks, vesselId);
+    const previewLines = draftFromLaunchTasks(unbilledDone, state.taskTypes, state.products);
+    if (unbilledDone.length === 0) {
+      toast.error("Nothing left to invoice");
+      return;
+    }
+    if (previewLines.length === 0) {
+      toast.error("Link a product to the Launch/Lift task type in Settings");
+      return;
+    }
+    const invoiceId = createDraftFromDryStack(reservationId);
+    if (!invoiceId) {
+      toast.error("Nothing left to invoice");
+      return;
+    }
+    toast.success(invoiceBannerText(previewLines));
+    navigate(`/invoices/${invoiceId}`);
+  }
 
   function onStart() {
     if (dnl.blocked) {
@@ -84,7 +126,11 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
     }
     onError(null);
     markTaskDone(task.id);
-    toast.success(`${taskTypeName} done`);
+    const willBill = unbilledDone.some((item) => item.id === task.id) ? unbilledDone : [...unbilledDone, task];
+    const label = launchLiftDraftLabel(willBill, state.taskTypes);
+    toast.success(
+      willBill.length > 1 ? `${taskTypeName} done — invoice ${label}` : `${taskTypeName} done`
+    );
   }
 
   function onDeparted() {
@@ -154,7 +200,27 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
               Done
             </button>
           ) : task.status === "done" ? (
-            <span className="rounded-md bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600">Done</span>
+            <>
+              <span className="rounded-md bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600">
+                {task.invoiceId ? "Invoiced" : "Done"}
+              </span>
+              {canInvoice ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  data-create-dry-invoice
+                  data-invoice-includes={draftLabel || undefined}
+                  title={draftLabel ? `This draft: ${draftLabel}` : undefined}
+                  aria-label={draftLabel ? `Create draft invoice for ${draftLabel}` : "Create draft invoice"}
+                  onClick={onCreateDraft}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  {draftLabel ? `Invoice ${draftLabel}` : "Create draft invoice"}
+                </Button>
+              ) : null}
+            </>
           ) : null}
           {storageStatus === "launched" ? (
             <button

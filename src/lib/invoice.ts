@@ -76,6 +76,19 @@ export function draftFromLaunchTasks(
   return [...grouped.values()].map(({ product, qty }) => toInvoiceLine(product, qty));
 }
 
+export function unbilledDoneLaunchTasks(tasks: LaunchTask[], vesselId: string): LaunchTask[] {
+  return tasks.filter((task) => task.vesselId === vesselId && task.status === "done" && !task.invoiceId);
+}
+
+export function launchLiftDraftLabel(tasks: LaunchTask[], taskTypes: TaskType[]): string {
+  const names: string[] = [];
+  for (const task of tasks) {
+    const name = taskTypes.find((item) => item.id === task.taskTypeId)?.name;
+    if (name && !names.includes(name)) names.push(name);
+  }
+  return names.join(" + ");
+}
+
 export function invoiceBankBanner(lines: DraftInvoice["lines"]): BankAccount | "Mixed" {
   const banks = new Set(lines.map((l) => l.bankAccount));
   if (banks.size === 1) return [...banks][0];

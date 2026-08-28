@@ -41,11 +41,11 @@ export const DEMO_ROUTINES: DemoRoutine[] = [
     extra: { label: "Open launch board", href: "/operations/launch-board?script=rack" },
     steps: [
       "Reset demo first if she is already on a rack. Open Osprey on A10 · Berth.",
-      "Send to Dry stack. Pick DS5 (empty). Choose Move (free berth) so A10 is given up. Confirm. She is Stored on DS5.",
+      "Send to Dry stack. Pick DS5 (empty). Choose Move (free berth) so A10 is given up. Confirm. She is Stored on DS5. A Lift is already Done (water → rack). You can invoice the Lift now, or wait and bill Lift + Launch together after she is launched.",
       "Launch board → Add task → search Osprey → task type Launch → pick a time (e.g. 14:00) → Save.",
       "Open the Launch tab: that Launch. Start, then Done. Badge Stored → Launched.",
-      "Calendar: Osprey is on In the water. DS5 is empty. Footer Move → A10 · Berth → Move to put her back on a normal berth.",
-      "Calendar → Osprey → Create draft invoice. Launch ($85). Banner This invoice → Marina.",
+      "On that row: Invoice Lift + Launch (if the Lift is still unbilled). Banner This invoice → Marina. Both lines on one draft.",
+      "Calendar: Osprey is on In the water. You can still Create draft invoice there. Footer Move → A10 · Berth — Launch/lift invoice stays on the boat after she is back on a berth.",
     ],
   },
   {

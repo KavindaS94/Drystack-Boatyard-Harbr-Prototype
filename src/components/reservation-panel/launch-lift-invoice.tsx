@@ -1,0 +1,125 @@
+import { FileText } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  draftFromLaunchTasks,
+  invoiceBannerText,
+  launchLiftDraftLabel,
+  unbilledDoneLaunchTasks,
+} from "../../lib/invoice";
+import { cn } from "../../lib/utils";
+import { useMarina } from "../../store/marina-store";
+import { Button } from "../ui/button";
+
+const TASK_STATUS_LABEL: Record<string, string> = {
+  requested: "Requested",
+  open: "Scheduled",
+  in_progress: "In progress",
+  done: "Done",
+  declined: "Declined",
+};
+
+interface LaunchLiftInvoiceProps {
+  reservationId: string;
+  vesselId: string;
+  showLaunchBoardLink?: boolean;
+  className?: string;
+}
+
+export function LaunchLiftInvoice({
+  reservationId,
+  vesselId,
+  showLaunchBoardLink = false,
+  className,
+}: LaunchLiftInvoiceProps) {
+  const navigate = useNavigate();
+  const { state, createDraftFromDryStack } = useMarina();
+  const tasks = state.launchTasks
+    .filter((task) => task.vesselId === vesselId)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  const unbilledDone = unbilledDoneLaunchTasks(state.launchTasks, vesselId);
+  const previewLines = draftFromLaunchTasks(unbilledDone, state.taskTypes, state.products);
+  const draftLabel = launchLiftDraftLabel(unbilledDone, state.taskTypes);
+  const canCreateDraft = state.role === "office";
+
+  if (tasks.length === 0) return null;
+
+  return (
+    <div className={cn("space-y-3", className)}>
+      <div>
+        <p className="text-xs font-medium text-neutral-500">Launch/lift tasks</p>
+        <ul className="mt-1.5 space-y-1">
+          {tasks.map((task) => {
+            const taskType = state.taskTypes.find((item) => item.id === task.taskTypeId);
+            const invoiced = Boolean(task.invoiceId);
+            return (
+              <li key={task.id} className="text-sm text-neutral-800">
+                {task.time} · {taskType?.name ?? task.taskTypeId} ·{" "}
+                {TASK_STATUS_LABEL[task.status] ?? task.status}
+                {invoiced ? " · Invoiced" : null}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {canCreateDraft ? (
+        <div className="space-y-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            data-create-dry-invoice
+            onClick={() => {
+              if (unbilledDone.length === 0) {
+                toast.error(
+                  tasks.some((task) => task.status === "done")
+                    ? "Nothing left to invoice"
+                    : "Mark a launch or lift Done first"
+                );
+                return;
+              }
+              if (previewLines.length === 0) {
+                toast.error("Link a product to the Launch/Lift task type in Settings");
+                return;
+              }
+              const invoiceId = createDraftFromDryStack(reservationId);
+              if (!invoiceId) {
+                toast.error("Nothing left to invoice");
+                return;
+              }
+              toast.success(invoiceBannerText(previewLines));
+              navigate(`/invoices/${invoiceId}`);
+            }}
+          >
+            <FileText className="h-4 w-4" />
+            Create draft invoice
+          </Button>
+          {unbilledDone.length > 0 && draftLabel ? (
+            <p className="text-xs text-neutral-600" data-invoice-includes>
+              This draft: {draftLabel}
+              {previewLines.length > 0
+                ? ` · $${previewLines.reduce((sum, line) => sum + line.qty * line.unitPrice, 0)}`
+                : ""}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <p className="text-xs text-neutral-500">
+        After launch you can still invoice every unbilled Lift and Launch together. Monthly rack
+        storage stays on the booking.
+      </p>
+
+      {showLaunchBoardLink ? (
+        <Link
+          to="/operations/launch-board"
+          className="inline-block text-sm font-medium text-[hsl(252,75%,45%)] underline underline-offset-2"
+        >
+          Open launch board
+        </Link>
+      ) : null}
+    </div>
+  );
+}

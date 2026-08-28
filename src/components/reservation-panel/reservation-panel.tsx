@@ -36,6 +36,7 @@ import { useMarina } from "../../store/marina-store";
 import type { MessageTemplate, Reservation, ReservationStatus } from "../../types/domain";
 import { DryStoragePanel } from "./dry-storage-panel";
 import { JobPanel } from "./job-panel";
+import { LaunchLiftInvoice } from "./launch-lift-invoice";
 import { PlaceBookingModal } from "./place-booking-modal";
 import { WetPanel } from "./wet-panel";
 import { ConflictModal } from "./conflict-modal";
@@ -1037,7 +1038,13 @@ export function ReservationPanel() {
                     vesselId={vessel.id}
                     storageStatus={vessel.storageStatus}
                   />
-                ) : null}
+                ) : (
+                  <LaunchLiftInvoice
+                    reservationId={reservation.id}
+                    vesselId={vessel.id}
+                    className="border-t border-neutral-200 pt-4"
+                  />
+                )}
               </div>
             </div>
 
