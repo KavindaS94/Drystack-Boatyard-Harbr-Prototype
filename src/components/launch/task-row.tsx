@@ -2,8 +2,11 @@ import { FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { dnlStatus } from "../../lib/dnl";
+import { buildDaySlots, equipmentForModule } from "../../lib/equipment";
 import { draftFromLaunchTasks, invoiceBannerText, launchLiftDraftLabel, unbilledDoneLaunchTasks } from "../../lib/invoice";
+import { isDryKind } from "../../lib/modules";
 import { statusAfterTaskDone } from "../../lib/status";
+import { cn } from "../../lib/utils";
 import { useMarina } from "../../store/marina-store";
 import type { LaunchTask, TaskType, VesselStorageStatus } from "../../types/domain";
 import { EditableChecklist } from "../checklist/editable-checklist";
@@ -50,9 +53,15 @@ function illegalDoneMessage(kind: TaskType["kind"], current: VesselStorageStatus
   return "This status change is not allowed from the current vessel status.";
 }
 
+function spaceWord(kind: string | undefined): string {
+  if (kind === "dry_storage") return "Rack";
+  if (kind === "wet") return "Berth";
+  return "Pad";
+}
+
 export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowProps) {
   const navigate = useNavigate();
-  const { state, setTaskChecklist, markTaskDone, startTask, setVesselDeparted, createDraftFromDryStack } = useMarina();
+  const { state, setTaskChecklist, markTaskDone, startTask, setVesselDeparted, createDraftFromDryStack, rescheduleTask, setSelectedReservationId } = useMarina();
   const taskType = state.taskTypes.find((item) => item.id === task.taskTypeId);
   const customer = state.customers.find((item) => item.id === task.customerId);
   const vessel = state.vessels.find((item) => item.id === task.vesselId);
@@ -74,7 +83,10 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
     const live = state.reservations.filter(
       (item) => item.vesselId === vesselId && item.status !== "archived"
     );
-    const rack = live.find((item) => state.berths.find((space) => space.id === item.berthId)?.kind === "dry_storage");
+    const rack = live.find((item) => {
+      const space = state.berths.find((space) => space.id === item.berthId);
+      return space ? isDryKind(space.kind) : false;
+    });
     return rack?.id ?? live[0]?.id;
   }
 
@@ -84,9 +96,9 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
       toast.error("No booking to invoice against");
       return;
     }
-    const unbilledDone = unbilledDoneLaunchTasks(state.launchTasks, vesselId);
-    const previewLines = draftFromLaunchTasks(unbilledDone, state.taskTypes, state.products);
-    if (unbilledDone.length === 0) {
+    const unbilled = unbilledDoneLaunchTasks(state.launchTasks, vesselId);
+    const previewLines = draftFromLaunchTasks(unbilled, state.taskTypes, state.products);
+    if (unbilled.length === 0) {
       toast.error("Nothing left to invoice");
       return;
     }
@@ -118,7 +130,8 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
       onError(`Cannot mark done — ${dnl.reasons.join("; ")}`);
       return;
     }
-    const message = illegalDoneMessage(kind, storageStatus);
+    const message =
+      task.module === "boatyard" || task.module === "other" ? null : illegalDoneMessage(kind, storageStatus);
     if (message) {
       onError(message);
       return;
@@ -148,56 +161,96 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
       data-task-status={task.status}
       data-storage-status={storageStatus}
       data-dnl={dnl.blocked ? "blocked" : "clear"}
-      className="rounded-lg border border-neutral-200 bg-white p-3"
+      className={cn(
+        "rounded-xl border bg-white p-4 shadow-sm",
+        task.status === "in_progress" && "border-violet-300 bg-violet-50/50",
+        task.status === "done" && "border-neutral-200 bg-neutral-50 shadow-none"
+      )}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-5">
         <button
           type="button"
           onClick={onToggleOpen}
-          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left"
+          aria-expanded={isOpen}
+          className="flex min-w-0 items-start gap-4 text-left"
         >
-          <span className="text-sm font-semibold tabular-nums text-neutral-900">{task.time}</span>
-          <span className="text-sm text-neutral-800">{taskType.name}</span>
-          <span className="text-sm text-neutral-800">{customer.name}</span>
-          <span className="text-sm text-neutral-800">{vessel.name}</span>
-          <span className="text-sm text-neutral-600">{berth.name}</span>
-          <span
-            data-status-badge
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[storageStatus]}`}
-          >
-            {STATUS_LABEL[storageStatus]}
-          </span>
-          <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-800">
-            {TASK_STATUS_LABEL[task.status]}
-          </span>
-          <DnlBadge status={dnl} />
-          <span data-checklist-progress className="text-xs tabular-nums text-neutral-500">
-            {doneCount}/{task.checklist.length}
-          </span>
+          <div className="w-[4.5rem] shrink-0">
+            <p className="text-2xl font-semibold tabular-nums leading-none tracking-tight text-neutral-900">
+              {task.time}
+            </p>
+            <p className="mt-1.5 text-xs font-medium text-neutral-500">{taskType.name}</p>
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold text-neutral-900">{vessel.name}</h3>
+              <span
+                data-status-badge
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[storageStatus]}`}
+              >
+                {STATUS_LABEL[storageStatus]}
+              </span>
+              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-800">
+                {TASK_STATUS_LABEL[task.status]}
+              </span>
+              <DnlBadge status={dnl} />
+            </div>
+            <dl className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1 text-sm text-neutral-600">
+              <div>
+                <dt className="sr-only">Owner</dt>
+                <dd>{customer.name}</dd>
+              </div>
+              <div>
+                <dt className="mr-1 inline text-neutral-400">{spaceWord(berth.kind)} </dt>
+                <dd className="inline font-medium text-neutral-800">{berth.name}</dd>
+              </div>
+              <div>
+                <dt className="mr-1 inline text-neutral-400">Checks </dt>
+                <dd data-checklist-progress className="inline tabular-nums">
+                  {doneCount}/{task.checklist.length}
+                </dd>
+              </div>
+            </dl>
+          </div>
         </button>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const reservationId =
+                task.reservationId ??
+                state.reservations.find((item) => item.vesselId === vesselId && item.status !== "archived")?.id;
+              if (reservationId) setSelectedReservationId(reservationId);
+            }}
+          >
+            Boat
+          </Button>
           {task.status === "open" ? (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onStart}
               data-start-task
               disabled={dnl.blocked}
-              className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Start
-            </button>
+            </Button>
           ) : null}
           {task.status === "open" || task.status === "in_progress" ? (
-            <button
+            <Button
               type="button"
+              variant="harbr"
+              size="sm"
               onClick={onMarkDone}
               data-mark-done
               disabled={dnl.blocked}
-              className="rounded-md bg-[hsl(252,75%,70%)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[hsl(252,75%,60%)] disabled:cursor-not-allowed disabled:bg-neutral-300"
             >
               Done
-            </button>
+            </Button>
           ) : task.status === "done" ? (
             <>
               <span className="rounded-md bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600">
@@ -208,7 +261,6 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8"
                   data-create-dry-invoice
                   data-invoice-includes={draftLabel || undefined}
                   title={draftLabel ? `This draft: ${draftLabel}` : undefined}
@@ -222,24 +274,96 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
             </>
           ) : null}
           {storageStatus === "launched" ? (
-            <button
-              type="button"
-              onClick={onDeparted}
-              data-set-departed
-              className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
-            >
+            <Button type="button" variant="outline" size="sm" onClick={onDeparted} data-set-departed>
               Departed
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>
 
       {isOpen ? (
-        <div className="mt-3 space-y-2 border-t border-neutral-100 pt-3" data-open-task>
+        <div className="mt-4 space-y-2 border-t border-neutral-100 pt-3" data-open-task>
           {dnl.blocked ? (
             <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               Do not launch: {dnl.reasons.join("; ")}
             </p>
+          ) : null}
+          {task.status !== "done" && task.status !== "declined" ? (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="space-y-1 text-xs text-neutral-500">
+                Date
+                <input
+                  type="date"
+                  defaultValue={task.date}
+                  data-reschedule-date
+                  className="block rounded-md border border-neutral-200 px-2 py-1 text-sm text-neutral-900"
+                  onBlur={(event) => {
+                    if (event.target.value && event.target.value !== task.date) {
+                      const ok = rescheduleTask(task.id, event.target.value, task.time);
+                      toast[ok ? "success" : "error"](
+                        ok ? "Date changed — customer emailed" : "That lift slot is taken"
+                      );
+                    }
+                  }}
+                />
+              </label>
+              <label className="space-y-1 text-xs text-neutral-500">
+                Time
+                {(() => {
+                  const machine = equipmentForModule(state.equipment, task.module);
+                  const slots = machine ? buildDaySlots(machine) : [];
+                  if (slots.length === 0) {
+                    return (
+                      <input
+                        type="time"
+                        defaultValue={task.time}
+                        data-reschedule-time
+                        className="block rounded-md border border-neutral-200 px-2 py-1 text-sm text-neutral-900"
+                        onBlur={(event) => {
+                          if (event.target.value && event.target.value !== task.time) {
+                            const ok = rescheduleTask(task.id, task.date, event.target.value);
+                            toast[ok ? "success" : "error"](
+                              ok ? "Time changed — customer emailed" : "That lift slot is taken"
+                            );
+                          }
+                        }}
+                      />
+                    );
+                  }
+                  return (
+                    <select
+                      defaultValue={task.time}
+                      data-reschedule-time
+                      className="block rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-900"
+                      onChange={(event) => {
+                        if (event.target.value !== task.time) {
+                          const ok = rescheduleTask(task.id, task.date, event.target.value);
+                          toast[ok ? "success" : "error"](
+                            ok ? "Time changed — customer emailed" : "That lift slot is taken"
+                          );
+                        }
+                      }}
+                    >
+                      {slots.map((slot) => {
+                        const taken = state.equipmentBookings.some(
+                          (booking) =>
+                            booking.equipmentId === machine?.id &&
+                            booking.date === task.date &&
+                            booking.startTime === slot &&
+                            booking.taskId !== task.id
+                        );
+                        return (
+                          <option key={slot} value={slot} disabled={taken}>
+                            {slot}
+                            {taken ? " — taken" : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  );
+                })()}
+              </label>
+            </div>
           ) : null}
           <p className="text-xs font-medium text-neutral-500">Checklist</p>
           <EditableChecklist

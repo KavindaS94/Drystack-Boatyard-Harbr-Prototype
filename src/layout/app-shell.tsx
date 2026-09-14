@@ -1,16 +1,18 @@
 import { useLayoutEffect } from "react";
-import { Outlet, useLocation } from "react-router-dom";
-import { DemoDeepLink } from "../components/demo/demo-deep-link";
+import { Outlet, useLocation, useSearchParams } from "react-router-dom";
 import { SidebarProvider } from "../components/ui/sidebar";
+import { HARBR_STORY_ID } from "../lib/demo-story";
+import { cn } from "../lib/utils";
 import { useMarina } from "../store/marina-store";
 import { AppHeader } from "./app-header";
 import { GlobalSidebar } from "./global-sidebar";
 
 function crumbsForPath(pathname: string): { pages: string[]; page: string } {
   if (pathname.startsWith("/dashboard/actions")) return { pages: ["Dashboard"], page: "Actions" };
-  if (pathname.startsWith("/operations/launch-board")) return { pages: ["Operations"], page: "Launch board" };
-  if (pathname.startsWith("/operations/tablet")) return { pages: ["Operations"], page: "Yard tablet" };
-  if (pathname.startsWith("/settings/demo-routines")) return { pages: ["Settings"], page: "Demo routines" };
+  if (pathname.startsWith("/operations/dry-stack")) return { pages: ["Operations"], page: "Dry stack" };
+  if (pathname.startsWith("/operations/boatyard")) return { pages: ["Operations"], page: "Boatyard" };
+  if (pathname.startsWith("/operations/hardstand")) return { pages: ["Operations"], page: "Hardstand" };
+  if (pathname.startsWith("/settings/demo-routines")) return { pages: ["Settings"], page: "Demo story" };
   if (pathname.startsWith("/settings")) return { pages: ["Settings"], page: "General Info" };
   if (pathname.startsWith("/invoices")) return { pages: ["Accounting"], page: "Draft invoice" };
   return { pages: ["Operations"], page: "Calendar" };
@@ -18,20 +20,30 @@ function crumbsForPath(pathname: string): { pages: string[]; page: string } {
 
 export function AppShell() {
   const location = useLocation();
+  const [params] = useSearchParams();
   const { state, setRole } = useMarina();
-  const { pages, page } = crumbsForPath(location.pathname);
-  const roleForPath = location.pathname.startsWith("/operations/tablet") ? "yard" : "office";
+  const storyOn = params.get("story") === HARBR_STORY_ID;
+  const crumbs = crumbsForPath(location.pathname);
+  const page =
+    location.pathname.startsWith("/operations/dry-stack")
+      ? state.settings.dryStorageLabel
+      : location.pathname.startsWith("/operations/boatyard")
+        ? state.settings.boatyardLabel
+        : location.pathname.startsWith("/operations/hardstand")
+          ? state.settings.hardstandLabel
+          : crumbs.page;
+  const pages = crumbs.pages;
+  const roleForPath = "office";
 
   useLayoutEffect(() => {
     if (state.role !== roleForPath) setRole(roleForPath);
   }, [roleForPath, setRole, state.role]);
 
   return (
-    <SidebarProvider>
-      <DemoDeepLink />
+    <SidebarProvider className={cn("h-svh overflow-hidden", storyOn && "pb-32")}>
       <GlobalSidebar>
         <AppHeader pages={pages} page={page} />
-        <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Outlet />
         </div>
       </GlobalSidebar>

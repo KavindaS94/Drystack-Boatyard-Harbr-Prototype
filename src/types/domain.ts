@@ -1,4 +1,7 @@
-export type SpaceKind = "wet" | "boatyard" | "dry_storage";
+export type SpaceKind = "wet" | "boatyard" | "dry_storage" | "hardstand";
+export type LandModule = "dry_storage" | "boatyard" | "hardstand";
+export type TaskModule = LandModule | "other";
+export type EquipmentKind = "travel_lift" | "fork_lift";
 export type Role = "office" | "yard";
 export type BankAccount = "Marina" | "Holding";
 export type TcStatus = "not_sent" | "sent" | "signed";
@@ -13,6 +16,7 @@ export type ActivityActor = "office" | "yard" | "customer" | "system";
 export type MessageChannel = "email" | "sms";
 export type MessageTemplate =
   | "portal_link"
+  | "status_email"
   | "dnl_notice"
   | "payment_reminder"
   | "insurance_reminder"
@@ -23,6 +27,7 @@ export type MessageTemplate =
   | "tc_sent"
   | "contractor_notified"
   | "relaunch_moved"
+  | "launch_rescheduled"
   | "change_approved"
   | "change_rejected"
   | "custom";
@@ -64,9 +69,29 @@ export interface TaskType {
   id: string;
   name: string; // marina word, e.g. Launch / Lift
   kind: "launch" | "retrieval" | "other";
+  module: TaskModule;
   checklist: ChecklistOption[];
   productId?: string;
   active: boolean;
+}
+
+export interface Equipment {
+  id: string;
+  name: string;
+  kind: EquipmentKind;
+  active: boolean;
+  dayStart: string; // "07:00"
+  dayEnd: string; // "17:00"
+  slotMinutes: number;
+}
+
+export interface EquipmentBooking {
+  id: string;
+  equipmentId: string;
+  date: string;
+  startTime: string;
+  taskId: string;
+  vesselId: string;
 }
 
 export interface Berth {
@@ -122,7 +147,7 @@ export interface Job {
   location: JobLocation; // afloat (in the water) | dockyard (lifted out)
   workBy: WorkBy;
   contractorName?: string;
-  liftTime?: string; // "08:15" — only meaningful when location === "dockyard"
+  liftTime?: string; // "08:15" — mirror of the linked Lift task
   launchTime?: string; // "14:00"
   launchDate?: string; // YYYY-MM-DD — relaunch day
   tcStatus: TcStatus;
@@ -157,6 +182,8 @@ export interface LaunchTask {
   berthId: string;
   date: string;
   time: string; // "09:00"
+  module: TaskModule;
+  reservationId?: string;
   checklist: ChecklistItem[];
   status: LaunchTaskStatus;
   source: LaunchTaskSource;
@@ -224,13 +251,14 @@ export interface Message {
 export interface Settings {
   boatyardEnabled: boolean;
   dryStorageEnabled: boolean;
+  hardstandEnabled: boolean;
   boatyardLabel: string; // default "Dockyard"
   dryStorageLabel: string; // default "Dry stack"
+  hardstandLabel: string; // default "Hardstand"
   jobPanelTitle: string; // default "Job"
   hidePricesForYard: boolean;
   autoDnlOverdue: boolean;
   autoDnlInsurance: boolean;
-  allowPortalRequests: boolean;
   /** Subtitle options on checklist rows — set in Settings → Checklists. */
   checklistCategories: string[];
 }
@@ -242,6 +270,8 @@ export interface MarinaState {
   products: Product[];
   jobTypes: JobType[];
   taskTypes: TaskType[];
+  equipment: Equipment[];
+  equipmentBookings: EquipmentBooking[];
   customers: Customer[];
   vessels: Vessel[];
   reservations: Reservation[];

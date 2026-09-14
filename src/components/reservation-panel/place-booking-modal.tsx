@@ -1,13 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { conflictDetailsForBerth, sourceReservationForVessel } from "../../lib/availability";
+import { conflictDetailsForBerth, hasLiveWetReservation, sourceReservationForVessel } from "../../lib/availability";
+import { buildDaySlots, conflictDetailsForEquipment, equipmentForModule } from "../../lib/equipment";
 import { addDays } from "../../lib/iso-date";
 import { kindLabel } from "../../lib/labels";
+import { workJobTypes } from "../../lib/job-types";
+import { isKindEnabled, isLandKind, modulePath, spaceKindToModule } from "../../lib/modules";
 import { useMarina, type PlaceBookingInput } from "../../store/marina-store";
 import type { Berth, Reservation, SpaceKind } from "../../types/domain";
 import { Button } from "../ui/button";
 import { ConflictModal } from "./conflict-modal";
+import { EquipmentConflictModal } from "./equipment-conflict-modal";
 
 export interface PlaceBookingModalProps {
   title: string;
@@ -31,7 +36,7 @@ function firstFreeBerth(berths: Berth[], reservations: Reservation[], start: str
 
 function keepFreeLabels(
   sourceKind: SpaceKind | undefined,
-  settings: { boatyardLabel: string; dryStorageLabel: string }
+  settings: { boatyardLabel: string; dryStorageLabel: string; hardstandLabel: string }
 ): { keep: string; move: string; legend: string } {
   if (sourceKind === "wet") {
     return {
@@ -45,6 +50,13 @@ function keepFreeLabels(
       legend: settings.dryStorageLabel,
       keep: `Keep ${settings.dryStorageLabel.toLowerCase()} rack`,
       move: `Move (free ${settings.dryStorageLabel.toLowerCase()} rack)`,
+    };
+  }
+  if (sourceKind === "hardstand") {
+    return {
+      legend: settings.hardstandLabel,
+      keep: `Keep ${settings.hardstandLabel.toLowerCase()} pad`,
+      move: `Move (free ${settings.hardstandLabel.toLowerCase()} pad)`,
     };
   }
   if (sourceKind === "boatyard") {
@@ -65,23 +77,29 @@ export function PlaceBookingModal({
   destKind,
   startDate,
 }: PlaceBookingModalProps) {
+  const navigate = useNavigate();
   const { state, placeBooking } = useMarina();
   const sourceReservation = sourceReservationId
     ? state.reservations.find((item) => item.id === sourceReservationId)
     : undefined;
   const lockedVesselId = sourceReservation?.vesselId;
+  const sourceKind = sourceReservation
+    ? state.berths.find((item) => item.id === sourceReservation.berthId)?.kind
+    : undefined;
   const destBerths = useMemo(() => {
     return state.berths.filter((berth) => {
       if (destBerthId) return berth.id === destBerthId;
+      if (sourceKind === "wet" && isLandKind(berth.kind)) return false;
       if (destKind && berth.kind !== destKind) return false;
-      if (berth.kind === "boatyard" && !state.settings.boatyardEnabled) return false;
-      if (berth.kind === "dry_storage" && !state.settings.dryStorageEnabled) return false;
-      return true;
+      return isKindEnabled(berth.kind, state.settings);
     });
-  }, [destBerthId, destKind, state.berths, state.settings]);
+  }, [destBerthId, destKind, sourceKind, state.berths, state.settings]);
 
-  const jobTypes = useMemo(() => state.jobTypes.filter((item) => item.active), [state.jobTypes]);
-  const preferredType = jobTypes.find((item) => item.requiresTc) ?? jobTypes[0];
+  const jobTypes = useMemo(
+    () => workJobTypes(state.jobTypes).filter((item) => item.active),
+    [state.jobTypes]
+  );
+  const preferredType = jobTypes.find((item) => item.id === "jt-antifoul") ?? jobTypes[0];
   const initialStart = startDate ?? sourceReservation?.startDate ?? state.selectedDate;
   const initialDestId =
     destBerthId ?? firstFreeBerth(destBerths, state.reservations, initialStart, addDays(initialStart, 6));
@@ -101,15 +119,32 @@ export function PlaceBookingModal({
   const [liftTime, setLiftTime] = useState("09:00");
   const [mode, setMode] = useState<PlaceBookingInput["mode"]>("keep");
   const [conflict, setConflict] = useState<ReturnType<typeof conflictDetailsForBerth>>(null);
+  const [equipmentConflict, setEquipmentConflict] = useState<ReturnType<typeof conflictDetailsForEquipment>>(null);
 
   const dest = state.berths.find((item) => item.id === berthId);
+  const bookableVessels = useMemo(() => {
+    if (!dest || dest.kind === "wet") return state.vessels;
+    return state.vessels.filter(
+      (item) => !hasLiveWetReservation(state.reservations, state.berths, item.id)
+    );
+  }, [dest, state.berths, state.reservations, state.vessels]);
   const vessel = state.vessels.find((item) => item.id === vesselId);
+
+  useEffect(() => {
+    if (lockedVesselId) return;
+    if (bookableVessels.some((item) => item.id === vesselId)) return;
+    setVesselId(bookableVessels[0]?.id ?? "");
+  }, [bookableVessels, lockedVesselId, vesselId]);
+
   const source =
     sourceReservation ??
     (vessel ? sourceReservationForVessel(state.reservations, state.berths, vessel.id, berthId) : undefined);
   const sourceBerth = source ? state.berths.find((item) => item.id === source.berthId) : undefined;
   const showKeepFree = Boolean(source);
   const destIsYard = dest?.kind === "boatyard";
+  const destModule = dest ? spaceKindToModule(dest.kind) : undefined;
+  const machine = destModule ? equipmentForModule(state.equipment, destModule) : undefined;
+  const slots = machine ? buildDaySlots(machine) : [];
   const jobType = jobTypes.find((item) => item.id === jobTypeId);
   const isTooLong = Boolean(vessel && dest && vessel.lengthM > dest.lengthM);
   const canConfirm = Boolean(vessel && dest && start && end && start <= end && (!destIsYard || jobType));
@@ -138,6 +173,10 @@ export function PlaceBookingModal({
 
   function onConfirm() {
     if (!canConfirm || !vessel || !dest) return;
+    if (sourceBerth?.kind === "wet" && isLandKind(dest.kind)) {
+      toast.error("Water berth boats stay on the calendar");
+      return;
+    }
     const exclude = mode === "move" && source ? source.id : undefined;
     const nextConflict = conflictDetailsForBerth(
       state.reservations,
@@ -151,6 +190,19 @@ export function PlaceBookingModal({
       setConflict(nextConflict);
       return;
     }
+    if (destModule) {
+      const eqConflict = conflictDetailsForEquipment(
+        state.equipmentBookings,
+        state.equipment,
+        destModule,
+        start,
+        liftTime
+      );
+      if (eqConflict) {
+        setEquipmentConflict(eqConflict);
+        return;
+      }
+    }
     const ok = placeBooking({
       vesselId: vessel.id,
       destBerthId: dest.id,
@@ -159,7 +211,7 @@ export function PlaceBookingModal({
       mode: showKeepFree ? mode : "keep",
       sourceReservationId: source?.id,
       jobTypeId: destIsYard ? jobTypeId : undefined,
-      liftTime: destIsYard ? liftTime : undefined,
+      liftTime: destModule ? liftTime : undefined,
     });
     if (!ok) {
       toast.error("Could not place that booking");
@@ -172,6 +224,9 @@ export function PlaceBookingModal({
           ? `Moved to ${dest.name}`
           : `Booked ${dest.name}`
     );
+    if (destModule) {
+      navigate(`${modulePath(destModule)}?tab=occupancy`);
+    }
     onClose();
   }
 
@@ -182,7 +237,6 @@ export function PlaceBookingModal({
         aria-modal="true"
         aria-labelledby="place-booking-title"
         data-place-booking-modal
-        data-send-to-yard-modal={destKind === "boatyard" ? "true" : undefined}
         className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-4 shadow-lg"
       >
         <div className="flex items-start justify-between gap-2">
@@ -209,16 +263,16 @@ export function PlaceBookingModal({
                 data-place-vessel-select
                 className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
               >
-                {state.vessels.map((item) => {
-                  const live = sourceReservationForVessel(state.reservations, state.berths, item.id);
-                  const liveBerth = live ? state.berths.find((berth) => berth.id === live.berthId) : undefined;
-                  return (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                      {liveBerth ? ` · ${liveBerth.name}` : " · not booked"}
-                    </option>
-                  );
-                })}
+                {bookableVessels.map((item) => {
+                    const live = sourceReservationForVessel(state.reservations, state.berths, item.id);
+                    const liveBerth = live ? state.berths.find((berth) => berth.id === live.berthId) : undefined;
+                    return (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                        {liveBerth ? ` · ${liveBerth.name}` : " · not booked"}
+                      </option>
+                    );
+                  })}
               </select>
             </label>
           )}
@@ -269,31 +323,60 @@ export function PlaceBookingModal({
           </div>
 
           {destIsYard ? (
-            <>
-              <label className="block space-y-1">
-                <span className="text-xs font-medium text-neutral-500">Job type</span>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-neutral-500">Job type</span>
+              <select
+                value={jobTypeId}
+                onChange={(event) => onJobTypeChange(event.target.value)}
+                className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+              >
+                {jobTypes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {destModule ? (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-neutral-500">
+                {destIsYard ? "Lift slot (travel lift)" : "Lift slot (fork lift)"}
+              </span>
+              <span className="block text-xs text-neutral-500">
+                Lift first. The job or stay happens on land, then you schedule launch.
+              </span>
+              {slots.length > 0 ? (
                 <select
-                  value={jobTypeId}
-                  onChange={(event) => onJobTypeChange(event.target.value)}
+                  value={liftTime}
+                  onChange={(event) => setLiftTime(event.target.value)}
                   className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
                 >
-                  {jobTypes.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
+                  {slots.map((slot) => {
+                    const taken = state.equipmentBookings.some(
+                      (booking) =>
+                        booking.equipmentId === machine?.id &&
+                        booking.date === start &&
+                        booking.startTime === slot
+                    );
+                    return (
+                      <option key={slot} value={slot} disabled={taken}>
+                        {slot}
+                        {taken ? " — taken" : ""}
+                      </option>
+                    );
+                  })}
                 </select>
-              </label>
-              <label className="block space-y-1">
-                <span className="text-xs font-medium text-neutral-500">Lift time</span>
+              ) : (
                 <input
                   type="time"
                   value={liftTime}
                   onChange={(event) => setLiftTime(event.target.value)}
                   className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
                 />
-              </label>
-            </>
+              )}
+            </label>
           ) : null}
 
           {showKeepFree ? (
@@ -352,6 +435,9 @@ export function PlaceBookingModal({
             onClose();
           }}
         />
+      ) : null}
+      {equipmentConflict ? (
+        <EquipmentConflictModal conflict={equipmentConflict} onClose={() => setEquipmentConflict(null)} />
       ) : null}
     </div>,
     document.body

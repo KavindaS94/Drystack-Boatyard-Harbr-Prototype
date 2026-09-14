@@ -8,6 +8,9 @@ export function WordsTab() {
     <div className="max-w-xl space-y-6" data-settings-tab="words">
       <section className="space-y-3 rounded-md border border-border p-3">
         <h2 className="text-sm font-semibold text-neutral-900">Modules</h2>
+        <p className="text-xs text-muted-foreground">
+          Not every marina has all three. Turn off what you do not use — those screens and tabs disappear.
+        </p>
         <label className="flex items-center gap-2 text-sm text-neutral-800">
           <input
             type="checkbox"
@@ -25,6 +28,15 @@ export function WordsTab() {
             data-dry-storage-enabled
           />
           Dry stack
+        </label>
+        <label className="flex items-center gap-2 text-sm text-neutral-800">
+          <input
+            type="checkbox"
+            checked={settings.hardstandEnabled}
+            onChange={(event) => updateSettings({ hardstandEnabled: event.target.checked })}
+            data-hardstand-enabled
+          />
+          Hardstand
         </label>
       </section>
 
@@ -48,10 +60,19 @@ export function WordsTab() {
             className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Hardstand label</span>
+          <input
+            value={settings.hardstandLabel}
+            onChange={(event) => updateSettings({ hardstandLabel: event.target.value })}
+            data-hardstand-label
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+          />
+        </label>
       </section>
 
       <section className="space-y-3 rounded-md border border-border p-3">
-        <h2 className="text-sm font-semibold text-neutral-900">Yard tablet</h2>
+        <h2 className="text-sm font-semibold text-neutral-900">Yard crew</h2>
         <label className="flex items-center gap-2 text-sm text-neutral-800">
           <input
             type="checkbox"
@@ -82,19 +103,6 @@ export function WordsTab() {
             data-auto-dnl-insurance
           />
           Auto-block when insurance is expired
-        </label>
-      </section>
-
-      <section className="space-y-3 rounded-md border border-border p-3">
-        <h2 className="text-sm font-semibold text-neutral-900">Customer portal</h2>
-        <label className="flex items-center gap-2 text-sm text-neutral-800">
-          <input
-            type="checkbox"
-            checked={settings.allowPortalRequests}
-            onChange={(event) => updateSettings({ allowPortalRequests: event.target.checked })}
-            data-allow-portal-requests
-          />
-          Allow customers to request launches
         </label>
       </section>
     </div>

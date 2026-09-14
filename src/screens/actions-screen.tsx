@@ -6,6 +6,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { actionCounts } from "../lib/actions";
+import { modulePath, spaceKindToModule } from "../lib/modules";
 import { RESERVATION_STATUS_COLOR } from "../lib/reservation-footer";
 import { cn } from "../lib/utils";
 import { useMarina } from "../store/marina-store";
@@ -123,7 +124,7 @@ export function ActionsScreen() {
     tab ?? (pendingChanges.length > 0 ? "pending-changes" : "pending-approvals");
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 pt-0 sm:p-5 sm:px-8" data-actions-screen>
+    <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-auto p-4 pt-0 sm:p-5 sm:px-8" data-actions-screen>
       <div className="w-full">
         <div
           role="tablist"
@@ -310,7 +311,9 @@ export function ActionsScreen() {
                                     className="flex h-8 items-center justify-center rounded-md bg-[hsl(252,75%,70%)] px-4 py-2 text-sm text-white transition-colors hover:bg-[hsl(252,75%,60%)]"
                                     onClick={() => {
                                       setSelectedReservationId(reservation.id);
-                                      navigate("/operations/calendar");
+                                      const berth = state.berths.find((item) => item.id === reservation.berthId);
+                                      const dest = berth ? spaceKindToModule(berth.kind) : null;
+                                      navigate(dest ? modulePath(dest) : "/operations/calendar");
                                     }}
                                   >
                                     Review Agreement

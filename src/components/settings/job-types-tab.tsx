@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TemplateChecklist } from "../checklist/editable-checklist";
 import { trimChecklistOptions } from "../../lib/checklist";
+import { workJobTypes } from "../../lib/job-types";
 import { useMarina } from "../../store/marina-store";
 import type { ChecklistOption, JobType } from "../../types/domain";
 
@@ -66,7 +67,10 @@ export function JobTypesTab() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem]" data-settings-tab="job-types">
       <ul className="space-y-2">
-        {state.jobTypes.map((jobType) => (
+        <li className="rounded-md border border-dashed border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+          Lift and launch are on every Dry stack, Dockyard, and Hardstand stay. They are not a job type.
+        </li>
+        {workJobTypes(state.jobTypes).map((jobType) => (
           <li key={jobType.id}>
             <button
               type="button"

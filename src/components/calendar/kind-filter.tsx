@@ -1,3 +1,4 @@
+import { enabledSpaceKinds } from "../../lib/modules";
 import { kindLabel } from "../../lib/labels";
 import { cn } from "../../lib/utils";
 import { useMarina } from "../../store/marina-store";
@@ -17,21 +18,18 @@ export function KindFilter() {
   const { state, setKindFilter } = useMarina();
   const { settings, kindFilter } = state;
 
-  const enabledKinds: SpaceKind[] = [
-    "wet",
-    ...(settings.boatyardEnabled ? (["boatyard"] as const) : []),
-    ...(settings.dryStorageEnabled ? (["dry_storage"] as const) : []),
-  ];
+  const enabledKinds = enabledSpaceKinds(settings);
 
   const chips: KindChip[] = [
     { id: "all", label: "All", kinds: enabledKinds },
     { id: "wet", label: "Berth", kinds: ["wet"] },
-    ...(settings.boatyardEnabled
-      ? [{ id: "boatyard", label: kindLabel("boatyard", settings), kinds: ["boatyard"] as SpaceKind[] }]
-      : []),
-    ...(settings.dryStorageEnabled
-      ? [{ id: "dry_storage", label: kindLabel("dry_storage", settings), kinds: ["dry_storage"] as SpaceKind[] }]
-      : []),
+    ...enabledKinds
+      .filter((kind) => kind !== "wet")
+      .map((kind) => ({
+        id: kind,
+        label: kindLabel(kind, settings),
+        kinds: [kind] as SpaceKind[],
+      })),
   ];
 
   return (

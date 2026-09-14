@@ -41,11 +41,23 @@ export function UserMenu() {
             onClick={() => setOpen(false)}
             className="block rounded-md px-2 py-1.5 hover:bg-sidebar-accent/60"
           >
-            <span className="block text-sm font-medium text-[hsl(252,75%,45%)]">Demo routines</span>
+            <span className="block text-sm font-medium text-[hsl(252,75%,45%)]">Demo story</span>
             <span className="block text-[11px] leading-4 text-muted-foreground">
-              Step-by-step walkthroughs — Settings → Demo routines
+              Elena wants antifoul — follow that one job
             </span>
           </Link>
+          {state.settings.boatyardEnabled ? (
+            <Link
+              to="/yard"
+              onClick={() => setOpen(false)}
+              className="mt-1 block rounded-md px-2 py-1.5 hover:bg-sidebar-accent/60"
+            >
+              <span className="block text-sm font-medium text-neutral-800">Open yard crew</span>
+              <span className="block text-[11px] leading-4 text-muted-foreground">
+                Separate crew page — no office sidebar
+              </span>
+            </Link>
+          ) : null}
           <button
             type="button"
             onClick={onReset}

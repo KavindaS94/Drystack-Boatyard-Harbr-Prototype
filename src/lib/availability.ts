@@ -66,6 +66,16 @@ export function sourceReservationForVessel(
   return wet ?? live[0];
 }
 
+export function hasLiveWetReservation(
+  reservations: Reservation[],
+  berths: Berth[],
+  vesselId: string
+): boolean {
+  return liveReservationsForVessel(reservations, vesselId).some(
+    (item) => berths.find((berth) => berth.id === item.berthId)?.kind === "wet"
+  );
+}
+
 export function formatIsoDate(iso: string): string {
   const [year, month, day] = iso.split("-").map(Number);
   return new Date(year, month - 1, day).toLocaleDateString("en-GB", {

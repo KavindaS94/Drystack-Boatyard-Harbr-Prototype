@@ -2,6 +2,7 @@ import { DnlBadge } from "../dnl-badge";
 import { EditableChecklist } from "../checklist/editable-checklist";
 import { itemsFromOptions, photosFromOptions } from "../../lib/checklist";
 import { dnlStatus } from "../../lib/dnl";
+import { remapTravelLiftJobTypeId, workJobTypes } from "../../lib/job-types";
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus } from "../../types/domain";
 import { JobLines } from "../reservation-panel/job-lines";
@@ -41,11 +42,12 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
   const { state, updateJob, addJobLine } = useMarina();
   const reservation = state.reservations.find((item) => item.id === reservationId);
   const job = reservation?.job;
-  const jobType = state.jobTypes.find((item) => item.id === job?.typeId);
+  const resolvedTypeId = job ? remapTravelLiftJobTypeId(job.typeId) : undefined;
+  const jobType = state.jobTypes.find((item) => item.id === resolvedTypeId);
   const vessel = state.vessels.find((item) => item.id === reservation?.vesselId);
   const customer = state.customers.find((item) => item.id === reservation?.customerId);
   const berth = state.berths.find((item) => item.id === reservation?.berthId);
-  const activeTypes = state.jobTypes.filter((item) => item.active);
+  const activeTypes = workJobTypes(state.jobTypes).filter((item) => item.active);
   const hidePrices = state.settings.hidePricesForYard;
 
   if (!reservation || !job || !jobType || !vessel || !customer || !berth) return null;
@@ -92,7 +94,7 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
       <label className="block space-y-1">
         <span className="text-xs font-medium text-neutral-500">Job type</span>
         <select
-          value={job.typeId}
+          value={resolvedTypeId}
           onChange={(event) => onTypeChange(event.target.value)}
           className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
         >
@@ -104,7 +106,10 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
         </select>
       </label>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-2 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+        <p className="text-xs font-medium text-neutral-500">Lift then launch</p>
+        <p className="text-xs text-neutral-500">Lift first, do the job, then launch.</p>
+        <div className="grid grid-cols-2 gap-2">
         <label className="block space-y-1">
           <span className="text-xs font-medium text-neutral-500">Lift time</span>
           <input
@@ -123,6 +128,7 @@ export function TabletJob({ reservationId, onBack }: TabletJobProps) {
             className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
           />
         </label>
+        </div>
       </div>
 
       {jobType.requiresTc ? (

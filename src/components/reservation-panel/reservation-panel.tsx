@@ -20,8 +20,9 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { DnlBadge } from "../dnl-badge";
-import { dnlStatus } from "../../lib/dnl";
+import { dnlStatus, type DnlStatus } from "../../lib/dnl";
 import { kindLabel } from "../../lib/labels";
+import { isDryKind, isKindEnabled, spaceKindToModule } from "../../lib/modules";
 import { conflictDetailsForBerth } from "../../lib/availability";
 import {
   agreementPrimaryLabel,
@@ -33,12 +34,19 @@ import {
   showsViewAgreementLink,
 } from "../../lib/reservation-footer";
 import { useMarina } from "../../store/marina-store";
-import type { MessageTemplate, Reservation, ReservationStatus } from "../../types/domain";
+import type {
+  Berth,
+  Customer,
+  MessageTemplate,
+  Reservation,
+  ReservationStatus,
+  SpaceKind,
+  Vessel,
+} from "../../types/domain";
 import { DryStoragePanel } from "./dry-storage-panel";
 import { JobPanel } from "./job-panel";
 import { LaunchLiftInvoice } from "./launch-lift-invoice";
 import { PlaceBookingModal } from "./place-booking-modal";
-import { WetPanel } from "./wet-panel";
 import { ConflictModal } from "./conflict-modal";
 
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
@@ -220,7 +228,7 @@ function SendMessageDialog({
   onClose: () => void;
 }) {
   const { sendMessage } = useMarina();
-  const [channel, setChannel] = useState<"email" | "sms">("sms");
+  const [channel, setChannel] = useState<"email" | "sms">("email");
   const [templateId, setTemplateId] = useState<MessageTemplate>("dnl_notice");
 
   function onSend() {
@@ -291,91 +299,43 @@ function SendMessageDialog({
   );
 }
 
-function SendPortalLinkDialog({
+function SendStatusEmailDialog({
   customerId,
-  reservationId,
+  vesselName,
   onClose,
 }: {
   customerId: string;
-  reservationId: string;
+  vesselName: string;
   onClose: () => void;
 }) {
-  const { createPortalLink } = useMarina();
-  const [channel, setChannel] = useState<"email" | "sms">("sms");
-  const [result, setResult] = useState<{ url: string; expiresAt: string } | null>(null);
+  const { sendStatusEmail } = useMarina();
 
   function onSend() {
-    const link = createPortalLink(customerId);
-    const url = `${link.url}?focus=${encodeURIComponent(reservationId)}`;
-    setResult({ url, expiresAt: link.expiresAt });
-    toast.success(`Status link sent via ${channel.toUpperCase()}`);
+    sendStatusEmail(customerId, vesselName);
+    toast.success("Status email sent");
+    onClose();
   }
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-4 shadow-lg" data-send-portal-dialog>
+      <div className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-4 shadow-lg" data-send-status-dialog>
         <div className="flex items-start justify-between gap-2">
-          <h2 className="text-sm font-semibold text-neutral-900">Send status link</h2>
+          <h2 className="text-sm font-semibold text-neutral-900">Email status</h2>
           <button type="button" onClick={onClose} className="text-xs text-neutral-500">
             Close
           </button>
         </div>
-        {!result ? (
-          <div className="mt-4 space-y-3">
-            <p className="text-sm text-neutral-600">
-              Customer can view boat status, request a launch, and sign yard T&Cs — no login.
-            </p>
-            <div className="flex gap-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={channel === "sms"} onChange={() => setChannel("sms")} />
-                SMS
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={channel === "email"} onChange={() => setChannel("email")} />
-                Email
-              </label>
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="button" variant="harbr" className="flex-1" onClick={onSend}>
-                Send link
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            <p className="text-xs text-neutral-500">
-              Expires {new Date(result.expiresAt).toLocaleDateString()}
-            </p>
-            <code className="block break-all rounded-md bg-neutral-50 p-2 text-xs">{result.url}</code>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  void navigator.clipboard.writeText(result.url);
-                  toast.success("Link copied");
-                }}
-              >
-                Copy link
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="harbr"
-                onClick={() => window.open(result.url, "_blank")}
-              >
-                Open as customer
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={onClose}>
-                Done
-              </Button>
-            </div>
-          </div>
-        )}
+        <p className="mt-4 text-sm text-neutral-600">
+          Sends a simulated email with the latest on {vesselName}. No customer portal.
+        </p>
+        <div className="mt-4 flex gap-2">
+          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" variant="harbr" className="flex-1" onClick={onSend}>
+            Send email
+          </Button>
+        </div>
       </div>
     </div>,
     document.body
@@ -497,6 +457,11 @@ function MoveReservationModal({
   onClose: () => void;
 }) {
   const { state, updateReservation } = useMarina();
+  const fromBerth = state.berths.find((item) => item.id === reservation.berthId);
+  const destBerths = state.berths.filter((item) => {
+    if (fromBerth?.kind === "wet") return item.kind === "wet";
+    return isKindEnabled(item.kind, state.settings);
+  });
   const [startDate, setStartDate] = useState(reservation.startDate);
   const [endDate, setEndDate] = useState(reservation.endDate);
   const [berthId, setBerthId] = useState(reservation.berthId);
@@ -534,8 +499,9 @@ function MoveReservationModal({
       <div className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-4 shadow-lg" data-move-reservation-modal>
         <h2 className="text-sm font-semibold text-neutral-900">Move reservation</h2>
         <p className="mt-1 text-xs text-neutral-500">
-          Includes berths, {state.settings.boatyardLabel.toLowerCase()} pads, and {state.settings.dryStorageLabel.toLowerCase()}{" "}
-          racks. Occupied spaces show as unavailable.
+          {fromBerth?.kind === "wet"
+            ? "Water berths only. Occupied spaces show as unavailable."
+            : "Any enabled space. Occupied spaces show as unavailable."}
         </p>
         <div className="mt-4 space-y-3">
           <div className="grid grid-cols-2 gap-2">
@@ -566,7 +532,7 @@ function MoveReservationModal({
               data-move-berth-select
               className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
             >
-              {state.berths.map((item) => (
+              {destBerths.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name} · {kindLabel(item.kind, state.settings)}
                   {occupancyLabel(item.id)}
@@ -605,12 +571,14 @@ function FooterActions({
   onMove,
   onSendPortal,
   onBookAnother,
+  hideAgreement,
 }: {
   reservation: Reservation;
   onEdit: () => void;
   onMove: () => void;
   onSendPortal: () => void;
   onBookAnother: () => void;
+  hideAgreement?: boolean;
 }) {
   const { archiveReservation, setReservationStatus } = useMarina();
   const [agreementOpen, setAgreementOpen] = useState(false);
@@ -626,7 +594,7 @@ function FooterActions({
       toast.error(archiveReason);
       return;
     }
-    if (!window.confirm("Archive this reservation? It will leave the calendar.")) return;
+    if (!window.confirm("Archive this reservation? It will leave this view.")) return;
     archiveReservation(reservation.id);
     toast.success("Reservation archived");
   }
@@ -647,11 +615,11 @@ function FooterActions({
           onClick={onSendPortal}
         >
           <Link2 className="h-4 w-4" />
-          Send status link
+          Email status
         </Button>
       </div>
 
-      {primaryLabel ? (
+      {!hideAgreement && primaryLabel ? (
         <div className="mb-4">
           <Button
             type="button"
@@ -664,7 +632,7 @@ function FooterActions({
         </div>
       ) : null}
 
-      {showViewLink ? (
+      {!hideAgreement && showViewLink ? (
         <div className="mb-4">
           <button
             type="button"
@@ -748,8 +716,144 @@ function FooterActions({
   );
 }
 
-export function ReservationPanel() {
-  const { state, setSelectedReservationId, setDnlOverride } = useMarina();
+const STORAGE_STATUS_LABEL = {
+  stored: "Stored",
+  launched: "Launched",
+  departed: "Departed",
+} as const;
+
+function DnlOverrideBlock({
+  vesselId,
+  reason,
+}: {
+  vesselId: string;
+  reason?: { active: boolean; reason: string };
+}) {
+  const { setDnlOverride } = useMarina();
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-3" data-dnl-override>
+      <p className="text-xs font-medium text-neutral-500">Do-not-launch override</p>
+      {reason?.active ? (
+        <div className="mt-2 space-y-2">
+          <p className="text-sm text-red-800">{reason.reason}</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setDnlOverride(vesselId, false, "");
+              toast.success("Manual DNL cleared");
+            }}
+          >
+            Clear override
+          </Button>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="mt-2"
+          onClick={() => {
+            const nextReason = window.prompt("Override reason (logged for audit)", "Safety hold");
+            if (!nextReason) return;
+            setDnlOverride(vesselId, true, nextReason);
+            toast.success("Manual DNL set");
+          }}
+        >
+          Set manual DNL
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function LandBoatWorkspace({
+  reservation,
+  berth,
+  customer,
+  vessel,
+  dnl,
+  onClose,
+}: {
+  reservation: Reservation;
+  berth: Berth;
+  customer: Customer;
+  vessel: Vessel;
+  dnl: DnlStatus;
+  onClose: () => void;
+}) {
+  const { state } = useMarina();
+  const jobType = state.jobTypes.find((item) => item.id === reservation.job?.typeId);
+  const module = spaceKindToModule(berth.kind);
+  const meta =
+    berth.kind === "boatyard"
+      ? jobType?.name
+      : STORAGE_STATUS_LABEL[vessel.storageStatus];
+
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3 border-gray-200 border-b px-6 py-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="break-all font-semibold text-gray-900 text-xl">{vessel.name}</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            {berth.name} · {customer.name}
+            {meta ? ` · ${meta}` : ""}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full p-1 hover:bg-gray-100"
+          aria-label="Close"
+        >
+          <X className="h-5 w-5 text-gray-500" />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="space-y-4 px-5 py-4">
+          {dnl.blocked || isDryKind(berth.kind) ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <DnlBadge status={dnl} />
+              {dnl.blocked ? (
+                <span className="text-xs text-red-700">{dnl.reasons.join("; ")}</span>
+              ) : (
+                <span className="text-xs text-teal-700">Clear to launch</span>
+              )}
+            </div>
+          ) : null}
+
+          {state.role === "office" && isDryKind(berth.kind) ? (
+            <DnlOverrideBlock vesselId={vessel.id} reason={vessel.dnlOverride} />
+          ) : null}
+
+          {berth.kind === "boatyard" && state.settings.boatyardEnabled ? (
+            <JobPanel reservationId={reservation.id} plain />
+          ) : null}
+
+          {isDryKind(berth.kind) ? (
+            <DryStoragePanel
+              reservationId={reservation.id}
+              vesselId={vessel.id}
+              storageStatus={vessel.storageStatus}
+              module={module ?? undefined}
+            />
+          ) : null}
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function ReservationPanel({
+  layout = "sheet",
+  allowedKinds,
+}: {
+  layout?: "sheet" | "page";
+  allowedKinds?: SpaceKind[];
+} = {}) {
+  const { state, setSelectedReservationId } = useMarina();
   const isOpen = Boolean(state.selectedReservationId);
   const [mounted, setMounted] = useState(isOpen);
   const [portalOpen, setPortalOpen] = useState(false);
@@ -781,6 +885,8 @@ export function ReservationPanel() {
   const customer = reservation ? state.customers.find((item) => item.id === reservation.customerId) : undefined;
   const vessel = reservation ? state.vessels.find((item) => item.id === reservation.vesselId) : undefined;
   const status = reservation ? statusForReservation(reservation.status) : { label: "", color: "" };
+  const kindAllowed = !berth || !allowedKinds || allowedKinds.includes(berth.kind);
+  const showPanel = isOpen && kindAllowed;
 
   const dnl =
     vessel && customer
@@ -806,24 +912,42 @@ export function ReservationPanel() {
       .slice(0, 15);
   }, [reservation, state.messages]);
 
-  if (!mounted && !isOpen) return null;
+  if (layout === "page" && !showPanel) return null;
+  if (layout === "sheet" && !mounted && !showPanel) return null;
+  if (layout === "sheet" && !kindAllowed) return null;
+
+  const shellClass =
+    layout === "page"
+      ? "fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-md flex-col overflow-hidden border-neutral-200 bg-white text-sm shadow-xl lg:static lg:z-auto lg:max-w-none lg:w-[28rem] lg:shrink-0 lg:border-l lg:shadow-none"
+      : `fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col bg-white text-sm shadow-xl transition-transform duration-300 ease-in-out ${
+          showPanel ? "translate-x-0" : "translate-x-full"
+        }`;
 
   return (
     <>
+      {layout === "sheet" ? (
+        <div
+          className="fixed inset-0 z-40 pointer-events-none transition-opacity duration-200"
+          aria-hidden="true"
+        />
+      ) : null}
+      {layout === "page" && showPanel ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          aria-label="Close boat details"
+          onClick={() => setSelectedReservationId(null)}
+        />
+      ) : null}
       <div
-        className="fixed inset-0 z-40 pointer-events-none transition-opacity duration-200"
-        aria-hidden="true"
-      />
-      <div
-        className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col bg-white text-sm shadow-xl transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-        style={{ width: "min(480px, 100vw)" }}
+        className={shellClass}
+        style={layout === "sheet" ? { width: "min(480px, 100vw)" } : undefined}
         data-testid="reservation-detail-sidebar"
         data-panel-kind={berth?.kind}
+        data-panel-layout={layout}
         role="dialog"
-        aria-modal="false"
-        aria-label="Reservation details"
+        aria-modal={layout === "page" ? "false" : "false"}
+        aria-label={layout === "page" ? "Boat workspace" : "Reservation details"}
       >
         {!reservation || !berth || !customer || !vessel ? (
           <div className="flex h-full flex-col">
@@ -843,226 +967,200 @@ export function ReservationPanel() {
           </div>
         ) : (
           <div className="flex h-full flex-col bg-white text-sm">
-            <div className="flex items-start justify-between gap-3 border-gray-200 border-b px-6 py-4">
-              <h2 className="min-w-0 flex-1 font-semibold text-gray-900 text-xl">
-                <span className="break-all">{vessel.name}</span>
-                {"  "}
-                <span data-testid="reservation-card-label" className="text-sm" style={{ color: status.color }}>
-                  {status.label}
-                </span>
-              </h2>
-              <button
-                type="button"
-                onClick={() => setSelectedReservationId(null)}
-                className="rounded-full p-1 hover:bg-gray-100"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-3 px-5 py-4">
-                {dnl.blocked || berth.kind === "dry_storage" ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <DnlBadge status={dnl} />
-                    {dnl.blocked ? (
-                      <span className="text-xs text-red-700">{dnl.reasons.join("; ")}</span>
-                    ) : (
-                      <span className="text-xs text-teal-700">Clear to launch</span>
-                    )}
-                  </div>
-                ) : null}
-
-                <InfoRow icon={<Calendar className="h-5 w-5" />}>
-                  {formatDate(reservation.startDate)} - {formatDate(reservation.endDate)}
-                  <span className="ml-2 text-gray-500 text-sm">{durationLabel(reservation.startDate, reservation.endDate)}</span>
-                </InfoRow>
-                <InfoRow icon={<User className="h-5 w-5" />}>
+            {layout === "page" ? (
+              <LandBoatWorkspace
+                reservation={reservation}
+                berth={berth}
+                customer={customer}
+                vessel={vessel}
+                dnl={dnl}
+                onClose={() => setSelectedReservationId(null)}
+              />
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-3 border-gray-200 border-b px-6 py-4">
+                  <h2 className="min-w-0 flex-1 font-semibold text-gray-900 text-xl">
+                    <span className="break-all">{vessel.name}</span>
+                    {"  "}
+                    <span data-testid="reservation-card-label" className="text-sm" style={{ color: status.color }}>
+                      {status.label}
+                    </span>
+                  </h2>
                   <button
                     type="button"
-                    onClick={() => inert("Customer profile")}
-                    className="inline cursor-pointer break-all text-left text-[hsl(252,75%,70%)] hover:underline"
-                    title="Click to view customer profile"
+                    onClick={() => setSelectedReservationId(null)}
+                    className="rounded-full p-1 hover:bg-gray-100"
+                    aria-label="Close"
                   >
-                    {customer.name}
+                    <X className="h-5 w-5 text-gray-500" />
                   </button>
-                  {customer.accountOverdue ? (
-                    <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800">
-                      Overdue
-                    </span>
-                  ) : null}
-                </InfoRow>
-                <InfoRow icon={<MapPin className="h-5 w-5" />}>
-                  Harbr • {kindLabel(berth.kind, state.settings) === "Berth" ? "Berth" : kindLabel(berth.kind, state.settings)}{" "}
-                  {berth.name}
-                  <span className="text-gray-500">
-                    {" "}
-                    • {berth.lengthM}m × {berth.beamM}m
-                  </span>
-                </InfoRow>
-                <InfoRow icon={<Mail className="h-5 w-5" />}>{customer.email}</InfoRow>
-                <InfoRow icon={<Phone className="h-5 w-5" />}>{customer.phone}</InfoRow>
-                <InfoRow icon={<Ship className="h-5 w-5" />}>
-                  {vessel.name}
-                  <span className="ml-2 text-gray-500 text-sm">
-                    {vessel.lengthM}m × {vessel.beamM}m · Ins. {formatDate(vessel.insuranceExpiry)}
-                  </span>
-                </InfoRow>
-                <InfoRow icon={<Key className="h-5 w-5" />}>No key assigned</InfoRow>
-                <InfoRow icon={<RefreshCw className="h-5 w-5" />}>
-                  {daysInclusive(reservation.startDate, reservation.endDate) > 27 ? "Monthly" : "Daily"}
-                </InfoRow>
-                <InfoRow icon={<Users className="h-5 w-5" />}>
-                  <div className="font-medium">Additional contacts</div>
-                  <div className="mt-1 text-gray-500 text-xs">None</div>
-                </InfoRow>
-              </div>
+                </div>
 
-              <div className="space-y-3 border-gray-200 border-t px-4 py-4">
-                {state.role === "office" && berth.kind === "dry_storage" ? (
-                  <div className="rounded-lg border border-gray-200 bg-white p-3" data-dnl-override>
-                    <p className="text-xs font-medium text-neutral-500">Do-not-launch override</p>
-                    {vessel.dnlOverride?.active ? (
-                      <div className="mt-2 space-y-2">
-                        <p className="text-sm text-red-800">{vessel.dnlOverride.reason}</p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setDnlOverride(vessel.id, false, "");
-                            toast.success("Manual DNL cleared");
-                          }}
-                        >
-                          Clear override
-                        </Button>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <div className="space-y-3 px-5 py-4">
+                    {dnl.blocked || isDryKind(berth.kind) ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <DnlBadge status={dnl} />
+                        {dnl.blocked ? (
+                          <span className="text-xs text-red-700">{dnl.reasons.join("; ")}</span>
+                        ) : (
+                          <span className="text-xs text-teal-700">Clear to launch</span>
+                        )}
                       </div>
-                    ) : (
-                      <Button
+                    ) : null}
+
+                    <InfoRow icon={<Calendar className="h-5 w-5" />}>
+                      {formatDate(reservation.startDate)} - {formatDate(reservation.endDate)}
+                      <span className="ml-2 text-gray-500 text-sm">{durationLabel(reservation.startDate, reservation.endDate)}</span>
+                    </InfoRow>
+                    <InfoRow icon={<User className="h-5 w-5" />}>
+                      <button
                         type="button"
-                        size="sm"
-                        variant="outline"
-                        className="mt-2"
-                        onClick={() => {
-                          const reason = window.prompt("Override reason (logged for audit)", "Safety hold");
-                          if (!reason) return;
-                          setDnlOverride(vessel.id, true, reason);
-                          toast.success("Manual DNL set");
-                        }}
+                        onClick={() => inert("Customer profile")}
+                        className="inline cursor-pointer break-all text-left text-[hsl(252,75%,70%)] hover:underline"
+                        title="Click to view customer profile"
                       >
-                        Set manual DNL
-                      </Button>
-                    )}
+                        {customer.name}
+                      </button>
+                      {customer.accountOverdue ? (
+                        <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800">
+                          Overdue
+                        </span>
+                      ) : null}
+                    </InfoRow>
+                    <InfoRow icon={<MapPin className="h-5 w-5" />}>
+                      Harbr • {kindLabel(berth.kind, state.settings) === "Berth" ? "Berth" : kindLabel(berth.kind, state.settings)}{" "}
+                      {berth.name}
+                      <span className="text-gray-500">
+                        {" "}
+                        • {berth.lengthM}m × {berth.beamM}m
+                      </span>
+                    </InfoRow>
+                    <InfoRow icon={<Mail className="h-5 w-5" />}>{customer.email}</InfoRow>
+                    <InfoRow icon={<Phone className="h-5 w-5" />}>{customer.phone}</InfoRow>
+                    <InfoRow icon={<Ship className="h-5 w-5" />}>
+                      {vessel.name}
+                      <span className="ml-2 text-gray-500 text-sm">
+                        {vessel.lengthM}m × {vessel.beamM}m · Ins. {formatDate(vessel.insuranceExpiry)}
+                      </span>
+                    </InfoRow>
+                    <InfoRow icon={<Key className="h-5 w-5" />}>No key assigned</InfoRow>
+                    <InfoRow icon={<RefreshCw className="h-5 w-5" />}>
+                      {daysInclusive(reservation.startDate, reservation.endDate) > 27 ? "Monthly" : "Daily"}
+                    </InfoRow>
+                    <InfoRow icon={<Users className="h-5 w-5" />}>
+                      <div className="font-medium">Additional contacts</div>
+                      <div className="mt-1 text-gray-500 text-xs">None</div>
+                    </InfoRow>
                   </div>
-                ) : null}
 
-                <NotesBlock reservationId={reservation.id} notes={reservation.notes} />
+                  <div className="space-y-3 border-gray-200 border-t px-4 py-4">
+                    {state.role === "office" && isDryKind(berth.kind) ? (
+                      <DnlOverrideBlock vesselId={vessel.id} reason={vessel.dnlOverride} />
+                    ) : null}
 
-                {state.changeRequests.some(
-                  (item) => item.customerId === customer.id && item.status === "pending"
-                ) ? (
-                  <div
-                    className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-                    data-pending-changes-notice
-                  >
-                    Pending changes (
-                    {state.changeRequests.filter((item) => item.customerId === customer.id && item.status === "pending").length}
-                    ) —{" "}
-                    <Link to="/dashboard/actions" className="font-medium underline">
-                      Review in Actions
-                    </Link>
-                  </div>
-                ) : null}
+                    <NotesBlock reservationId={reservation.id} notes={reservation.notes} />
 
-                <CollapsibleBlock
-                  title="Messages"
-                  preview={messages[0] ? `${messages[0].subject} · ${messages.length} total` : "No messages yet"}
-                >
-                  <div className="space-y-3">
-                    <Button type="button" size="sm" variant="outline" onClick={() => setMessageOpen(true)}>
-                      <MessageSquare className="mr-1 h-3.5 w-3.5" />
-                      Send message
-                    </Button>
-                    {messages.length === 0 ? (
-                      <p className="text-xs text-neutral-500">Nothing sent yet.</p>
+                    {state.changeRequests.some(
+                      (item) => item.customerId === customer.id && item.status === "pending"
+                    ) ? (
+                      <div
+                        className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                        data-pending-changes-notice
+                      >
+                        Pending changes (
+                        {state.changeRequests.filter((item) => item.customerId === customer.id && item.status === "pending").length}
+                        ) —{" "}
+                        <Link to="/dashboard/actions" className="font-medium underline">
+                          Review in Actions
+                        </Link>
+                      </div>
+                    ) : null}
+
+                    <CollapsibleBlock
+                      title="Messages"
+                      preview={messages[0] ? `${messages[0].subject} · ${messages.length} total` : "No messages yet"}
+                    >
+                      <div className="space-y-3">
+                        <Button type="button" size="sm" variant="outline" onClick={() => setMessageOpen(true)}>
+                          <MessageSquare className="mr-1 h-3.5 w-3.5" />
+                          Send message
+                        </Button>
+                        {messages.length === 0 ? (
+                          <p className="text-xs text-neutral-500">Nothing sent yet.</p>
+                        ) : (
+                          <ul className="space-y-2">
+                            {messages.map((message) => (
+                              <li key={message.id} className="text-xs text-neutral-700">
+                                <span className="font-medium uppercase text-neutral-500">{message.channel}</span>
+                                {" · "}
+                                {message.subject}
+                                <div className="text-neutral-500">{new Date(message.at).toLocaleString()}</div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </CollapsibleBlock>
+
+                    <CollapsibleBlock
+                      title="Activity"
+                      preview={activity[0]?.message ?? "No activity yet"}
+                    >
+                      {activity.length === 0 ? (
+                        <p className="text-xs text-neutral-500">No activity yet.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {activity.map((event) => (
+                            <li key={event.id} className="text-xs text-neutral-700">
+                              <span className="font-medium capitalize text-neutral-500">{event.actor}</span>
+                              {" · "}
+                              {event.message}
+                              <div className="text-neutral-400">{new Date(event.at).toLocaleString()}</div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </CollapsibleBlock>
+
+                    {berth.kind === "boatyard" && state.settings.boatyardEnabled ? (
+                      <JobPanel reservationId={reservation.id} />
+                    ) : null}
+                    {isDryKind(berth.kind) ? (
+                      <DryStoragePanel
+                        reservationId={reservation.id}
+                        vesselId={vessel.id}
+                        storageStatus={vessel.storageStatus}
+                        module={spaceKindToModule(berth.kind) ?? undefined}
+                      />
                     ) : (
-                      <ul className="space-y-2">
-                        {messages.map((message) => (
-                          <li key={message.id} className="text-xs text-neutral-700">
-                            <span className="font-medium uppercase text-neutral-500">{message.channel}</span>
-                            {" · "}
-                            {message.subject}
-                            <div className="text-neutral-500">{new Date(message.at).toLocaleString()}</div>
-                          </li>
-                        ))}
-                      </ul>
+                      <LaunchLiftInvoice
+                        reservationId={reservation.id}
+                        vesselId={vessel.id}
+                        className="border-t border-neutral-200 pt-4"
+                      />
                     )}
                   </div>
-                </CollapsibleBlock>
+                </div>
 
-                <CollapsibleBlock
-                  title="Activity"
-                  preview={activity[0]?.message ?? "No activity yet"}
-                >
-                  {activity.length === 0 ? (
-                    <p className="text-xs text-neutral-500">No activity yet.</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {activity.map((event) => (
-                        <li key={event.id} className="text-xs text-neutral-700">
-                          <span className="font-medium capitalize text-neutral-500">{event.actor}</span>
-                          {" · "}
-                          {event.message}
-                          <div className="text-neutral-400">{new Date(event.at).toLocaleString()}</div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CollapsibleBlock>
-
-                {(berth.kind === "boatyard" && state.settings.boatyardEnabled) || berth.kind === "wet" ? (
-                  <JobPanel reservationId={reservation.id} />
-                ) : null}
-                {berth.kind === "wet" ? (
-                  <WetPanel
-                    reservationId={reservation.id}
-                    boatyardLabel={state.settings.boatyardLabel}
-                    dryStorageLabel={state.settings.dryStorageLabel}
-                    hasJob={Boolean(reservation.job)}
-                  />
-                ) : null}
-                {berth.kind === "dry_storage" ? (
-                  <DryStoragePanel
-                    reservationId={reservation.id}
-                    vesselId={vessel.id}
-                    storageStatus={vessel.storageStatus}
-                  />
-                ) : (
-                  <LaunchLiftInvoice
-                    reservationId={reservation.id}
-                    vesselId={vessel.id}
-                    className="border-t border-neutral-200 pt-4"
-                  />
-                )}
-              </div>
-            </div>
-
-            <FooterActions
-              reservation={reservation}
-              onEdit={() => setEditOpen(true)}
-              onMove={() => setMoveOpen(true)}
-              onSendPortal={() => setPortalOpen(true)}
-              onBookAnother={() => setBookAnotherOpen(true)}
-            />
+                <FooterActions
+                  reservation={reservation}
+                  hideAgreement={berth.kind !== "wet"}
+                  onEdit={() => setEditOpen(true)}
+                  onMove={() => setMoveOpen(true)}
+                  onSendPortal={() => setPortalOpen(true)}
+                  onBookAnother={() => setBookAnotherOpen(true)}
+                />
+              </>
+            )}
           </div>
         )}
       </div>
 
       {portalOpen && customer && reservation ? (
-        <SendPortalLinkDialog
+        <SendStatusEmailDialog
           customerId={customer.id}
-          reservationId={reservation.id}
+          vesselName={vessel?.name ?? "your boat"}
           onClose={() => setPortalOpen(false)}
         />
       ) : null}
@@ -1079,6 +1177,7 @@ export function ReservationPanel() {
         <PlaceBookingModal
           title="Book another"
           sourceReservationId={reservation.id}
+          destKind={berth?.kind === "wet" ? "wet" : undefined}
           onClose={() => setBookAnotherOpen(false)}
         />
       ) : null}

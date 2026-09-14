@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { TemplateChecklist } from "../checklist/editable-checklist";
 import { trimChecklistOptions } from "../../lib/checklist";
+import { enabledLandModules, moduleLabel } from "../../lib/modules";
 import { useMarina } from "../../store/marina-store";
-import type { ChecklistOption, TaskType } from "../../types/domain";
+import type { ChecklistOption, TaskModule, TaskType } from "../../types/domain";
 
 const KINDS: TaskType["kind"][] = ["launch", "retrieval", "other"];
 
 const EMPTY = {
   name: "",
   kind: "launch" as TaskType["kind"],
+  module: "dry_storage" as TaskModule,
   checklist: [] as ChecklistOption[],
   productId: "",
 };
@@ -17,10 +19,14 @@ export function TaskTypesTab() {
   const { state, upsertTaskType } = useMarina();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY);
+  const modules: TaskModule[] = [...enabledLandModules(state.settings), "other"];
+  const visibleTypes = state.taskTypes.filter(
+    (item) => item.module === "other" || modules.includes(item.module)
+  );
 
   function resetForm() {
     setEditingId(null);
-    setForm(EMPTY);
+    setForm({ ...EMPTY, module: modules[0] ?? "other" });
   }
 
   function loadType(taskType: TaskType) {
@@ -28,6 +34,7 @@ export function TaskTypesTab() {
     setForm({
       name: taskType.name,
       kind: taskType.kind,
+      module: taskType.module,
       checklist: taskType.checklist.map((item) => ({ ...item })),
       productId: taskType.productId ?? "",
     });
@@ -40,6 +47,7 @@ export function TaskTypesTab() {
       id: editingId ?? `tt-${crypto.randomUUID()}`,
       name: form.name.trim(),
       kind: form.kind,
+      module: form.kind === "other" ? "other" : form.module,
       checklist: trimChecklistOptions(form.checklist),
       productId: form.productId || undefined,
       active: existing?.active ?? true,
@@ -50,7 +58,7 @@ export function TaskTypesTab() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem]" data-settings-tab="task-types">
       <ul className="space-y-2">
-        {state.taskTypes.map((taskType) => (
+        {visibleTypes.map((taskType) => (
           <li key={taskType.id}>
             <button
               type="button"
@@ -64,7 +72,7 @@ export function TaskTypesTab() {
             >
               <span className="text-sm font-medium text-neutral-900">{taskType.name}</span>
               <span className="text-xs capitalize text-muted-foreground">
-                {taskType.kind}
+                {moduleLabel(taskType.module, state.settings)} · {taskType.kind === "retrieval" ? "Lift" : taskType.kind}
                 {(() => {
                   const product = state.products.find((item) => item.id === taskType.productId);
                   return product ? ` · ${product.name}` : " · no product";
@@ -113,6 +121,26 @@ export function TaskTypesTab() {
             ))}
           </select>
         </label>
+        {form.kind !== "other" ? (
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">Module</span>
+            <select
+              value={form.module}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, module: event.target.value as TaskModule }))
+              }
+              className="w-full rounded-md border border-border bg-white px-2 py-1.5 text-sm"
+            >
+              {modules
+                .filter((item) => item !== "other")
+                .map((module) => (
+                  <option key={module} value={module}>
+                    {moduleLabel(module, state.settings)}
+                  </option>
+                ))}
+            </select>
+          </label>
+        ) : null}
         <label className="block space-y-1">
           <span className="text-xs font-medium text-muted-foreground">Invoice product</span>
           <select

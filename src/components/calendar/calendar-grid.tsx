@@ -2,8 +2,9 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { addDays, toLocalDate } from "../../lib/iso-date";
 import { occupiesDryRack } from "../../lib/status";
+import { isDryKind, isKindEnabled } from "../../lib/modules";
 import { useMarina } from "../../store/marina-store";
-import type { Berth, Reservation } from "../../types/domain";
+import type { Berth, Reservation, SpaceKind } from "../../types/domain";
 import { PlaceBookingModal } from "../reservation-panel/place-booking-modal";
 import { Button } from "../ui/button";
 import { BookingBar } from "./booking-bar";
@@ -65,7 +66,7 @@ function clipToWeek(reservation: Reservation, weekStart: string, weekEnd: string
   };
 }
 
-export function CalendarGrid() {
+export function CalendarGrid({ kinds }: { kinds?: SpaceKind[] } = {}) {
   const { state, setSelectedReservationId } = useMarina();
   const [weekStart, setWeekStart] = useState(() => mondayOf(state.selectedDate));
 
@@ -76,22 +77,21 @@ export function CalendarGrid() {
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
   const weekEnd = days[6];
 
-  const { settings, kindFilter } = state;
+  const { settings } = state;
+  const filterKinds = kinds ?? ["wet"];
   const visibleBerths = state.berths.filter((berth) => {
-    if (!kindFilter.includes(berth.kind)) return false;
-    if (berth.kind === "boatyard" && !settings.boatyardEnabled) return false;
-    if (berth.kind === "dry_storage" && !settings.dryStorageEnabled) return false;
-    return true;
+    if (!filterKinds.includes(berth.kind)) return false;
+    return isKindEnabled(berth.kind, settings);
   });
   const pierGroups = groupByPier(visibleBerths);
   const vesselById = new Map(state.vessels.map((vessel) => [vessel.id, vessel]));
   const berthById = new Map(state.berths.map((berth) => [berth.id, berth]));
-  const showDryStack = visibleBerths.some((berth) => berth.kind === "dry_storage");
-  const inWaterReservations = showDryStack
+  const showDryRow = visibleBerths.some((berth) => isDryKind(berth.kind));
+  const inWaterReservations = showDryRow
     ? state.reservations.filter((item) => {
         if (item.status === "archived") return false;
         const berth = berthById.get(item.berthId);
-        if (berth?.kind !== "dry_storage") return false;
+        if (!berth || !isDryKind(berth.kind)) return false;
         const vessel = vesselById.get(item.vesselId);
         if (vessel?.storageStatus !== "launched") return false;
         const onWetBerth = state.reservations.some((other) => {
@@ -155,7 +155,7 @@ export function CalendarGrid() {
               <div className="border-b border-border bg-gray-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {group.pier}
               </div>
-              {group.berths.some((berth) => berth.kind === "dry_storage") ? (
+              {group.berths.some((berth) => isDryKind(berth.kind)) ? (
                 <InWaterRow
                   days={days}
                   weekStart={weekStart}
@@ -174,7 +174,7 @@ export function CalendarGrid() {
                   weekEnd={weekEnd}
                   reservations={state.reservations.filter((item) => {
                     if (item.berthId !== berth.id || item.status === "archived") return false;
-                    if (berth.kind !== "dry_storage") return true;
+                    if (!isDryKind(berth.kind)) return true;
                     const vessel = vesselById.get(item.vesselId);
                     return !vessel || occupiesDryRack(vessel.storageStatus);
                   })}
@@ -191,7 +191,7 @@ export function CalendarGrid() {
           ))}
 
           {pierGroups.length === 0 ? (
-            <p className="px-3 py-8 text-center text-sm text-neutral-500">No berths for this kind.</p>
+            <p className="px-3 py-8 text-center text-sm text-neutral-500">No spaces for this view.</p>
           ) : null}
         </div>
       </div>

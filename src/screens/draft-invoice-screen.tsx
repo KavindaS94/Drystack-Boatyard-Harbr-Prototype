@@ -40,7 +40,7 @@ export function DraftInvoiceScreen() {
   const total = invoice.lines.reduce((sum, line) => sum + line.qty * line.unitPrice, 0);
 
   return (
-    <div className="space-y-4 p-4 sm:p-6">
+    <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold text-neutral-900">Draft invoice</h1>
         <p className="mt-1 text-sm text-neutral-600">

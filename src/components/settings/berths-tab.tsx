@@ -1,11 +1,11 @@
 import { kindLabel } from "../../lib/labels";
+import { enabledSpaceKinds } from "../../lib/modules";
 import { useMarina } from "../../store/marina-store";
 import type { SpaceKind } from "../../types/domain";
 
-const KINDS: SpaceKind[] = ["wet", "boatyard", "dry_storage"];
-
 export function BerthsTab() {
   const { state, updateBerthKind } = useMarina();
+  const kinds = enabledSpaceKinds(state.settings);
 
   return (
     <div className="overflow-x-auto" data-settings-tab="berths">
@@ -31,7 +31,7 @@ export function BerthsTab() {
                   data-berth-kind={berth.id}
                   className="rounded-md border border-border bg-white px-2 py-1 text-sm"
                 >
-                  {KINDS.map((kind) => (
+                  {(kinds.includes(berth.kind) ? kinds : [berth.kind, ...kinds]).map((kind) => (
                     <option key={kind} value={kind}>
                       {kindLabel(kind, state.settings)}
                     </option>

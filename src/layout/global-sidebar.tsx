@@ -34,6 +34,7 @@ import {
   useSidebar,
 } from "../components/ui/sidebar";
 import { actionCounts } from "../lib/actions";
+import { enabledLandModules, moduleLabel, modulePath } from "../lib/modules";
 import { cn } from "../lib/utils";
 import { useMarina } from "../store/marina-store";
 import { UserMenu } from "./user-menu";
@@ -63,7 +64,6 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { state } = useMarina();
   const pathname = location.pathname;
-  const pendingRequests = state.launchTasks.filter((task) => task.status === "requested").length;
   const pendingActions = actionCounts(state).total;
 
   const navMain: NavItem[] = [
@@ -86,17 +86,17 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
         { title: "Owners", url: "/operations/owners" },
         { title: "Tenants", url: "/operations/tenants" },
         { title: "Quotes", url: "/operations/quotes" },
-        ...(state.settings.dryStorageEnabled
-          ? [
-              {
-                title: "Launch board",
-                url: "/operations/launch-board",
-                live: true,
-                badge: pendingRequests > 0 ? String(pendingRequests) : undefined,
-              },
-            ]
-          : []),
-        { title: "Yard tablet", url: "/operations/tablet", live: true },
+        ...enabledLandModules(state.settings).map((module) => {
+          const count = state.launchTasks.filter(
+            (task) => task.status === "requested" && task.module === module
+          ).length;
+          return {
+            title: moduleLabel(module, state.settings),
+            url: modulePath(module),
+            live: true,
+            badge: count > 0 ? String(count) : undefined,
+          };
+        }),
       ],
     },
     {
@@ -132,7 +132,7 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
         { title: "Marina Connect", url: "/settings/external-integration" },
         { title: "Integrations", url: "/settings/payments" },
         { title: "Activity Log", url: "/settings/activity-log" },
-        { title: "Demo routines", url: "/settings/demo-routines", live: true },
+        { title: "Demo story", url: "/settings/demo-routines", live: true },
       ],
     },
   ];
@@ -278,7 +278,7 @@ export function GlobalSidebar({ children }: { children: ReactNode }) {
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset className="min-h-0 overflow-hidden">{children}</SidebarInset>
     </>
   );
 }

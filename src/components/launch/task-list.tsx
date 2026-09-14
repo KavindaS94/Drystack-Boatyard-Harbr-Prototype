@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { dnlStatus } from "../../lib/dnl";
+import { enabledLandModules, moduleLabel } from "../../lib/modules";
 import { cn } from "../../lib/utils";
 import { useMarina } from "../../store/marina-store";
-import type { LaunchTask } from "../../types/domain";
+import type { LaunchTask, TaskModule } from "../../types/domain";
 import { DnlBadge } from "../dnl-badge";
 import { Button } from "../ui/button";
 import { TaskRow } from "./task-row";
@@ -12,6 +13,7 @@ type BoardTab = "requests" | "launch" | "lift";
 
 interface TaskListProps {
   date: string;
+  module: TaskModule;
 }
 
 function sortByTime(tasks: LaunchTask[]): LaunchTask[] {
@@ -28,7 +30,7 @@ function groupByTime(tasks: LaunchTask[]): [string, LaunchTask[]][] {
   return [...byTime.entries()];
 }
 
-export function TaskList({ date }: TaskListProps) {
+export function TaskList({ date, module }: TaskListProps) {
   const { state, approveRequest, declineRequest } = useMarina();
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -40,7 +42,11 @@ export function TaskList({ date }: TaskListProps) {
   }
 
   const { requests, lifts, launches, other, totals } = useMemo(() => {
-    const dayTasks = state.launchTasks.filter((task) => task.date === date);
+    const dayTasks = state.launchTasks.filter((task) => {
+      if (task.date !== date) return false;
+      if (module === "other") return task.module === "other" || state.taskTypes.find((item) => item.id === task.taskTypeId)?.kind === "other";
+      return task.module === module;
+    });
     const requested: LaunchTask[] = [];
     const liftTasks: LaunchTask[] = [];
     const launchTasks: LaunchTask[] = [];
@@ -69,7 +75,7 @@ export function TaskList({ date }: TaskListProps) {
         lifts: liftTasks.length,
       },
     };
-  }, [date, state.launchTasks, state.taskTypes]);
+  }, [date, module, state.launchTasks, state.taskTypes]);
 
   const tab: BoardTab =
     tabOverride ??
@@ -94,23 +100,43 @@ export function TaskList({ date }: TaskListProps) {
   function onApprove(taskId: string) {
     const task = state.launchTasks.find((item) => item.id === taskId);
     const kind = state.taskTypes.find((item) => item.id === task?.taskTypeId)?.kind;
-    approveRequest(taskId);
-    toast.success("Request approved — customer notified");
+    const ok = approveRequest(taskId);
+    if (!ok) {
+      toast.error("Could not approve — slot is no longer free");
+      return;
+    }
+    toast.success("Request approved — customer emailed");
     setTabOverride(kind === "retrieval" ? "lift" : "launch");
   }
 
   function onDecline(taskId: string) {
-    const reason = window.prompt("Decline reason (shown to customer)", "No travel-lift slot available");
+    const reason = window.prompt("Decline reason (shown to customer)", "No lift slot available");
     if (!reason) return;
     declineRequest(taskId, reason);
-    toast.message("Request declined");
+    toast.message("Request declined — customer emailed");
+  }
+
+  if (module === "other") {
+    return (
+      <div className="flex flex-col gap-6" data-task-list data-task-count={rowCount} data-board-tab="other">
+        <KindSection
+          empty="No other tasks today."
+          tasks={[...other, ...launches, ...lifts]}
+          testId="other-needed"
+          openTaskId={openTaskId}
+          errors={errors}
+          onToggleOpen={onToggleOpen}
+          onError={onError}
+        />
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col gap-6" data-task-list data-task-count={rowCount} data-board-tab={tab}>
       <div className="space-y-4">
         <div
-          className="grid grid-cols-3 gap-1 rounded-lg border border-neutral-200 bg-neutral-50 p-1"
+          className="inline-flex flex-wrap gap-1 rounded-lg border border-neutral-200 bg-neutral-50 p-1"
           role="tablist"
           aria-label="Requests, launch, or lift"
         >
@@ -133,7 +159,7 @@ export function TaskList({ date }: TaskListProps) {
                 data-board-tab-button={item.id}
                 onClick={() => setTabOverride(item.id)}
                 className={cn(
-                  "flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-sm font-medium sm:gap-2 sm:px-3",
+                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium",
                   selected ? `bg-white shadow-sm ${item.selectedClass}` : "text-neutral-600 hover:text-neutral-900"
                 )}
               >
@@ -156,7 +182,7 @@ export function TaskList({ date }: TaskListProps) {
           <RequestsSection requests={requests} onApprove={onApprove} onDecline={onDecline} />
         ) : tab === "launch" ? (
           <KindSection
-            empty="No launches today."
+            empty={`No launches today in ${moduleLabel(module, state.settings)}.`}
             tasks={launches}
             testId="launch-needed"
             openTaskId={openTaskId}
@@ -166,7 +192,7 @@ export function TaskList({ date }: TaskListProps) {
           />
         ) : (
           <KindSection
-            empty="No lifts today."
+            empty={`No lifts today in ${moduleLabel(module, state.settings)}.`}
             tasks={lifts}
             testId="lift-needed"
             openTaskId={openTaskId}
@@ -175,20 +201,44 @@ export function TaskList({ date }: TaskListProps) {
             onError={onError}
           />
         )}
-
-        {other.length > 0 && tab !== "requests" ? (
-          <KindSection
-            title="Other"
-            empty="None."
-            tasks={other}
-            testId="other-needed"
-            openTaskId={openTaskId}
-            errors={errors}
-            onToggleOpen={onToggleOpen}
-            onError={onError}
-          />
-        ) : null}
       </div>
+    </div>
+  );
+}
+
+export function ModuleTabs({
+  module,
+  onChange,
+}: {
+  module: TaskModule;
+  onChange: (module: TaskModule) => void;
+}) {
+  const { state } = useMarina();
+  const land = enabledLandModules(state.settings);
+  const tabs: TaskModule[] = [...land, "other"];
+  if (land.length <= 1) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1 rounded-lg border border-neutral-200 bg-white p-1" role="tablist" aria-label="Storage module">
+      {tabs.map((item) => {
+        const selected = module === item;
+        return (
+          <button
+            key={item}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            data-module-tab={item}
+            onClick={() => onChange(item)}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium",
+              selected ? "bg-neutral-900 text-white" : "text-neutral-600 hover:text-neutral-900"
+            )}
+          >
+            {moduleLabel(item, state.settings)}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -207,18 +257,21 @@ function RequestsSection({
   if (requests.length === 0) {
     return (
       <section className="space-y-3" data-customer-requests data-kind-section="customer-requests">
-        <p className="text-sm text-neutral-500">No customer requests today.</p>
+        <p className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-8 text-sm text-neutral-500">
+          No customer requests today. Use Log request when someone phones or emails.
+        </p>
       </section>
     );
   }
 
   return (
     <section className="space-y-3" data-customer-requests data-kind-section="customer-requests">
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {requests.map((task) => {
           const taskType = state.taskTypes.find((item) => item.id === task.taskTypeId);
           const customer = state.customers.find((item) => item.id === task.customerId);
           const vessel = state.vessels.find((item) => item.id === task.vesselId);
+          const berth = state.berths.find((item) => item.id === task.berthId);
           const dnl =
             vessel && customer
               ? dnlStatus(vessel, customer, state.settings)
@@ -226,15 +279,29 @@ function RequestsSection({
           return (
             <li
               key={task.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3"
+              className="grid grid-cols-1 gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
               data-request-task={task.id}
             >
-              <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-800">
-                <span className="font-semibold tabular-nums">{task.time}</span>
-                <span>
-                  {taskType?.name ?? "Task"} · {customer?.name} · {vessel?.name}
-                </span>
-                <DnlBadge status={dnl} />
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="w-[4.5rem] shrink-0">
+                  <p className="text-2xl font-semibold tabular-nums leading-none text-neutral-900">{task.time}</p>
+                  <p className="mt-1.5 text-xs font-medium text-neutral-500">{taskType?.name ?? "Task"}</p>
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-base font-semibold text-neutral-900">{vessel?.name ?? "Boat"}</p>
+                    <DnlBadge status={dnl} />
+                  </div>
+                  <p className="mt-1 text-sm text-neutral-600">
+                    {customer?.name}
+                    {berth ? (
+                      <>
+                        <span className="mx-2 text-neutral-300">·</span>
+                        <span className="font-medium text-neutral-800">{berth.name}</span>
+                      </>
+                    ) : null}
+                  </p>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button type="button" size="sm" variant="outline" onClick={() => onDecline(task.id)}>
@@ -279,13 +346,14 @@ function KindSection({
         <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</h2>
       ) : null}
       {groups.length === 0 ? (
-        <p className="text-sm text-neutral-500">{empty}</p>
+        <p className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-8 text-sm text-neutral-500">
+          {empty}
+        </p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {groups.map(([time, groupTasks]) => (
-            <div key={time} className="space-y-2" data-time-group={time}>
-              <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">{time}</h3>
-              <ul className="flex flex-col gap-2">
+            <div key={time} className="space-y-3" data-time-group={time}>
+              <ul className="flex flex-col gap-3">
                 {groupTasks.map((task) => (
                   <li key={task.id}>
                     <TaskRow

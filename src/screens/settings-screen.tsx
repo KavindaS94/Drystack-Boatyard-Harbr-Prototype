@@ -1,14 +1,17 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { BerthsTab } from "../components/settings/berths-tab";
 import { ChecklistsTab } from "../components/settings/checklists-tab";
+import { EquipmentTab } from "../components/settings/equipment-tab";
 import { JobTypesTab } from "../components/settings/job-types-tab";
 import { ProductsTab } from "../components/settings/products-tab";
 import { TaskTypesTab } from "../components/settings/task-types-tab";
 import { WordsTab } from "../components/settings/words-tab";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { enabledLandModules, usesForkLift, usesTravelLift } from "../lib/modules";
 import { useMarina } from "../store/marina-store";
 
-type SettingsTabId = "words" | "berths" | "job-types" | "task-types" | "checklists" | "products";
+type SettingsTabId = "words" | "berths" | "job-types" | "task-types" | "equipment" | "checklists" | "products";
 
 interface TabDef {
   id: SettingsTabId;
@@ -17,23 +20,41 @@ interface TabDef {
   description: string;
 }
 
+const SETTINGS_TABS: SettingsTabId[] = [
+  "words",
+  "berths",
+  "job-types",
+  "task-types",
+  "equipment",
+  "checklists",
+  "products",
+];
+
+function tabFromQuery(value: string | null): SettingsTabId {
+  if (value && SETTINGS_TABS.includes(value as SettingsTabId)) return value as SettingsTabId;
+  return "words";
+}
+
 export function SettingsScreen() {
   const { state } = useMarina();
-  const { boatyardEnabled, dryStorageEnabled } = state.settings;
-  const [tab, setTab] = useState<SettingsTabId>("words");
+  const [params] = useSearchParams();
+  const { boatyardEnabled } = state.settings;
+  const landOn = enabledLandModules(state.settings).length > 0;
+  const equipmentOn = usesTravelLift(state.settings) || usesForkLift(state.settings);
+  const [tab, setTab] = useState<SettingsTabId>(() => tabFromQuery(params.get("tab")));
 
   const tabs: TabDef[] = [
     {
       id: "words",
       label: "Modules & words",
       title: "Modules & words",
-      description: "Turn Boatyard and Dry stack on or off, and set the words this marina uses on screen.",
+      description: "Turn Boatyard, Dry stack and Hardstand on or off, and set the words this marina uses on screen.",
     },
     {
       id: "berths",
       label: "Berths",
       title: "Berths",
-      description: "Every space has a Kind — Berth, Boatyard or Dry stack — which drives its screens and rules.",
+      description: "Every space has a Kind — Berth, Boatyard, Dry stack or Hardstand — which drives its screens and rules.",
     },
     ...(boatyardEnabled
       ? [
@@ -45,13 +66,23 @@ export function SettingsScreen() {
           },
         ]
       : []),
-    ...(dryStorageEnabled
+    ...(landOn
       ? [
           {
             id: "task-types" as const,
             label: "Task types",
             title: "Launch / lift task types",
-            description: "The tasks the ground crew logs — launch, lift, or the marina's own, each with a checklist and the product billed when Office creates a draft.",
+            description: "Launch, lift, or other tasks per module, each with a checklist and the product billed when Office creates a draft.",
+          },
+        ]
+      : []),
+    ...(equipmentOn
+      ? [
+          {
+            id: "equipment" as const,
+            label: "Equipment",
+            title: "Equipment",
+            description: "Travel lift and fork lift hours, slot length, and whether each machine is in use.",
           },
         ]
       : []),
@@ -72,15 +103,14 @@ export function SettingsScreen() {
   const active = tabs.find((item) => item.id === tab) ?? tabs[0];
 
   return (
-    <div className="space-y-4 p-4 sm:p-6" data-settings-screen>
+    <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4 sm:p-6" data-settings-screen>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">General Info</p>
       </div>
 
-      {/* Full-width grid tabs — mirrors Harbr General Info TabsList */}
       <div
-        className="grid w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-3 lg:grid-cols-6"
+        className="grid w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-3 lg:grid-cols-7"
         role="tablist"
       >
         {tabs.map((item) => (
@@ -112,6 +142,7 @@ export function SettingsScreen() {
           {active.id === "berths" ? <BerthsTab /> : null}
           {active.id === "job-types" ? <JobTypesTab /> : null}
           {active.id === "task-types" ? <TaskTypesTab /> : null}
+          {active.id === "equipment" ? <EquipmentTab /> : null}
           {active.id === "checklists" ? <ChecklistsTab /> : null}
           {active.id === "products" ? <ProductsTab /> : null}
         </CardContent>

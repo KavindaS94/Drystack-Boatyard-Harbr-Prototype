@@ -5,15 +5,17 @@ import type {
   ActivityEvent,
   Berth,
   Customer,
+  Equipment,
+  EquipmentBooking,
   Job,
   JobType,
   LaunchTask,
   MarinaState,
   Message,
-  PortalLink,
   Product,
   Reservation,
   Settings,
+  TaskModule,
   TaskType,
   Vessel,
 } from "../types/domain";
@@ -21,15 +23,37 @@ import type {
 const SETTINGS: Settings = {
   boatyardEnabled: true,
   dryStorageEnabled: true,
+  hardstandEnabled: true,
   boatyardLabel: "Dockyard",
   dryStorageLabel: "Dry stack",
+  hardstandLabel: "Hardstand",
   jobPanelTitle: "Job",
   hidePricesForYard: true,
   autoDnlOverdue: true,
   autoDnlInsurance: true,
-  allowPortalRequests: true,
   checklistCategories: ["Yard job", "QA photo", "Launch", "Lift", "Safety", "Prep"],
 };
+
+const EQUIPMENT: Equipment[] = [
+  {
+    id: "eq-travel-lift",
+    name: "Travel lift",
+    kind: "travel_lift",
+    active: true,
+    dayStart: "07:00",
+    dayEnd: "17:00",
+    slotMinutes: 60,
+  },
+  {
+    id: "eq-fork-lift",
+    name: "Fork lift",
+    kind: "fork_lift",
+    active: true,
+    dayStart: "07:00",
+    dayEnd: "17:00",
+    slotMinutes: 30,
+  },
+];
 
 const PRODUCTS: Product[] = [
   { id: "prod-wet-night", name: "Berth night", unitType: "DAY", unitPrice: 85, bankAccount: "Marina", active: true },
@@ -78,21 +102,6 @@ const JOB_TYPES: JobType[] = [
     active: true,
   },
   {
-    id: "jt-travel-lift",
-    name: "Travel lift",
-    colour: "#14b8a6",
-    defaultDurationDays: 1,
-    checklist: [
-      { label: "Path clear", category: "Safety" },
-      { label: "Straps checked", category: "Prep" },
-      { label: "Lift complete", category: "Yard job" },
-    ],
-    photoChecklist: [...QA_PHOTOS],
-    productIds: ["prod-travel-lift", "prod-labour-hour"],
-    requiresTc: true,
-    active: true,
-  },
-  {
     id: "jt-engine",
     name: "Engine service",
     colour: "#0ea5e9",
@@ -102,34 +111,53 @@ const JOB_TYPES: JobType[] = [
       { label: "Drain coolant", category: "Yard job" },
       { label: "Service log", category: "Yard job" },
     ],
-    photoChecklist: [],
-    productIds: ["prod-labour-hour"],
-    requiresTc: false,
+    photoChecklist: [...QA_PHOTOS],
+    productIds: ["prod-labour-hour", "prod-dockyard-fee"],
+    requiresTc: true,
     active: true,
   },
 ];
 
+function launchLiftTypes(module: TaskModule, prefix: string): TaskType[] {
+  return [
+    {
+      id: `${prefix}-launch`,
+      name: "Launch",
+      kind: "launch",
+      module,
+      checklist: [
+        { label: "Check straps", category: "Launch" },
+        { label: "Engine ok", category: "Launch" },
+      ],
+      productId: "prod-launch",
+      active: true,
+    },
+    {
+      id: `${prefix}-lift`,
+      name: "Lift",
+      kind: "retrieval",
+      module,
+      checklist: [
+        { label: "Rinse hull", category: "Lift" },
+        { label: "Secure stands", category: "Lift" },
+      ],
+      productId: "prod-lift",
+      active: true,
+    },
+  ];
+}
+
 const TASK_TYPES: TaskType[] = [
+  ...launchLiftTypes("dry_storage", "tt-ds"),
+  ...launchLiftTypes("hardstand", "tt-hs"),
+  ...launchLiftTypes("boatyard", "tt-by"),
   {
-    id: "tt-launch",
-    name: "Launch",
-    kind: "launch",
-    checklist: [
-      { label: "Check straps", category: "Launch" },
-      { label: "Engine ok", category: "Launch" },
-    ],
-    productId: "prod-launch",
-    active: true,
-  },
-  {
-    id: "tt-retrieval",
-    name: "Lift",
-    kind: "retrieval",
-    checklist: [
-      { label: "Rinse hull", category: "Lift" },
-      { label: "Secure stands", category: "Lift" },
-    ],
-    productId: "prod-lift",
+    id: "tt-other",
+    name: "Wash",
+    kind: "other",
+    module: "other",
+    checklist: [{ label: "Rinse and dry", category: "Prep" }],
+    productId: "prod-boat-wash",
     active: true,
   },
 ];
@@ -180,11 +208,39 @@ function dryBerth(id: string, name: string): Berth {
   };
 }
 
+function hardstandBerth(id: string, name: string): Berth {
+  return {
+    id,
+    name,
+    pier: "Hardstand",
+    kind: "hardstand",
+    lengthM: 12,
+    beamM: 4,
+    maxWeightT: 12,
+    hasPower: true,
+    underCover: false,
+    blocksTravelLift: false,
+    priceClassName: "Hardstand",
+  };
+}
+
 const BERTHS: Berth[] = [
+  wetBerth("berth-a08", "A08", "A", 12, 4),
   wetBerth("berth-a10", "A10", "A", 12, 4),
   wetBerth("berth-a12", "A12", "A", 14, 4.5),
   wetBerth("berth-a14", "A14", "A", 12, 4),
+  wetBerth("berth-a16", "A16", "A", 14, 4.5),
+  wetBerth("berth-a18", "A18", "A", 12, 4),
+  wetBerth("berth-b1", "B1", "B", 14, 4.5),
   wetBerth("berth-b3", "B3", "B", 16, 5),
+  wetBerth("berth-b5", "B5", "B", 12, 4),
+  wetBerth("berth-b7", "B7", "B", 14, 4.5),
+  wetBerth("berth-b9", "B9", "B", 16, 5),
+  wetBerth("berth-c2", "C2", "C", 12, 4),
+  wetBerth("berth-c4", "C4", "C", 14, 4.5),
+  wetBerth("berth-c6", "C6", "C", 12, 4),
+  wetBerth("berth-c8", "C8", "C", 12, 4),
+  wetBerth("berth-c10", "C10", "C", 14, 4.5),
   dockyardBerth("berth-h1", "H1", 14),
   dockyardBerth("berth-h2", "H2", 16),
   dockyardBerth("berth-h3", "H3", 14),
@@ -200,6 +256,10 @@ const BERTHS: Berth[] = [
   dryBerth("berth-ds5", "DS5"),
   dryBerth("berth-ds6", "DS6"),
   dryBerth("berth-ds7", "DS7"),
+  hardstandBerth("berth-hs1", "HS1"),
+  hardstandBerth("berth-hs2", "HS2"),
+  hardstandBerth("berth-hs3", "HS3"),
+  hardstandBerth("berth-hs4", "HS4"),
 ];
 
 function customer(
@@ -225,6 +285,15 @@ const CUSTOMERS: Customer[] = [
   customer("cust-kim", "Ava Kim", "ava.kim@harbour.demo", "+61 412 100 010"),
   customer("cust-cole", "Ben Cole", "ben.cole@harbour.demo", "+61 412 100 011"),
   customer("cust-frost", "Dana Frost", "dana.frost@harbour.demo", "+61 412 100 012"),
+  customer("cust-nguyen", "Maya Nguyen", "maya.nguyen@harbour.demo", "+61 412 100 013"),
+  customer("cust-ross", "Ivy Ross", "ivy.ross@harbour.demo", "+61 412 100 014"),
+  customer("cust-patel", "Arun Patel", "arun.patel@harbour.demo", "+61 412 100 015"),
+  customer("cust-moore", "Chloe Moore", "chloe.moore@harbour.demo", "+61 412 100 016"),
+  customer("cust-diaz", "Felix Diaz", "felix.diaz@harbour.demo", "+61 412 100 017"),
+  customer("cust-owens", "Ruth Owens", "ruth.owens@harbour.demo", "+61 412 100 018"),
+  customer("cust-singh", "Dev Singh", "dev.singh@harbour.demo", "+61 412 100 019"),
+  customer("cust-hart", "Lena Hart", "lena.hart@harbour.demo", "+61 412 100 020"),
+  customer("cust-brooks", "Sam Brooks", "sam.brooks@harbour.demo", "+61 412 100 021"),
 ];
 
 function vessel(
@@ -253,6 +322,15 @@ const VESSELS: Vessel[] = [
   vessel("ves-shearwater", "Shearwater", "cust-kim", 8.8, 2.9, 3, "stored", "2027-09-01"),
   vessel("ves-gannet", "Gannet", "cust-cole", 8, 2.7, 2.6, "stored", "2027-10-01"),
   vessel("ves-corsair", "Corsair", "cust-frost", 15, 4.6, 12, "stored", "2027-01-01"),
+  vessel("ves-kestrel", "Kestrel", "cust-nguyen", 9.2, 3, 3.4, "stored", "2027-07-01"),
+  vessel("ves-albatross", "Albatross", "cust-ross", 11.8, 3.7, 7.2, "stored", "2027-04-15"),
+  vessel("ves-petrel", "Petrel", "cust-patel", 10.5, 3.4, 5.1, "stored", "2027-11-01"),
+  vessel("ves-sanderling", "Sanderling", "cust-moore", 8.6, 2.8, 2.9, "stored", "2027-06-12"),
+  vessel("ves-teal", "Teal", "cust-diaz", 13.2, 4.1, 9.4, "stored", "2027-02-20"),
+  vessel("ves-plover", "Plover", "cust-owens", 8.1, 2.7, 2.6, "stored", "2027-08-08"),
+  vessel("ves-whimbrel", "Whimbrel", "cust-singh", 11, 3.5, 6.4, "stored", "2027-03-22"),
+  vessel("ves-godwit", "Godwit", "cust-hart", 9, 3, 3.3, "stored", "2027-09-18"),
+  vessel("ves-dunlin", "Dunlin", "cust-brooks", 10.2, 3.3, 4.8, "stored", "2027-05-30"),
 ];
 
 function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
@@ -296,7 +374,6 @@ const RESERVATIONS: Reservation[] = [
     vesselId: "ves-corsair",
     startDate: WEEK_MON,
     endDate: DEMO_WEEK_END,
-    job: jobFromType("jt-engine", { location: "afloat" }),
   },
   {
     id: "res-h4-sea-sprite",
@@ -307,7 +384,7 @@ const RESERVATIONS: Reservation[] = [
     startDate: WEEK_MON,
     endDate: DEMO_WEEK_END,
     job: jobFromType("jt-antifoul", {
-      liftTime: "08:15",
+      liftTime: "08:00",
       launchTime: "14:00",
       launchDate: DEMO_TODAY,
       workBy: "marina",
@@ -334,7 +411,7 @@ const RESERVATIONS: Reservation[] = [
     vesselId: "ves-kingfisher",
     startDate: WEEK_WED,
     endDate: DEMO_WEEK_END,
-    job: jobFromType("jt-travel-lift", {
+    job: jobFromType("jt-engine", {
       liftTime: "09:00",
       launchTime: "16:00",
       launchDate: DEMO_TODAY,
@@ -398,11 +475,101 @@ const RESERVATIONS: Reservation[] = [
     endDate: MONTH_END,
   },
   {
+    id: "res-hs1-gannet",
+    status: "approved",
+    berthId: "berth-hs1",
+    customerId: "cust-cole",
+    vesselId: "ves-gannet",
+    startDate: MONTH_START,
+    endDate: MONTH_END,
+  },
+  {
     id: "res-a14-shearwater",
     status: "to_be_approved",
     berthId: "berth-a14",
     customerId: "cust-kim",
     vesselId: "ves-shearwater",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
+  },
+  {
+    id: "res-a08-kestrel",
+    status: "approved",
+    berthId: "berth-a08",
+    customerId: "cust-nguyen",
+    vesselId: "ves-kestrel",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
+  },
+  {
+    id: "res-a16-albatross",
+    status: "approved",
+    berthId: "berth-a16",
+    customerId: "cust-ross",
+    vesselId: "ves-albatross",
+    startDate: WEEK_TUE,
+    endDate: DEMO_WEEK_END,
+  },
+  {
+    id: "res-b1-petrel",
+    status: "approved",
+    berthId: "berth-b1",
+    customerId: "cust-patel",
+    vesselId: "ves-petrel",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
+  },
+  {
+    id: "res-b5-sanderling",
+    status: "approved",
+    berthId: "berth-b5",
+    customerId: "cust-moore",
+    vesselId: "ves-sanderling",
+    startDate: DEMO_TODAY,
+    endDate: DEMO_WEEK_END,
+  },
+  {
+    id: "res-b9-teal",
+    status: "approved",
+    berthId: "berth-b9",
+    customerId: "cust-diaz",
+    vesselId: "ves-teal",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
+  },
+  {
+    id: "res-c2-plover",
+    status: "approved",
+    berthId: "berth-c2",
+    customerId: "cust-owens",
+    vesselId: "ves-plover",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
+  },
+  {
+    id: "res-c4-whimbrel",
+    status: "approved",
+    berthId: "berth-c4",
+    customerId: "cust-singh",
+    vesselId: "ves-whimbrel",
+    startDate: WEEK_WED,
+    endDate: DEMO_WEEK_END,
+  },
+  {
+    id: "res-c8-godwit",
+    status: "pending",
+    berthId: "berth-c8",
+    customerId: "cust-hart",
+    vesselId: "ves-godwit",
+    startDate: WEEK_MON,
+    endDate: DEMO_WEEK_END,
+  },
+  {
+    id: "res-c10-dunlin",
+    status: "approved",
+    berthId: "berth-c10",
+    customerId: "cust-brooks",
+    vesselId: "ves-dunlin",
     startDate: WEEK_MON,
     endDate: DEMO_WEEK_END,
   },
@@ -441,6 +608,7 @@ function makeLaunchTask(
     berthId: client.berthId,
     date: SATURDAY,
     time,
+    module: taskType.module,
     checklist: itemsFromOptions(taskType.checklist),
     status: "open",
     source: "staff",
@@ -449,40 +617,41 @@ function makeLaunchTask(
 }
 
 function buildSaturdayTasks(): LaunchTask[] {
-  const launchType = TASK_TYPES.find((t) => t.kind === "launch");
-  const retrievalType = TASK_TYPES.find((t) => t.kind === "retrieval");
-  if (!launchType || !retrievalType) throw new Error("Launch and Lift task types are required");
+  const launchType = TASK_TYPES.find((t) => t.id === "tt-ds-launch");
+  const retrievalType = TASK_TYPES.find((t) => t.id === "tt-ds-lift");
+  const hsLaunch = TASK_TYPES.find((t) => t.id === "tt-hs-launch");
+  const byLift = TASK_TYPES.find((t) => t.id === "tt-by-lift");
+  const byLaunch = TASK_TYPES.find((t) => t.id === "tt-by-launch");
+  const otherType = TASK_TYPES.find((t) => t.id === "tt-other");
+  if (!launchType || !retrievalType || !hsLaunch || !byLift || !byLaunch || !otherType) {
+    throw new Error("Launch and Lift task types are required");
+  }
 
   const pelican = LAUNCH_FLEET[0];
-  const osprey = LAUNCH_FLEET[4];
   const tasks: LaunchTask[] = [
     makeLaunchTask("lt-01", launchType, pelican, "09:00"),
     makeLaunchTask("lt-02", retrievalType, pelican, "15:00"),
   ];
 
-  const reserved = new Set(["ves-pelican|tt-launch|09:00", "ves-pelican|tt-retrieval|15:00"]);
-  let slot = 0;
+  // One fork-lift vessel per 30-minute slot. Mix remaining dry-stack boats
+  // into unique Saturday times so the busy-day board still looks full.
+  const others = LAUNCH_FLEET.filter(
+    (client) => client.vesselId !== "ves-pelican" && client.vesselId !== "ves-osprey"
+  );
   let serial = 3;
-
-  while (tasks.length < 50) {
-    const client = LAUNCH_FLEET[slot % LAUNCH_FLEET.length];
-    const minutesFromStart = (slot * 15) % (9 * 60 + 15);
-    const hours = 7 + Math.floor(minutesFromStart / 60);
-    const minutes = minutesFromStart % 60;
-    const time = padTime(hours, minutes);
-    const taskType = slot % 2 === 0 ? launchType : retrievalType;
-    const key = `${client.vesselId}|${taskType.id}|${time}`;
-    slot += 1;
-    if (client.vesselId === pelican.vesselId || client.vesselId === osprey.vesselId) continue;
-    if (reserved.has(key)) continue;
-    reserved.add(key);
-    tasks.push(makeLaunchTask(`lt-${String(serial).padStart(2, "0")}`, taskType, client, time));
-    serial += 1;
+  let slotIndex = 0;
+  for (let hour = 7; hour < 17; hour += 1) {
+    for (const minutes of [0, 30]) {
+      const time = padTime(hour, minutes);
+      if (time === "09:00" || time === "15:00") continue;
+      const client = others[slotIndex % others.length];
+      const taskType = slotIndex % 2 === 0 ? launchType : retrievalType;
+      tasks.push(makeLaunchTask(`lt-${String(serial).padStart(2, "0")}`, taskType, client, time));
+      serial += 1;
+      slotIndex += 1;
+    }
   }
 
-  // Busy Friday customer requests (Western Port). Pelican is left off so the
-  // portal round-trip can place her request live. Osprey starts on berth A10 —
-  // send her to DS5, then launch her back onto the water.
   const fridayRequests: LaunchTask[] = [
     makeLaunchTask("lt-req-02", launchType, LAUNCH_FLEET[2], "08:30", {
       date: FRIDAY,
@@ -499,34 +668,83 @@ function buildSaturdayTasks(): LaunchTask[] {
       status: "requested",
       source: "customer",
     }),
+    makeLaunchTask(
+      "lt-hs-req",
+      hsLaunch,
+      { customerId: "cust-cole", vesselId: "ves-gannet", berthId: "berth-hs1" },
+      "11:00",
+      { date: FRIDAY, status: "requested", source: "customer" }
+    ),
+    makeLaunchTask(
+      "lt-by-sea-sprite-lift",
+      byLift,
+      { customerId: "cust-voss", vesselId: "ves-sea-sprite", berthId: "berth-h4" },
+      "08:00",
+      {
+        date: FRIDAY,
+        status: "done",
+        source: "staff",
+        reservationId: "res-h4-sea-sprite",
+        checklist: itemsFromOptions(byLift.checklist).map((item) => ({ ...item, done: true })),
+      }
+    ),
+    makeLaunchTask(
+      "lt-by-sea-sprite-launch",
+      byLaunch,
+      { customerId: "cust-voss", vesselId: "ves-sea-sprite", berthId: "berth-h4" },
+      "14:00",
+      { date: FRIDAY, status: "open", source: "staff", reservationId: "res-h4-sea-sprite" }
+    ),
+    makeLaunchTask(
+      "lt-by-kingfisher-lift",
+      byLift,
+      { customerId: "cust-ortiz", vesselId: "ves-kingfisher", berthId: "berth-h1" },
+      "09:00",
+      {
+        date: FRIDAY,
+        status: "done",
+        source: "staff",
+        reservationId: "res-h1-travel-lift",
+        checklist: itemsFromOptions(byLift.checklist).map((item) => ({ ...item, done: true })),
+      }
+    ),
+    makeLaunchTask(
+      "lt-by-kingfisher-launch",
+      byLaunch,
+      { customerId: "cust-ortiz", vesselId: "ves-kingfisher", berthId: "berth-h1" },
+      "16:00",
+      { date: FRIDAY, status: "open", source: "staff", reservationId: "res-h1-travel-lift" }
+    ),
+    makeLaunchTask("lt-other-wash", otherType, pelican, "13:00", { date: FRIDAY }),
   ];
 
   return [...fridayRequests, ...tasks];
 }
 
-const PORTAL_LINKS: PortalLink[] = [
-  {
-    id: "plink-pelican",
-    token: "demo-pelican-portal",
-    customerId: "cust-shah",
-    createdAt: `${DEMO_WEEK_START}T09:00:00.000Z`,
-    expiresAt: "2027-12-31T23:59:59.000Z",
-  },
-  {
-    id: "plink-tern",
-    token: "demo-tern-portal",
-    customerId: "cust-chen",
-    createdAt: `${DEMO_WEEK_START}T09:00:00.000Z`,
-    expiresAt: "2027-12-31T23:59:59.000Z",
-  },
-  {
-    id: "plink-heron",
-    token: "demo-heron-portal",
-    customerId: "cust-quinn",
-    createdAt: `${DEMO_WEEK_START}T09:00:00.000Z`,
-    expiresAt: "2027-12-31T23:59:59.000Z",
-  },
-];
+function booking(
+  id: string,
+  equipmentId: string,
+  date: string,
+  startTime: string,
+  taskId: string,
+  vesselId: string
+): EquipmentBooking {
+  return { id, equipmentId, date, startTime, taskId, vesselId };
+}
+
+function buildEquipmentBookings(tasks: LaunchTask[]): EquipmentBooking[] {
+  const bookings: EquipmentBooking[] = [];
+  for (const task of tasks) {
+    if (task.status === "declined") continue;
+    const equipmentId =
+      task.module === "boatyard" ? "eq-travel-lift" : task.module === "other" ? null : "eq-fork-lift";
+    if (!equipmentId) continue;
+    bookings.push(
+      booking(`eb-${task.id}`, equipmentId, task.date, task.time, task.id, task.vesselId)
+    );
+  }
+  return bookings;
+}
 
 const ACTIVITY: ActivityEvent[] = [
   {
@@ -548,12 +766,13 @@ const MESSAGES: Message[] = [
     channel: "email",
     template: "tc_sent",
     subject: "Please sign yard T&Cs",
-    body: "Please open your status link and sign the yard terms before we can lift your boat.",
+    body: "Please reply to this email to confirm you accept the yard terms before we lift your boat.",
     read: false,
   },
 ];
 
 export function createSeedState(): MarinaState {
+  const launchTasks = buildSaturdayTasks();
   return {
     settings: SETTINGS,
     role: "office",
@@ -561,12 +780,14 @@ export function createSeedState(): MarinaState {
     products: PRODUCTS,
     jobTypes: JOB_TYPES,
     taskTypes: TASK_TYPES,
+    equipment: EQUIPMENT,
+    equipmentBookings: buildEquipmentBookings(launchTasks),
     customers: CUSTOMERS,
     vessels: VESSELS,
     reservations: RESERVATIONS,
-    launchTasks: buildSaturdayTasks(),
+    launchTasks,
     invoices: [],
-    portalLinks: PORTAL_LINKS,
+    portalLinks: [],
     changeRequests: [],
     activity: ACTIVITY,
     messages: MESSAGES,

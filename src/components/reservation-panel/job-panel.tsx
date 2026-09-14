@@ -4,7 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { EditableChecklist } from "../checklist/editable-checklist";
 import { itemsFromOptions, photosFromOptions } from "../../lib/checklist";
+import { buildDaySlots, equipmentForModule } from "../../lib/equipment";
 import { draftFromJob, invoiceBannerText } from "../../lib/invoice";
+import { remapTravelLiftJobTypeId, workJobTypes } from "../../lib/job-types";
+import { spaceKindToModule } from "../../lib/modules";
 import { useMarina } from "../../store/marina-store";
 import type { Job, JobType, TcStatus, WorkBy } from "../../types/domain";
 import { Button } from "../ui/button";
@@ -12,6 +15,7 @@ import { JobLines } from "./job-lines";
 
 interface JobPanelProps {
   reservationId: string;
+  plain?: boolean;
 }
 
 const TC_LABEL: Record<TcStatus, string> = {
@@ -45,7 +49,7 @@ function jobFromType(jobType: JobType, previous?: Job): Job {
   };
 }
 
-export function JobPanel({ reservationId }: JobPanelProps) {
+export function JobPanel({ reservationId, plain = false }: JobPanelProps) {
   const navigate = useNavigate();
   const {
     state,
@@ -58,13 +62,33 @@ export function JobPanel({ reservationId }: JobPanelProps) {
     rescheduleRelaunch,
   } = useMarina();
   const reservation = state.reservations.find((item) => item.id === reservationId);
-  const berth = state.berths.find((item) => item.id === reservation?.berthId);
   const job = reservation?.job;
-  const jobType = state.jobTypes.find((item) => item.id === job?.typeId);
-  const activeTypes = state.jobTypes.filter((item) => item.active);
-  const isBerth = berth?.kind === "wet";
+  const resolvedTypeId = job ? remapTravelLiftJobTypeId(job.typeId) : undefined;
+  const jobType = state.jobTypes.find((item) => item.id === resolvedTypeId);
+  const activeTypes = workJobTypes(state.jobTypes).filter((item) => item.active);
   const hidePrices = state.role === "yard" && state.settings.hidePricesForYard;
   const canCreateDraft = state.role === "office";
+  const reservationBerth = reservation
+    ? state.berths.find((item) => item.id === reservation.berthId)
+    : undefined;
+  const module = reservationBerth ? spaceKindToModule(reservationBerth.kind) : "boatyard";
+  const liftMachine = module ? equipmentForModule(state.equipment, module) : undefined;
+  const liftSlots = liftMachine ? buildDaySlots(liftMachine) : [];
+  const liftTask = state.launchTasks.find(
+    (item) =>
+      item.reservationId === reservationId &&
+      (!module || item.module === module) &&
+      state.taskTypes.find((type) => type.id === item.taskTypeId)?.kind === "retrieval"
+  );
+  const launchTask = state.launchTasks.find(
+    (item) =>
+      item.reservationId === reservationId &&
+      (!module || item.module === module) &&
+      item.status !== "declined" &&
+      item.status !== "done" &&
+      state.taskTypes.find((type) => type.id === item.taskTypeId)?.kind === "launch"
+  );
+  const liftTimeLabel = liftTask?.time ?? job?.liftTime;
 
   const [open, setOpen] = useState(true);
   const [relaunchDate, setRelaunchDate] = useState(job?.launchDate ?? reservation?.endDate ?? "");
@@ -73,8 +97,12 @@ export function JobPanel({ reservationId }: JobPanelProps) {
   useEffect(() => {
     setOpen(true);
     setRelaunchDate(job?.launchDate ?? reservation?.endDate ?? "");
-    setRelaunchTime(job?.launchTime ?? "");
-  }, [reservationId, job?.launchDate, job?.launchTime, reservation?.endDate]);
+    setRelaunchTime(job?.launchTime ?? launchTask?.time ?? "");
+  }, [reservationId, job?.launchDate, job?.launchTime, launchTask?.time, reservation?.endDate]);
+
+  useEffect(() => {
+    if (!relaunchTime && liftSlots[0]) setRelaunchTime(liftSlots[0]);
+  }, [relaunchTime, liftSlots]);
 
   if (!reservation || !job || !jobType) return null;
   const currentJob = job;
@@ -107,32 +135,118 @@ export function JobPanel({ reservationId }: JobPanelProps) {
     .join(" · ");
 
   return (
-    <section className="min-w-0 rounded-lg border border-gray-200 bg-gray-50/80" data-job-section>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-gray-100/80"
-        aria-expanded={open}
-      >
-        {open ? (
-          <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="font-medium text-foreground text-sm">{state.settings.jobPanelTitle}</div>
-          {!open ? (
-            <p className="mt-0.5 line-clamp-2 break-words text-muted-foreground text-xs">{preview}</p>
-          ) : null}
-        </div>
-      </button>
+    <section
+      className={plain ? "min-w-0 space-y-4" : "min-w-0 rounded-lg border border-gray-200 bg-gray-50/80"}
+      data-job-section
+    >
+      {plain ? (
+        <h3 className="text-sm font-semibold text-neutral-900">{state.settings.jobPanelTitle}</h3>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-gray-100/80"
+          aria-expanded={open}
+        >
+          {open ? (
+            <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="font-medium text-foreground text-sm">{state.settings.jobPanelTitle}</div>
+            {!open ? (
+              <p className="mt-0.5 line-clamp-2 break-words text-muted-foreground text-xs">{preview}</p>
+            ) : null}
+          </div>
+        </button>
+      )}
 
-      {open ? (
-        <div className="space-y-4 border-gray-200 border-t bg-white px-3 py-3">
+      {plain || open ? (
+        <div className={plain ? "space-y-4" : "space-y-4 border-gray-200 border-t bg-white px-3 py-3"}>
+          <div
+            className="space-y-2 rounded-md border border-neutral-200 bg-neutral-50 p-3"
+            data-lift-then-launch
+            data-relaunch-reschedule
+          >
+            <div>
+              <p className="text-xs font-medium text-neutral-500">Lift then launch</p>
+              <p className="mt-0.5 text-xs text-neutral-500">
+                Every land stay lifts first, does the job, then launches.
+              </p>
+            </div>
+            <p className="text-xs text-neutral-600">
+              Lift{" "}
+              <span className="font-medium text-neutral-900">
+                {liftTimeLabel ? liftTimeLabel : "not yet scheduled"}
+              </span>
+              {liftTask?.status === "done" ? " · done" : liftTask ? " · scheduled" : ""}
+            </p>
+            <p className="text-xs font-medium text-neutral-500">
+              {launchTask ? "Move launch date" : "Schedule launch"}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="date"
+                value={relaunchDate}
+                onChange={(event) => setRelaunchDate(event.target.value)}
+                className="rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+              />
+              {liftSlots.length > 0 ? (
+                <select
+                  value={relaunchTime}
+                  onChange={(event) => setRelaunchTime(event.target.value)}
+                  className="rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+                >
+                  {liftSlots.map((slot) => {
+                    const taken = state.equipmentBookings.some(
+                      (booking) =>
+                        booking.equipmentId === liftMachine?.id &&
+                        booking.date === relaunchDate &&
+                        booking.startTime === slot &&
+                        booking.taskId !== launchTask?.id
+                    );
+                    return (
+                      <option key={slot} value={slot} disabled={taken}>
+                        {slot}
+                        {taken ? " — taken" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <input
+                  type="time"
+                  value={relaunchTime}
+                  onChange={(event) => setRelaunchTime(event.target.value)}
+                  className="rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+                />
+              )}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!relaunchDate}
+              onClick={() => {
+                const ok = rescheduleRelaunch(reservationId, relaunchDate, relaunchTime || undefined);
+                if (!ok) {
+                  toast.error("That lift slot is taken — pick another time");
+                  return;
+                }
+                toast.success(
+                  launchTask ? "Launch moved — customer emailed" : "Launch scheduled — customer emailed"
+                );
+              }}
+            >
+              {launchTask ? "Move launch date" : "Schedule launch"}
+            </Button>
+          </div>
+
           <label className="block space-y-1">
             <span className="text-xs font-medium text-neutral-500">Job type</span>
             <select
-              value={job.typeId}
+              value={resolvedTypeId}
               onChange={(event) => onTypeChange(event.target.value)}
               className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
             >
@@ -186,89 +300,6 @@ export function JobPanel({ reservationId }: JobPanelProps) {
             ) : null}
           </div>
 
-          {isBerth ? (
-            <div className="space-y-1.5">
-              <span className="text-xs font-medium text-neutral-500">Work location</span>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm text-neutral-800">
-                  <input
-                    type="radio"
-                    name={`job-location-${reservationId}`}
-                    checked={job.location === "afloat"}
-                    onChange={() => applyJob({ ...job, location: "afloat", liftTime: undefined, launchTime: undefined })}
-                  />
-                  Afloat (in the water)
-                </label>
-                <label className="flex items-center gap-2 text-sm text-neutral-800">
-                  <input
-                    type="radio"
-                    name={`job-location-${reservationId}`}
-                    checked={job.location === "dockyard"}
-                    onChange={() => applyJob({ ...job, location: "dockyard" })}
-                  />
-                  Lift to {state.settings.boatyardLabel}
-                </label>
-              </div>
-            </div>
-          ) : null}
-
-          {job.location === "dockyard" ? (
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block space-y-1">
-                <span className="text-xs font-medium text-neutral-500">Lift time</span>
-                <input
-                  type="time"
-                  value={job.liftTime ?? ""}
-                  onChange={(event) => applyJob({ ...job, liftTime: event.target.value || undefined })}
-                  className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
-                />
-              </label>
-              <label className="block space-y-1">
-                <span className="text-xs font-medium text-neutral-500">Launch time</span>
-                <input
-                  type="time"
-                  value={job.launchTime ?? ""}
-                  onChange={(event) => applyJob({ ...job, launchTime: event.target.value || undefined })}
-                  className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
-                />
-              </label>
-            </div>
-          ) : (
-            <p className="text-xs text-neutral-500">Work done afloat — no lift required.</p>
-          )}
-
-          {job.location === "dockyard" ? (
-            <div className="space-y-2 rounded-md border border-neutral-200 bg-neutral-50 p-3" data-relaunch-reschedule>
-              <p className="text-xs font-medium text-neutral-500">Move relaunch (Boatyard Jenga)</p>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  value={relaunchDate}
-                  onChange={(event) => setRelaunchDate(event.target.value)}
-                  className="rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
-                />
-                <input
-                  type="time"
-                  value={relaunchTime}
-                  onChange={(event) => setRelaunchTime(event.target.value)}
-                  className="rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
-                />
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!relaunchDate}
-                onClick={() => {
-                  rescheduleRelaunch(reservationId, relaunchDate, relaunchTime || undefined);
-                  toast.success("Relaunch moved — reservation extended if needed");
-                }}
-              >
-                Move relaunch
-              </Button>
-            </div>
-          ) : null}
-
           {jobType.requiresTc ? (
             <div className="space-y-2">
               <p className="text-xs font-medium text-neutral-500">T&Cs</p>
@@ -276,7 +307,7 @@ export function JobPanel({ reservationId }: JobPanelProps) {
                 {TC_LABEL[job.tcStatus]}
                 {job.tcSignedAt ? (
                   <span className="ml-2 text-xs font-normal text-neutral-500">
-                    via portal {new Date(job.tcSignedAt).toLocaleDateString()}
+                    via email {new Date(job.tcSignedAt).toLocaleDateString()}
                   </span>
                 ) : null}
               </p>
@@ -288,7 +319,7 @@ export function JobPanel({ reservationId }: JobPanelProps) {
                   className="flex-1"
                   onClick={() => {
                     sendTc(reservationId);
-                    toast.success("T&Cs sent — customer notified");
+                    toast.success("T&Cs emailed — mark signed when the customer replies");
                   }}
                   disabled={job.tcStatus !== "not_sent"}
                 >
@@ -325,31 +356,29 @@ export function JobPanel({ reservationId }: JobPanelProps) {
             </div>
           </div>
 
-          {job.location === "dockyard" ? (
-            <div>
-              <p className="text-xs font-medium text-neutral-500">QA photos</p>
-              <div className="mt-1.5">
-                <EditableChecklist
-                  items={job.photos}
-                  categories={state.settings.checklistCategories}
-                  fallbackCategory="QA photo"
-                  onChange={(photos) =>
-                    applyJob({
-                      ...job,
-                      photos: photos.map((item) => ({
-                        id: item.id ?? `photo-${crypto.randomUUID()}`,
-                        label: item.label,
-                        category: item.category,
-                        done: item.done,
-                      })),
-                    })
-                  }
-                  addLabel="Add photo item"
-                  emptyHint="No photo prompts — add any this job needs."
-                />
-              </div>
+          <div>
+            <p className="text-xs font-medium text-neutral-500">QA photos</p>
+            <div className="mt-1.5">
+              <EditableChecklist
+                items={job.photos}
+                categories={state.settings.checklistCategories}
+                fallbackCategory="QA photo"
+                onChange={(photos) =>
+                  applyJob({
+                    ...job,
+                    photos: photos.map((item) => ({
+                      id: item.id ?? `photo-${crypto.randomUUID()}`,
+                      label: item.label,
+                      category: item.category,
+                      done: item.done,
+                    })),
+                  })
+                }
+                addLabel="Add photo item"
+                emptyHint="No photo prompts — add any this job needs."
+              />
             </div>
-          ) : null}
+          </div>
 
           <JobLines
             key={`${job.typeId}-hours`}
