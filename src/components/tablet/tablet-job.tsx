@@ -25,6 +25,7 @@ function jobFromType(jobType: JobType, previous?: Job): Job {
     location: previous?.location ?? "dockyard",
     workBy: previous?.workBy ?? "marina",
     contractorName: previous?.contractorName,
+    notes: previous?.notes,
     liftTime: previous?.liftTime,
     launchTime: previous?.launchTime,
     launchDate: previous?.launchDate,
