@@ -39,8 +39,8 @@ const EQUIPMENT: Equipment[] = [
     name: "Travel lift",
     kind: "travel_lift",
     active: true,
-    dayStart: "07:00",
-    dayEnd: "17:00",
+    dayStart: "06:00",
+    dayEnd: "18:00",
     slotMinutes: 60,
   },
   {
@@ -379,11 +379,11 @@ const RESERVATIONS: Reservation[] = [
     customerId: "cust-voss",
     vesselId: "ves-sea-sprite",
     startDate: WEEK_MON,
-    endDate: DEMO_WEEK_END,
+    endDate: WEEK_MON,
     job: jobFromType("jt-antifoul", {
       liftTime: "08:00",
       launchTime: "14:00",
-      launchDate: DEMO_TODAY,
+      launchDate: WEEK_MON,
       workBy: "marina",
     }),
   },
@@ -394,11 +394,11 @@ const RESERVATIONS: Reservation[] = [
     customerId: "cust-bridger",
     vesselId: "ves-riviera",
     startDate: WEEK_TUE,
-    endDate: DEMO_WEEK_END,
+    endDate: WEEK_TUE,
     job: jobFromType("jt-diy", {
       liftTime: "09:00",
       launchTime: "15:00",
-      launchDate: DEMO_TODAY,
+      launchDate: WEEK_TUE,
       workBy: "diy",
       tcStatus: "sent",
       checklist: jobItems("jt-diy", 1),
@@ -411,11 +411,11 @@ const RESERVATIONS: Reservation[] = [
     customerId: "cust-ortiz",
     vesselId: "ves-kingfisher",
     startDate: WEEK_WED,
-    endDate: DEMO_WEEK_END,
+    endDate: WEEK_WED,
     job: jobFromType("jt-engine", {
       liftTime: "09:00",
-      launchTime: "16:00",
-      launchDate: DEMO_TODAY,
+      launchTime: "15:00",
+      launchDate: WEEK_WED,
       workBy: "contractor",
       contractorName: "Marine Works",
       tcStatus: "sent",
@@ -429,11 +429,11 @@ const RESERVATIONS: Reservation[] = [
     customerId: "cust-patel",
     vesselId: "ves-petrel",
     startDate: DEMO_TODAY,
-    endDate: DEMO_WEEK_END,
+    endDate: DEMO_TODAY,
     job: jobFromType("jt-antifoul", {
       liftTime: "10:00",
       launchTime: "14:00",
-      launchDate: DEMO_SATURDAY,
+      launchDate: DEMO_TODAY,
       workBy: "marina",
     }),
   },
@@ -444,11 +444,11 @@ const RESERVATIONS: Reservation[] = [
     customerId: "cust-diaz",
     vesselId: "ves-teal",
     startDate: DEMO_TODAY,
-    endDate: DEMO_WEEK_END,
+    endDate: DEMO_TODAY,
     job: jobFromType("jt-engine", {
       liftTime: "11:00",
-      launchTime: "11:00",
-      launchDate: DEMO_SATURDAY,
+      launchTime: "16:00",
+      launchDate: DEMO_TODAY,
       workBy: "marina",
       tcStatus: "signed",
       tcSignedAt: `${WEEK_WED}T16:00:00.000Z`,
@@ -462,11 +462,11 @@ const RESERVATIONS: Reservation[] = [
     customerId: "cust-owens",
     vesselId: "ves-plover",
     startDate: WEEK_WED,
-    endDate: DEMO_WEEK_END,
+    endDate: WEEK_WED,
     job: jobFromType("jt-diy", {
       liftTime: "10:00",
-      launchTime: "12:00",
-      launchDate: DEMO_TODAY,
+      launchTime: "16:00",
+      launchDate: WEEK_WED,
       workBy: "diy",
       checklist: jobItems("jt-diy", 2),
       photos: jobPhotos(1),
@@ -479,11 +479,11 @@ const RESERVATIONS: Reservation[] = [
     customerId: "cust-moore",
     vesselId: "ves-sanderling",
     startDate: WEEK_WED,
-    endDate: DEMO_WEEK_END,
+    endDate: WEEK_WED,
     job: jobFromType("jt-diy", {
       liftTime: "08:00",
-      launchTime: "07:00",
-      launchDate: DEMO_TODAY,
+      launchTime: "14:00",
+      launchDate: WEEK_WED,
       workBy: "diy",
       status: "done",
       checklist: jobItems("jt-diy", 2),
@@ -660,20 +660,20 @@ function buildLaunchTasks(): LaunchTask[] {
       reservationId: "res-h8-sanderling",
       checklist: ticked("lift"),
     }),
-    makeLaunchTask("lt-by-sanderling-launch", byLaunch, sanderling, "07:00", {
-      date: FRIDAY,
+    makeLaunchTask("lt-by-sanderling-launch", byLaunch, sanderling, "14:00", {
+      date: WEEK_WED,
       status: "done",
       reservationId: "res-h8-sanderling",
       checklist: ticked("launch"),
     }),
     makeLaunchTask("lt-by-sea-sprite-lift", byLift, seaSprite, "08:00", {
-      date: FRIDAY,
+      date: WEEK_MON,
       status: "done",
       reservationId: "res-h4-sea-sprite",
       checklist: ticked("lift"),
     }),
     makeLaunchTask("lt-by-sea-sprite-launch", byLaunch, seaSprite, "14:00", {
-      date: FRIDAY,
+      date: WEEK_MON,
       reservationId: "res-h4-sea-sprite",
     }),
     makeLaunchTask("lt-by-riviera-lift", byLift, riviera, "09:00", {
@@ -683,7 +683,7 @@ function buildLaunchTasks(): LaunchTask[] {
       checklist: ticked("lift"),
     }),
     makeLaunchTask("lt-by-riviera-launch", byLaunch, riviera, "15:00", {
-      date: FRIDAY,
+      date: WEEK_TUE,
       status: "in_progress",
       reservationId: "res-h2-riviera",
     }),
@@ -693,8 +693,8 @@ function buildLaunchTasks(): LaunchTask[] {
       reservationId: "res-h1-travel-lift",
       checklist: ticked("lift"),
     }),
-    makeLaunchTask("lt-by-kingfisher-launch", byLaunch, kingfisher, "16:00", {
-      date: FRIDAY,
+    makeLaunchTask("lt-by-kingfisher-launch", byLaunch, kingfisher, "15:00", {
+      date: WEEK_WED,
       reservationId: "res-h1-travel-lift",
     }),
     makeLaunchTask("lt-by-petrel-lift", byLift, petrel, "10:00", {
@@ -702,7 +702,7 @@ function buildLaunchTasks(): LaunchTask[] {
       reservationId: "res-h3-petrel",
     }),
     makeLaunchTask("lt-by-petrel-launch", byLaunch, petrel, "14:00", {
-      date: SATURDAY,
+      date: FRIDAY,
       reservationId: "res-h3-petrel",
     }),
     makeLaunchTask("lt-by-teal-lift", byLift, teal, "11:00", {
@@ -711,8 +711,8 @@ function buildLaunchTasks(): LaunchTask[] {
       reservationId: "res-h6-teal",
       checklist: itemsFromOptions(byLift.checklist).map((item, index) => ({ ...item, done: index === 0 })),
     }),
-    makeLaunchTask("lt-by-teal-launch", byLaunch, teal, "11:00", {
-      date: SATURDAY,
+    makeLaunchTask("lt-by-teal-launch", byLaunch, teal, "16:00", {
+      date: FRIDAY,
       reservationId: "res-h6-teal",
     }),
     makeLaunchTask("lt-by-plover-lift", byLift, plover, "10:00", {
@@ -721,10 +721,8 @@ function buildLaunchTasks(): LaunchTask[] {
       reservationId: "res-h7-plover",
       checklist: ticked("lift"),
     }),
-    makeLaunchTask("lt-by-plover-launch", byLaunch, plover, "12:00", {
-      date: FRIDAY,
-      status: "requested",
-      source: "customer",
+    makeLaunchTask("lt-by-plover-launch", byLaunch, plover, "16:00", {
+      date: WEEK_WED,
       reservationId: "res-h7-plover",
     }),
   ];
@@ -871,7 +869,7 @@ const ACTIVITY: ActivityEvent[] = [
     id: "act-7",
     at: `${DEMO_TODAY}T10:02:00.000Z`,
     actor: "office",
-    message: "Petrel booked onto H3 — lift 10:00, launch Saturday 14:00",
+    message: "Petrel booked onto H3 — 10:00–14:00 antifoul",
     reservationId: "res-h3-petrel",
     vesselId: "ves-petrel",
     customerId: "cust-patel",

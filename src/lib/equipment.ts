@@ -1,4 +1,5 @@
 import type { Equipment, EquipmentBooking, EquipmentKind, TaskModule } from "../types/domain";
+import { toLocalDate } from "./iso-date";
 import { equipmentKindForModule } from "./modules";
 
 export function timeToMinutes(hhmm: string): number {
@@ -8,6 +9,16 @@ export function timeToMinutes(hhmm: string): number {
 
 export function minutesBetween(start: string, end: string): number {
   return timeToMinutes(end) - timeToMinutes(start);
+}
+
+export function minutesBetweenSlots(
+  startDate: string,
+  startTime: string,
+  endDate: string,
+  endTime: string
+): number {
+  const days = Math.round((toLocalDate(endDate).getTime() - toLocalDate(startDate).getTime()) / 86_400_000);
+  return days * 24 * 60 + timeToMinutes(endTime) - timeToMinutes(startTime);
 }
 
 export function formatDurationMinutes(mins: number): string {

@@ -253,13 +253,13 @@ export function TaskList({ date, module, tab: tabProp, onTabChange }: TaskListPr
           <div
             className="inline-flex flex-wrap gap-1 rounded-lg border border-neutral-200 bg-neutral-50 p-1"
             role="tablist"
-            aria-label="Requests, launch, or lift"
+            aria-label="Requests, lift, or launch"
           >
             {(
               [
                 { id: "requests" as const, label: "Requests", count: totals.requests, selectedClass: "text-amber-800", badgeClass: "bg-amber-100 text-amber-900" },
-                { id: "launch" as const, label: "Launch", count: totals.launches, selectedClass: "text-[hsl(252,75%,40%)]", badgeClass: "bg-[hsl(252,75%,94%)] text-[hsl(252,75%,32%)]" },
                 { id: "lift" as const, label: "Lift", count: totals.lifts, selectedClass: "text-teal-800", badgeClass: "bg-teal-100 text-teal-900" },
+                { id: "launch" as const, label: "Launch", count: totals.launches, selectedClass: "text-[hsl(252,75%,40%)]", badgeClass: "bg-[hsl(252,75%,94%)] text-[hsl(252,75%,32%)]" },
               ] as const
             ).map((item) => {
               const selected = tab === item.id;

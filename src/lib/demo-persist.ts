@@ -64,6 +64,7 @@ function migrateJobType(jobType: JobType, seedTypes: JobType[]): JobType {
   const photoChecklist = migrateChecklistOptions(jobType.photoChecklist, "QA photo");
   return {
     ...jobType,
+    defaultDurationDays: seeded?.defaultDurationDays ?? jobType.defaultDurationDays,
     requiresTc: seeded?.requiresTc ?? jobType.requiresTc,
     productIds: jobType.productIds?.length ? jobType.productIds : (seeded?.productIds ?? []),
     checklist: checklist.length ? checklist : (seeded?.checklist ?? []),
@@ -96,7 +97,9 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
           ? parsed.settings.checklistCategories
           : [...DEFAULT_CHECKLIST_CATEGORIES],
     },
-    equipment: Array.isArray(parsed.equipment) && parsed.equipment.length > 0 ? parsed.equipment : seed.equipment,
+    equipment: (Array.isArray(parsed.equipment) && parsed.equipment.length > 0 ? parsed.equipment : seed.equipment).map(
+      (item) => (item.kind === "travel_lift" ? { ...item, dayStart: "06:00", dayEnd: "18:00" } : item)
+    ),
     equipmentBookings: mergeMissingById(
       (parsed.equipmentBookings ?? seed.equipmentBookings)
         .filter((booking) => !booking.taskId.startsWith("lt-hs"))

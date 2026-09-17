@@ -8,9 +8,8 @@ import {
   equipmentForModule,
   findEquipmentConflict,
   formatDurationMinutes,
-  minutesBetween,
+  minutesBetweenSlots,
   snapToSlot,
-  timeToMinutes,
 } from "../lib/equipment";
 import { kindLabel } from "../lib/labels";
 import { isDryKind, isLandKind, spaceKindToModule } from "../lib/modules";
@@ -66,7 +65,8 @@ export interface AddYardStayInput {
   vesselId: string;
   berthId: string;
   reservationId: string;
-  date: string;
+  liftDate: string;
+  launchDate: string;
   liftTime: string;
   launchTime: string;
   jobTypeId: string;
@@ -334,17 +334,15 @@ function releaseSlot(bookings: EquipmentBooking[], taskId: string): EquipmentBoo
   return bookings.filter((item) => item.taskId !== taskId);
 }
 
-function stayTaskOnDate(
+function stayTaskForReservation(
   tasks: LaunchTask[],
   reservationId: string,
-  taskTypeId: string,
-  date: string
+  taskTypeId: string
 ): LaunchTask | undefined {
   return tasks.find(
     (item) =>
       item.reservationId === reservationId &&
       item.taskTypeId === taskTypeId &&
-      item.date === date &&
       item.status !== "declined"
   );
 }
@@ -629,10 +627,10 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
   const placeBooking = useCallback((input: PlaceBookingInput): boolean => {
     let applied = false;
     setState((prev) => {
-      if (input.start > input.end) return prev;
       const vessel = prev.vessels.find((item) => item.id === input.vesselId);
       const dest = prev.berths.find((item) => item.id === input.destBerthId);
       if (!vessel || !dest) return prev;
+      if (input.start > input.end) return prev;
 
       const source = input.sourceReservationId
         ? prev.reservations.find((item) => item.id === input.sourceReservationId)
@@ -867,7 +865,8 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
   const addYardStay = useCallback((input: AddYardStayInput): boolean => {
     let applied = false;
     setState((prev) => {
-      if (timeToMinutes(input.launchTime) <= timeToMinutes(input.liftTime)) return prev;
+      const repairMinutes = minutesBetweenSlots(input.liftDate, input.liftTime, input.launchDate, input.launchTime);
+      if (repairMinutes <= 0) return prev;
       const liftType = taskTypeFor(prev.taskTypes, "boatyard", "retrieval");
       const launchType = taskTypeFor(prev.taskTypes, "boatyard", "launch");
       const reservation = prev.reservations.find((item) => item.id === input.reservationId);
@@ -876,26 +875,26 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       if (input.workBy === "contractor" && !input.contractorName?.trim()) return prev;
 
       const withLift = applyStayTask(prev, {
-        existing: stayTaskOnDate(prev.launchTasks, input.reservationId, liftType.id, input.date),
+        existing: stayTaskForReservation(prev.launchTasks, input.reservationId, liftType.id),
         type: liftType,
         customerId: input.customerId,
         vesselId: input.vesselId,
         berthId: input.berthId,
         reservationId: input.reservationId,
-        date: input.date,
+        date: input.liftDate,
         time: input.liftTime,
       });
       if (!withLift) return prev;
       const withLaunch = applyStayTask(
         { ...prev, launchTasks: withLift.launchTasks, equipmentBookings: withLift.equipmentBookings },
         {
-          existing: stayTaskOnDate(withLift.launchTasks, input.reservationId, launchType.id, input.date),
+          existing: stayTaskForReservation(withLift.launchTasks, input.reservationId, launchType.id),
           type: launchType,
           customerId: input.customerId,
           vesselId: input.vesselId,
           berthId: input.berthId,
           reservationId: input.reservationId,
-          date: input.date,
+          date: input.launchDate,
           time: input.launchTime,
         }
       );
@@ -906,31 +905,41 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
         (item) =>
           item.reservationId === input.reservationId &&
           item.taskTypeId === liftType.id &&
-          item.date === input.date
+          item.status !== "declined"
       );
       const launchTask = withLaunch.launchTasks.find(
         (item) =>
           item.reservationId === input.reservationId &&
           item.taskTypeId === launchType.id &&
-          item.date === input.date
+          item.status !== "declined"
       );
       const liftTime = liftTask?.time ?? input.liftTime;
       const launchTime = launchTask?.time ?? input.launchTime;
-      const repair = formatDurationMinutes(minutesBetween(liftTime, launchTime));
+      const liftDate = liftTask?.date ?? input.liftDate;
+      const launchDate = launchTask?.date ?? input.launchDate;
+      const repair = formatDurationMinutes(
+        minutesBetweenSlots(liftDate, liftTime, launchDate, launchTime)
+      );
       const job = yardJobFromStay(jobType, reservation.job, {
         liftTime,
         launchTime,
-        launchDate: input.date,
+        launchDate,
         workBy: input.workBy,
         contractorName: input.contractorName?.trim(),
         notes: input.notes,
       });
+      const when =
+        liftDate === launchDate
+          ? `on ${liftDate}`
+          : `lift ${liftDate} · launch ${launchDate}`;
       return {
         ...prev,
         launchTasks: withLaunch.launchTasks,
         equipmentBookings: withLaunch.equipmentBookings,
         reservations: prev.reservations.map((item) =>
-          item.id === input.reservationId ? { ...item, job } : item
+          item.id === input.reservationId
+            ? { ...item, startDate: liftDate, endDate: launchDate, job }
+            : item
         ),
         activity: [
           makeActivity(
@@ -952,7 +961,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
             channel: "email",
             template: "launch_confirmed",
             subject: "Lift and launch booked",
-            body: `Your ${jobType.name.toLowerCase()} is booked: lift at ${liftTime} and launch at ${launchTime} on ${input.date}${
+            body: `Your ${jobType.name.toLowerCase()} is booked: lift at ${liftTime} and launch at ${launchTime} ${when}${
               repair ? ` (${repair} on the yard)` : ""
             }.`,
           }),

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CalendarGrid } from "../components/calendar/calendar-grid";
+import { LiftWeekCalendar } from "../components/calendar/lift-week-calendar";
+import { YardWeekCalendar } from "../components/calendar/yard-week-calendar";
 import { JobsWorkspace } from "../components/jobs/jobs-workspace";
 import { AddTaskModal } from "../components/launch/add-task-modal";
 import { boardForDay, TaskList, type BoardTab } from "../components/launch/task-list";
@@ -135,9 +137,9 @@ export function LandModuleScreen({ module }: LandModuleScreenProps) {
             <p className={cn("mt-0.5 text-sm", pending > 0 ? "text-amber-700" : "text-muted-foreground")} data-pending-count>
               {pending === 1 ? "1 request" : `${pending} requests`}
               <span className="text-neutral-400"> · </span>
-              {board.totals.launches} launch
-              <span className="text-neutral-400"> · </span>
               {board.totals.lifts} lift
+              <span className="text-neutral-400"> · </span>
+              {board.totals.launches} launch
             </p>
           </div>
           {tab === "today" ? (
@@ -189,7 +191,16 @@ export function LandModuleScreen({ module }: LandModuleScreenProps) {
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className={cn("min-h-0 min-w-0 flex-1", tab === "jobs" ? "overflow-hidden" : "overflow-auto")}>
+        <div
+          className={cn(
+            "min-h-0 min-w-0 flex-1",
+            tab === "jobs" ||
+            (tab === "occupancy" && module === "boatyard") ||
+            (tab === "equipment" && module === "boatyard")
+              ? "overflow-hidden"
+              : "overflow-auto"
+          )}
+        >
           {tab === "today" ? (
             <div className="space-y-4 p-4 sm:p-6" data-launch-board>
               <TaskList date={state.selectedDate} module={module} tab={boardTab} onTabChange={setBoardTab} />
@@ -197,23 +208,38 @@ export function LandModuleScreen({ module }: LandModuleScreenProps) {
           ) : null}
 
           {tab === "occupancy" ? (
-            <div className="p-4 sm:p-6">
-              <CalendarGrid kinds={[module]} />
-            </div>
+            module === "boatyard" ? (
+              <YardWeekCalendar />
+            ) : (
+              <div className="p-4 sm:p-6">
+                <CalendarGrid kinds={[module]} />
+              </div>
+            )
           ) : null}
 
           {tab === "jobs" ? <JobsWorkspace /> : null}
 
           {tab === "equipment" ? (
-            <EquipmentCalendarScreen
-              kind={module === "boatyard" ? "travel_lift" : "fork_lift"}
-              embedded
-              onFreeSlot={(time) => {
-                setSlotTime(time);
-                setIsAddOpen(true);
-              }}
-              onBookedReservation={(reservationId) => setSelectedReservationId(reservationId)}
-            />
+            module === "boatyard" ? (
+              <LiftWeekCalendar
+                onFreeSlot={(date, time) => {
+                  setSelectedDate(date);
+                  setSlotTime(time);
+                  setIsAddOpen(true);
+                }}
+                onBookedReservation={(reservationId) => setSelectedReservationId(reservationId)}
+              />
+            ) : (
+              <EquipmentCalendarScreen
+                kind="fork_lift"
+                embedded
+                onFreeSlot={(time) => {
+                  setSlotTime(time);
+                  setIsAddOpen(true);
+                }}
+                onBookedReservation={(reservationId) => setSelectedReservationId(reservationId)}
+              />
+            )
           ) : null}
         </div>
 

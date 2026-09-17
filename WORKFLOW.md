@@ -117,7 +117,7 @@ Elena wants her back in today. The 14:00 launch is already on the travel lift. O
 
 # Extra scenes — Dry stack
 
-Racks on land. Launch back into the water from **Dry stack**. Open **Operations → Dry stack**. **Today** has Requests / Launch / Lift. **Racks** is occupancy. **Fork lift** is the hourly schedule.
+Racks on land. Launch back into the water from **Dry stack**. Open **Operations → Dry stack**. **Today** has Requests / Lift / Launch. **Racks** is occupancy. **Fork lift** is the hourly schedule.
 
 Monthly rack storage stays on the booking. It is **not** on a Lift/Launch draft.
 
@@ -202,7 +202,7 @@ Replaces a printed run sheet. One vessel per fork-lift slot. Invoice **after** t
 
 The yard is for repair. Book onto it from **Dockyard**, finish the job, then launch back to the water.
 
-Open **Operations → Dockyard**. Tabs: **Today**, **Travel lift**, **Yard**, **Job details**. **Today** has Requests / Launch / Lift. **Travel lift** is the hourly schedule. **Yard** is occupancy. **Job details** is the repair job list.
+Open **Operations → Dockyard**. Tabs: **Today**, **Travel lift**, **Yard**, **Job details**. **Today** has Requests / Lift / Launch. **Travel lift** is the weekly Outlook schedule of lifts and launches. **Yard** is an Outlook-style week calendar of jobs on each pad. Occupancy is the older pad-row view. **Job details** is the repair job list.
 
 Open **Operations → Dry stack**. Tabs: **Today**, **Fork lift**, **Racks**.
 
