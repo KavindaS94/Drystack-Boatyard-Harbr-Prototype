@@ -6,6 +6,19 @@ export function timeToMinutes(hhmm: string): number {
   return hours * 60 + minutes;
 }
 
+export function minutesBetween(start: string, end: string): number {
+  return timeToMinutes(end) - timeToMinutes(start);
+}
+
+export function formatDurationMinutes(mins: number): string {
+  if (!Number.isFinite(mins) || mins <= 0) return "";
+  const hours = Math.floor(mins / 60);
+  const minutes = mins % 60;
+  if (hours === 0) return `${minutes} min`;
+  if (minutes === 0) return hours === 1 ? "1 hour" : `${hours} hours`;
+  return `${hours} h ${minutes} min`;
+}
+
 export function minutesToTime(mins: number): string {
   const hours = Math.floor(mins / 60);
   const minutes = mins % 60;

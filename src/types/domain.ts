@@ -1,5 +1,5 @@
-export type SpaceKind = "wet" | "boatyard" | "dry_storage" | "hardstand";
-export type LandModule = "dry_storage" | "boatyard" | "hardstand";
+export type SpaceKind = "wet" | "boatyard" | "dry_storage";
+export type LandModule = "dry_storage" | "boatyard";
 export type TaskModule = LandModule | "other";
 export type EquipmentKind = "travel_lift" | "fork_lift";
 export type Role = "office" | "yard";
@@ -147,6 +147,7 @@ export interface Job {
   location: JobLocation; // afloat (in the water) | dockyard (lifted out)
   workBy: WorkBy;
   contractorName?: string;
+  notes?: string;
   liftTime?: string; // "08:15" — mirror of the linked Lift task
   launchTime?: string; // "14:00"
   launchDate?: string; // YYYY-MM-DD — relaunch day
@@ -251,10 +252,8 @@ export interface Message {
 export interface Settings {
   boatyardEnabled: boolean;
   dryStorageEnabled: boolean;
-  hardstandEnabled: boolean;
   boatyardLabel: string; // default "Dockyard"
   dryStorageLabel: string; // default "Dry stack"
-  hardstandLabel: string; // default "Hardstand"
   jobPanelTitle: string; // default "Job"
   hidePricesForYard: boolean;
   autoDnlOverdue: boolean;

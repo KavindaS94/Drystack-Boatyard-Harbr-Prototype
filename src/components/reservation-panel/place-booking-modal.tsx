@@ -7,7 +7,7 @@ import { buildDaySlots, conflictDetailsForEquipment, equipmentForModule } from "
 import { addDays } from "../../lib/iso-date";
 import { kindLabel } from "../../lib/labels";
 import { workJobTypes } from "../../lib/job-types";
-import { isKindEnabled, isLandKind, modulePath, spaceKindToModule } from "../../lib/modules";
+import { isKindEnabled, isLandKind, modulePath, occupancyTabId, spaceKindToModule } from "../../lib/modules";
 import { useMarina, type PlaceBookingInput } from "../../store/marina-store";
 import type { Berth, Reservation, SpaceKind } from "../../types/domain";
 import { Button } from "../ui/button";
@@ -36,7 +36,7 @@ function firstFreeBerth(berths: Berth[], reservations: Reservation[], start: str
 
 function keepFreeLabels(
   sourceKind: SpaceKind | undefined,
-  settings: { boatyardLabel: string; dryStorageLabel: string; hardstandLabel: string }
+  settings: { boatyardLabel: string; dryStorageLabel: string }
 ): { keep: string; move: string; legend: string } {
   if (sourceKind === "wet") {
     return {
@@ -50,13 +50,6 @@ function keepFreeLabels(
       legend: settings.dryStorageLabel,
       keep: `Keep ${settings.dryStorageLabel.toLowerCase()} rack`,
       move: `Move (free ${settings.dryStorageLabel.toLowerCase()} rack)`,
-    };
-  }
-  if (sourceKind === "hardstand") {
-    return {
-      legend: settings.hardstandLabel,
-      keep: `Keep ${settings.hardstandLabel.toLowerCase()} pad`,
-      move: `Move (free ${settings.hardstandLabel.toLowerCase()} pad)`,
     };
   }
   if (sourceKind === "boatyard") {
@@ -225,7 +218,7 @@ export function PlaceBookingModal({
           : `Booked ${dest.name}`
     );
     if (destModule) {
-      navigate(`${modulePath(destModule)}?tab=occupancy`);
+      navigate(`${modulePath(destModule)}?tab=${occupancyTabId(destModule)}`);
     }
     onClose();
   }

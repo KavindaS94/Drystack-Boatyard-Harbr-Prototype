@@ -19,10 +19,10 @@ export function EquipmentTab() {
   return (
     <div className="space-y-4" data-settings-tab="equipment">
       <p className="text-sm text-muted-foreground">
-        One vessel per time slot. Travel lift is for boatyard; fork lift is for dry stack and hardstand.
+        One vessel per time slot. Travel lift is for boatyard; fork lift is for dry stack.
       </p>
       {machines.length === 0 ? (
-        <p className="text-sm text-neutral-500">Turn on Boatyard, Dry stack, or Hardstand to configure equipment.</p>
+        <p className="text-sm text-neutral-500">Turn on Boatyard or Dry stack to configure equipment.</p>
       ) : null}
       {machines.map((item) => (
         <section key={item.id} className="space-y-3 rounded-md border border-border p-3" data-equipment-row={item.id}>

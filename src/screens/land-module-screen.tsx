@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CalendarGrid } from "../components/calendar/calendar-grid";
+import { JobsWorkspace } from "../components/jobs/jobs-workspace";
 import { AddTaskModal } from "../components/launch/add-task-modal";
-import { TaskList } from "../components/launch/task-list";
+import { boardForDay, TaskList, type BoardTab } from "../components/launch/task-list";
 import { ReservationPanel } from "../components/reservation-panel/reservation-panel";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -13,6 +14,7 @@ import {
   equipmentTabLabel,
   isKindEnabled,
   moduleLabel,
+  occupancyTabId,
   occupancyTabLabel,
 } from "../lib/modules";
 import { cn } from "../lib/utils";
@@ -20,31 +22,52 @@ import { EquipmentCalendarScreen } from "./equipment-calendar-screen";
 import { useMarina } from "../store/marina-store";
 import type { LandModule } from "../types/domain";
 
-type WorkspaceTab = "today" | "occupancy" | "equipment" | "jobs";
+type WorkspaceTab = "today" | "equipment" | "occupancy" | "jobs";
 
 interface LandModuleScreenProps {
   module: LandModule;
+}
+
+function isBoardTab(value: string | null): value is BoardTab {
+  return value === "requests" || value === "launch" || value === "lift";
 }
 
 export function LandModuleScreen({ module }: LandModuleScreenProps) {
   const { state, setSelectedDate, setSelectedReservationId } = useMarina();
   const [params, setParams] = useSearchParams();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [asRequest, setAsRequest] = useState(false);
   const [slotTime, setSlotTime] = useState<string | undefined>();
   const label = moduleLabel(module, state.settings);
   const enabled = isKindEnabled(module, state.settings);
-  const pending = state.launchTasks.filter((task) => task.status === "requested" && task.module === module).length;
+  const board = useMemo(
+    () => boardForDay(state.launchTasks, state.taskTypes, state.selectedDate, module),
+    [module, state.launchTasks, state.selectedDate, state.taskTypes]
+  );
+  const pending = board.totals.requests;
   const script = params.get("script");
   const requestedTab = params.get("tab");
   const equipmentId = equipmentTabId(module);
 
+  const occupancyId = occupancyTabId(module);
+
   const tab: WorkspaceTab = useMemo(() => {
-    if (requestedTab === "occupancy" || requestedTab === "racks" || requestedTab === "pads") return "occupancy";
-    if (requestedTab === "jobs") return "jobs";
     if (requestedTab === equipmentId || requestedTab === "equipment") return "equipment";
+    if (
+      requestedTab === "occupancy" ||
+      requestedTab === occupancyId ||
+      requestedTab === "racks" ||
+      requestedTab === "pads" ||
+      requestedTab === "yard"
+    ) {
+      return "occupancy";
+    }
+    if (module === "boatyard" && (requestedTab === "jobs" || requestedTab === "job-details")) {
+      return "jobs";
+    }
     return "today";
-  }, [equipmentId, requestedTab]);
+  }, [equipmentId, module, occupancyId, requestedTab]);
+
+  const boardTab = isBoardTab(requestedTab) ? requestedTab : undefined;
 
   useEffect(() => {
     if (script === "saturday") setSelectedDate(DEMO_SATURDAY);
@@ -70,7 +93,14 @@ export function LandModuleScreen({ module }: LandModuleScreenProps) {
     const nextParams = new URLSearchParams(params);
     if (next === "today") nextParams.delete("tab");
     else if (next === "equipment") nextParams.set("tab", equipmentId);
-    else nextParams.set("tab", next);
+    else if (next === "jobs") nextParams.set("tab", "jobs");
+    else nextParams.set("tab", occupancyId);
+    setParams(nextParams, { replace: true });
+  }
+
+  function setBoardTab(next: BoardTab) {
+    const nextParams = new URLSearchParams(params);
+    nextParams.set("tab", next);
     setParams(nextParams, { replace: true });
   }
 
@@ -82,18 +112,19 @@ export function LandModuleScreen({ module }: LandModuleScreenProps) {
     );
   }
 
-  const tabs: { id: WorkspaceTab; label: string }[] = [
-    { id: "today", label: "Today" },
-    { id: "occupancy", label: occupancyTabLabel(module) },
-    { id: "equipment", label: equipmentTabLabel(module) },
-    ...(module === "boatyard" ? [{ id: "jobs" as const, label: "Jobs" }] : []),
-  ];
-
-  const jobs = state.reservations.filter((reservation) => {
-    if (reservation.status === "archived" || !reservation.job) return false;
-    const berth = state.berths.find((item) => item.id === reservation.berthId);
-    return berth?.kind === "boatyard";
-  });
+  const tabs: { id: WorkspaceTab; label: string }[] =
+    module === "boatyard"
+      ? [
+          { id: "today", label: "Today" },
+          { id: "equipment", label: equipmentTabLabel(module) },
+          { id: "occupancy", label: occupancyTabLabel(module) },
+          { id: "jobs", label: "Job details" },
+        ]
+      : [
+          { id: "today", label: "Today" },
+          { id: "equipment", label: equipmentTabLabel(module) },
+          { id: "occupancy", label: occupancyTabLabel(module) },
+        ];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden" data-land-module={module}>
@@ -101,15 +132,13 @@ export function LandModuleScreen({ module }: LandModuleScreenProps) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-neutral-900">{label}</h1>
-            {pending > 0 ? (
-              <p className="mt-0.5 text-sm text-amber-700" data-pending-count>
-                {pending} request{pending === 1 ? "" : "s"} waiting
-              </p>
-            ) : (
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                Daily board, occupancy, and {equipmentTabLabel(module).toLowerCase()} in one place.
-              </p>
-            )}
+            <p className={cn("mt-0.5 text-sm", pending > 0 ? "text-amber-700" : "text-muted-foreground")} data-pending-count>
+              {pending === 1 ? "1 request" : `${pending} requests`}
+              <span className="text-neutral-400"> · </span>
+              {board.totals.launches} launch
+              <span className="text-neutral-400"> · </span>
+              {board.totals.lifts} lift
+            </p>
           </div>
           {tab === "today" ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -125,23 +154,9 @@ export function LandModuleScreen({ module }: LandModuleScreenProps) {
               </label>
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setAsRequest(true);
-                  setSlotTime(undefined);
-                  setIsAddOpen(true);
-                }}
-                data-log-request
-              >
-                Log request
-              </Button>
-              <Button
-                type="button"
                 variant="harbr"
                 size="sm"
                 onClick={() => {
-                  setAsRequest(false);
                   setSlotTime(undefined);
                   setIsAddOpen(true);
                 }}
@@ -174,10 +189,10 @@ export function LandModuleScreen({ module }: LandModuleScreenProps) {
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+        <div className={cn("min-h-0 min-w-0 flex-1", tab === "jobs" ? "overflow-hidden" : "overflow-auto")}>
           {tab === "today" ? (
             <div className="space-y-4 p-4 sm:p-6" data-launch-board>
-              <TaskList date={state.selectedDate} module={module} />
+              <TaskList date={state.selectedDate} module={module} tab={boardTab} onTabChange={setBoardTab} />
             </div>
           ) : null}
 
@@ -187,69 +202,28 @@ export function LandModuleScreen({ module }: LandModuleScreenProps) {
             </div>
           ) : null}
 
+          {tab === "jobs" ? <JobsWorkspace /> : null}
+
           {tab === "equipment" ? (
             <EquipmentCalendarScreen
               kind={module === "boatyard" ? "travel_lift" : "fork_lift"}
               embedded
               onFreeSlot={(time) => {
-                setAsRequest(false);
                 setSlotTime(time);
                 setIsAddOpen(true);
               }}
               onBookedReservation={(reservationId) => setSelectedReservationId(reservationId)}
             />
           ) : null}
-
-          {tab === "jobs" ? (
-            <div className="space-y-3 p-4 sm:p-6" data-jobs-list>
-              {jobs.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-8 text-sm text-neutral-500">
-                  No open repair jobs on pads.
-                </p>
-              ) : (
-                <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {jobs.map((reservation) => {
-                    const vessel = state.vessels.find((item) => item.id === reservation.vesselId);
-                    const customer = state.customers.find((item) => item.id === reservation.customerId);
-                    const berth = state.berths.find((item) => item.id === reservation.berthId);
-                    const jobType = state.jobTypes.find((item) => item.id === reservation.job?.typeId);
-                    return (
-                      <li key={reservation.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedReservationId(reservation.id)}
-                          data-job-row={reservation.id}
-                          className={cn(
-                            "flex h-full w-full flex-col items-start rounded-xl border bg-white p-4 text-left shadow-sm",
-                            state.selectedReservationId === reservation.id
-                              ? "border-neutral-900"
-                              : "border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
-                          )}
-                        >
-                          <span className="text-base font-semibold text-neutral-900">{vessel?.name}</span>
-                          <span className="mt-1 text-sm text-neutral-600">{customer?.name}</span>
-                          <span className="mt-2 text-sm text-neutral-500">
-                            <span className="font-medium text-neutral-800">{berth?.name}</span>
-                            {jobType ? ` · ${jobType.name}` : ""}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          ) : null}
         </div>
 
-        <ReservationPanel layout="page" allowedKinds={[module]} />
+        {tab !== "jobs" ? <ReservationPanel layout="page" allowedKinds={[module]} /> : null}
       </div>
 
       {isAddOpen ? (
         <AddTaskModal
           date={state.selectedDate}
           module={module}
-          asRequest={asRequest}
           initialTime={slotTime}
           onClose={() => {
             setIsAddOpen(false);

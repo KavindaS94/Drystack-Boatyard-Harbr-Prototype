@@ -65,7 +65,7 @@ export const HARBR_STORY_BEATS: StoryBeat[] = [
     story:
       "Elena wants her back in today. The 14:00 launch is already on the travel lift. One vessel per slot.",
     do: "Today → Launch → Sea Sprite 14:00 → Start → Done.",
-    to: "/operations/boatyard",
+    to: "/operations/boatyard?tab=launch",
     openLabel: "Open Today board",
   },
 ];

@@ -35,7 +35,7 @@ export function EquipmentCalendarScreen({
       <div className="p-6 text-sm text-neutral-600">
         {kind === "travel_lift"
           ? "Turn on Boatyard in Settings to use the travel lift calendar."
-          : "Turn on Dry stack or Hardstand in Settings to use the fork lift calendar."}
+          : "Turn on Dry stack in Settings to use the fork lift calendar."}
       </div>
     );
   }

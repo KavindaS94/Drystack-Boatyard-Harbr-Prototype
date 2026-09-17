@@ -9,15 +9,118 @@ import { DnlBadge } from "../dnl-badge";
 import { Button } from "../ui/button";
 import { TaskRow } from "./task-row";
 
-type BoardTab = "requests" | "launch" | "lift";
+export type BoardTab = "requests" | "launch" | "lift";
+type StatusFilter = "all" | "open" | "in_progress" | "done";
+
+const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "open", label: "Scheduled" },
+  { id: "in_progress", label: "In progress" },
+  { id: "done", label: "Done" },
+];
+
+function statusCounts(tasks: LaunchTask[]): Record<StatusFilter, number> {
+  return {
+    all: tasks.length,
+    open: tasks.filter((task) => task.status === "open").length,
+    in_progress: tasks.filter((task) => task.status === "in_progress").length,
+    done: tasks.filter((task) => task.status === "done").length,
+  };
+}
+
+function filterByStatus(tasks: LaunchTask[], filter: StatusFilter): LaunchTask[] {
+  if (filter === "all") return tasks;
+  return tasks.filter((task) => task.status === filter);
+}
+
+function StatusSelect({
+  tasks,
+  value,
+  onChange,
+}: {
+  tasks: LaunchTask[];
+  value: StatusFilter;
+  onChange: (next: StatusFilter) => void;
+}) {
+  const counts = statusCounts(tasks);
+  return (
+    <label className="flex items-center gap-2 text-sm text-neutral-700">
+      <span className="text-xs font-medium text-neutral-500">Status</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as StatusFilter)}
+        data-status-filter
+        aria-label="Filter by status"
+        className="h-8 rounded-md border border-neutral-200 bg-white px-2 text-sm"
+      >
+        {STATUS_FILTERS.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.label} ({counts[item.id]})
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 interface TaskListProps {
   date: string;
   module: TaskModule;
+  tab?: BoardTab;
+  onTabChange?: (tab: BoardTab) => void;
 }
 
-function sortByTime(tasks: LaunchTask[]): LaunchTask[] {
+export function sortByTime(tasks: LaunchTask[]): LaunchTask[] {
   return tasks.slice().sort((a, b) => a.time.localeCompare(b.time) || a.id.localeCompare(b.id));
+}
+
+export function boardForDay(
+  launchTasks: LaunchTask[],
+  taskTypes: { id: string; kind: string }[],
+  date: string,
+  module: TaskModule
+): {
+  requests: LaunchTask[];
+  lifts: LaunchTask[];
+  launches: LaunchTask[];
+  other: LaunchTask[];
+  totals: { requests: number; launches: number; lifts: number };
+} {
+  const dayTasks = launchTasks.filter((task) => task.date === date && task.module === module);
+  const requested: LaunchTask[] = [];
+  const liftTasks: LaunchTask[] = [];
+  const launchTasksForKind: LaunchTask[] = [];
+  const otherTasks: LaunchTask[] = [];
+
+  for (const task of dayTasks) {
+    if (task.status === "requested") {
+      requested.push(task);
+      continue;
+    }
+    if (task.status === "declined") continue;
+    const kind = taskTypes.find((item) => item.id === task.taskTypeId)?.kind;
+    if (kind === "retrieval") liftTasks.push(task);
+    else if (kind === "launch") launchTasksForKind.push(task);
+    else otherTasks.push(task);
+  }
+
+  return {
+    requests: sortByTime(requested),
+    lifts: liftTasks,
+    launches: launchTasksForKind,
+    other: otherTasks,
+    totals: {
+      requests: requested.length,
+      launches: launchTasksForKind.length,
+      lifts: liftTasks.length,
+    },
+  };
+}
+
+export function defaultBoardTab(totals: { requests: number; launches: number; lifts: number }): BoardTab {
+  if (totals.requests > 0) return "requests";
+  if (totals.launches === 0 && totals.lifts > 0) return "lift";
+  return "launch";
 }
 
 function groupByTime(tasks: LaunchTask[]): [string, LaunchTask[]][] {
@@ -30,7 +133,7 @@ function groupByTime(tasks: LaunchTask[]): [string, LaunchTask[]][] {
   return [...byTime.entries()];
 }
 
-export function TaskList({ date, module }: TaskListProps) {
+export function TaskList({ date, module, tab: tabProp, onTabChange }: TaskListProps) {
   const { state, approveRequest, declineRequest } = useMarina();
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -42,44 +145,53 @@ export function TaskList({ date, module }: TaskListProps) {
   }
 
   const { requests, lifts, launches, other, totals } = useMemo(() => {
-    const dayTasks = state.launchTasks.filter((task) => {
-      if (task.date !== date) return false;
-      if (module === "other") return task.module === "other" || state.taskTypes.find((item) => item.id === task.taskTypeId)?.kind === "other";
-      return task.module === module;
-    });
-    const requested: LaunchTask[] = [];
-    const liftTasks: LaunchTask[] = [];
-    const launchTasks: LaunchTask[] = [];
-    const otherTasks: LaunchTask[] = [];
-
-    for (const task of dayTasks) {
-      if (task.status === "requested") {
-        requested.push(task);
-        continue;
+    if (module === "other") {
+      const dayTasks = state.launchTasks.filter((task) => {
+        if (task.date !== date) return false;
+        return task.module === "other" || state.taskTypes.find((item) => item.id === task.taskTypeId)?.kind === "other";
+      });
+      const requested: LaunchTask[] = [];
+      const liftTasks: LaunchTask[] = [];
+      const launchTasks: LaunchTask[] = [];
+      const otherTasks: LaunchTask[] = [];
+      for (const task of dayTasks) {
+        if (task.status === "requested") {
+          requested.push(task);
+          continue;
+        }
+        if (task.status === "declined") continue;
+        const kind = state.taskTypes.find((item) => item.id === task.taskTypeId)?.kind;
+        if (kind === "retrieval") liftTasks.push(task);
+        else if (kind === "launch") launchTasks.push(task);
+        else otherTasks.push(task);
       }
-      if (task.status === "declined") continue;
-      const kind = state.taskTypes.find((item) => item.id === task.taskTypeId)?.kind;
-      if (kind === "retrieval") liftTasks.push(task);
-      else if (kind === "launch") launchTasks.push(task);
-      else otherTasks.push(task);
+      return {
+        requests: sortByTime(requested),
+        lifts: liftTasks,
+        launches: launchTasks,
+        other: otherTasks,
+        totals: {
+          requests: requested.length,
+          launches: launchTasks.length,
+          lifts: liftTasks.length,
+        },
+      };
     }
-
-    return {
-      requests: sortByTime(requested),
-      lifts: liftTasks,
-      launches: launchTasks,
-      other: otherTasks,
-      totals: {
-        requests: requested.length,
-        launches: launchTasks.length,
-        lifts: liftTasks.length,
-      },
-    };
+    return boardForDay(state.launchTasks, state.taskTypes, date, module);
   }, [date, module, state.launchTasks, state.taskTypes]);
 
-  const tab: BoardTab =
-    tabOverride ??
-    (requests.length > 0 ? "requests" : launches.length === 0 && lifts.length > 0 ? "lift" : "launch");
+  const tab: BoardTab = tabProp ?? tabOverride ?? defaultBoardTab(totals);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [filterKey, setFilterKey] = useState(`${date}:${tab}`);
+  if (filterKey !== `${date}:${tab}`) {
+    setFilterKey(`${date}:${tab}`);
+    setStatusFilter("all");
+  }
+
+  function setTab(next: BoardTab) {
+    if (onTabChange) onTabChange(next);
+    else setTabOverride(next);
+  }
   const rowCount = requests.length + lifts.length + launches.length + other.length;
 
   function onToggleOpen(taskId: string) {
@@ -106,7 +218,7 @@ export function TaskList({ date, module }: TaskListProps) {
       return;
     }
     toast.success("Request approved — customer emailed");
-    setTabOverride(kind === "retrieval" ? "lift" : "launch");
+    setTab(kind === "retrieval" ? "lift" : "launch");
   }
 
   function onDecline(taskId: string) {
@@ -123,6 +235,8 @@ export function TaskList({ date, module }: TaskListProps) {
           empty="No other tasks today."
           tasks={[...other, ...launches, ...lifts]}
           testId="other-needed"
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
           openTaskId={openTaskId}
           errors={errors}
           onToggleOpen={onToggleOpen}
@@ -135,47 +249,56 @@ export function TaskList({ date, module }: TaskListProps) {
   return (
     <div className="flex flex-col gap-6" data-task-list data-task-count={rowCount} data-board-tab={tab}>
       <div className="space-y-4">
-        <div
-          className="inline-flex flex-wrap gap-1 rounded-lg border border-neutral-200 bg-neutral-50 p-1"
-          role="tablist"
-          aria-label="Requests, launch, or lift"
-        >
-          {(
-            [
-              { id: "requests" as const, label: "Requests", count: totals.requests, selectedClass: "text-amber-800", badgeClass: "bg-amber-100 text-amber-900" },
-              { id: "launch" as const, label: "Launch", count: totals.launches, selectedClass: "text-[hsl(252,75%,40%)]", badgeClass: "bg-[hsl(252,75%,94%)] text-[hsl(252,75%,32%)]" },
-              { id: "lift" as const, label: "Lift", count: totals.lifts, selectedClass: "text-teal-800", badgeClass: "bg-teal-100 text-teal-900" },
-            ] as const
-          ).map((item) => {
-            const selected = tab === item.id;
-            const recordLabel = item.count === 1 ? "record" : "records";
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                aria-label={`${item.label}, ${item.count} ${recordLabel}`}
-                data-board-tab-button={item.id}
-                onClick={() => setTabOverride(item.id)}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium",
-                  selected ? `bg-white shadow-sm ${item.selectedClass}` : "text-neutral-600 hover:text-neutral-900"
-                )}
-              >
-                {item.label}
-                <span
-                  data-tab-count={item.id}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div
+            className="inline-flex flex-wrap gap-1 rounded-lg border border-neutral-200 bg-neutral-50 p-1"
+            role="tablist"
+            aria-label="Requests, launch, or lift"
+          >
+            {(
+              [
+                { id: "requests" as const, label: "Requests", count: totals.requests, selectedClass: "text-amber-800", badgeClass: "bg-amber-100 text-amber-900" },
+                { id: "launch" as const, label: "Launch", count: totals.launches, selectedClass: "text-[hsl(252,75%,40%)]", badgeClass: "bg-[hsl(252,75%,94%)] text-[hsl(252,75%,32%)]" },
+                { id: "lift" as const, label: "Lift", count: totals.lifts, selectedClass: "text-teal-800", badgeClass: "bg-teal-100 text-teal-900" },
+              ] as const
+            ).map((item) => {
+              const selected = tab === item.id;
+              const recordLabel = item.count === 1 ? "record" : "records";
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  aria-label={`${item.label}, ${item.count} ${recordLabel}`}
+                  data-board-tab-button={item.id}
+                  onClick={() => setTab(item.id)}
                   className={cn(
-                    "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
-                    selected ? item.badgeClass : "bg-neutral-200 text-neutral-700"
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium",
+                    selected ? `bg-white shadow-sm ${item.selectedClass}` : "text-neutral-600 hover:text-neutral-900"
                   )}
                 >
-                  {item.count}
-                </span>
-              </button>
-            );
-          })}
+                  {item.label}
+                  <span
+                    data-tab-count={item.id}
+                    className={cn(
+                      "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                      selected ? item.badgeClass : "bg-neutral-200 text-neutral-700"
+                    )}
+                  >
+                    {item.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {tab !== "requests" ? (
+            <StatusSelect
+              tasks={tab === "launch" ? launches : lifts}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+          ) : null}
         </div>
 
         {tab === "requests" ? (
@@ -185,6 +308,8 @@ export function TaskList({ date, module }: TaskListProps) {
             empty={`No launches today in ${moduleLabel(module, state.settings)}.`}
             tasks={launches}
             testId="launch-needed"
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
             openTaskId={openTaskId}
             errors={errors}
             onToggleOpen={onToggleOpen}
@@ -195,6 +320,8 @@ export function TaskList({ date, module }: TaskListProps) {
             empty={`No lifts today in ${moduleLabel(module, state.settings)}.`}
             tasks={lifts}
             testId="lift-needed"
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
             openTaskId={openTaskId}
             errors={errors}
             onToggleOpen={onToggleOpen}
@@ -258,7 +385,7 @@ function RequestsSection({
     return (
       <section className="space-y-3" data-customer-requests data-kind-section="customer-requests">
         <p className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-8 text-sm text-neutral-500">
-          No customer requests today. Use Log request when someone phones or emails.
+          No customer requests today.
         </p>
       </section>
     );
@@ -324,6 +451,8 @@ function KindSection({
   empty,
   tasks,
   testId,
+  statusFilter,
+  onStatusFilterChange,
   openTaskId,
   errors,
   onToggleOpen,
@@ -333,21 +462,37 @@ function KindSection({
   empty: string;
   tasks: LaunchTask[];
   testId: string;
+  statusFilter: StatusFilter;
+  onStatusFilterChange: (next: StatusFilter) => void;
   openTaskId: string | null;
   errors: Record<string, string>;
   onToggleOpen: (taskId: string) => void;
   onError: (taskId: string, message: string | null) => void;
 }) {
-  const groups = groupByTime(tasks);
+  const visible = filterByStatus(tasks, statusFilter);
+  const groups = groupByTime(visible);
+  const emptyFiltered =
+    statusFilter === "all"
+      ? empty
+      : statusFilter === "open"
+        ? "No scheduled tasks in this list."
+        : statusFilter === "in_progress"
+          ? "No tasks in progress."
+          : "No completed tasks in this list.";
 
   return (
-    <section className="space-y-3" data-kind-section={testId}>
+    <section className="space-y-3" data-kind-section={testId} data-status-filter={statusFilter}>
       {title ? (
         <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</h2>
       ) : null}
+      {testId === "other-needed" ? (
+        <div className="flex justify-end">
+          <StatusSelect tasks={tasks} value={statusFilter} onChange={onStatusFilterChange} />
+        </div>
+      ) : null}
       {groups.length === 0 ? (
         <p className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-8 text-sm text-neutral-500">
-          {empty}
+          {emptyFiltered}
         </p>
       ) : (
         <div className="space-y-3">

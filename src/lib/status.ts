@@ -1,7 +1,7 @@
 import type { SpaceKind, VesselStorageStatus } from "../types/domain";
 import { isDryKind } from "./modules";
 
-/** Dry stack / hardstand: the boat sits on its space only while stored. */
+/** Dry stack: the boat sits on its rack only while stored. */
 export function occupiesDryRack(status: VesselStorageStatus): boolean {
   return status === "stored";
 }

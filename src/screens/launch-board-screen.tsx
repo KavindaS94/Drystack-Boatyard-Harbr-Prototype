@@ -13,7 +13,6 @@ export function LaunchBoardScreen() {
   const { state, setSelectedDate } = useMarina();
   const [params] = useSearchParams();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [asRequest, setAsRequest] = useState(false);
   const land = enabledLandModules(state.settings);
   const modules: TaskModule[] = useMemo(() => [...land, "other"], [land]);
   const [module, setModule] = useState<TaskModule>(modules[0] ?? "other");
@@ -35,7 +34,7 @@ export function LaunchBoardScreen() {
   if (land.length === 0) {
     return (
       <div className="p-6 text-sm text-neutral-600">
-        Turn on Dry stack, Boatyard, or Hardstand in Settings to use the Launch board.
+        Turn on Dry stack or Boatyard in Settings to use the Launch board.
       </div>
     );
   }
@@ -64,24 +63,9 @@ export function LaunchBoardScreen() {
           </label>
           <Button
             type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setAsRequest(true);
-              setIsAddOpen(true);
-            }}
-            data-log-request
-          >
-            Log request
-          </Button>
-          <Button
-            type="button"
             variant="harbr"
             size="sm"
-            onClick={() => {
-              setAsRequest(false);
-              setIsAddOpen(true);
-            }}
+            onClick={() => setIsAddOpen(true)}
             data-add-task
           >
             Add task
@@ -96,7 +80,6 @@ export function LaunchBoardScreen() {
         <AddTaskModal
           date={state.selectedDate}
           module={module}
-          asRequest={asRequest}
           onClose={() => setIsAddOpen(false)}
         />
       ) : null}

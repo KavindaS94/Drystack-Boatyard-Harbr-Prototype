@@ -1,17 +1,26 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
-import { buildDaySlots, equipmentForModule } from "../../lib/equipment";
+import {
+  buildDaySlots,
+  conflictDetailsForEquipment,
+  equipmentForModule,
+  formatDurationMinutes,
+  minutesBetween,
+  timeToMinutes,
+} from "../../lib/equipment";
+import { remapTravelLiftJobTypeId, workJobTypes } from "../../lib/job-types";
 import { moduleLabel } from "../../lib/modules";
-import { conflictDetailsForEquipment } from "../../lib/equipment";
+import { cn } from "../../lib/utils";
 import { useMarina } from "../../store/marina-store";
-import type { Berth, Customer, Reservation, TaskModule, Vessel } from "../../types/domain";
+import type { Berth, Customer, Reservation, TaskModule, Vessel, WorkBy } from "../../types/domain";
 import { EquipmentConflictModal } from "../reservation-panel/equipment-conflict-modal";
+import { Button } from "../ui/button";
 
 interface AddTaskModalProps {
   date: string;
   module: TaskModule;
-  asRequest?: boolean;
   initialTime?: string;
   onClose: () => void;
 }
@@ -27,8 +36,24 @@ function coversDate(reservation: Reservation, date: string): boolean {
   return reservation.startDate <= date && reservation.endDate >= date;
 }
 
-export function AddTaskModal({ date, module, asRequest = false, initialTime, onClose }: AddTaskModalProps) {
-  const { state, addLaunchTask } = useMarina();
+function firstSlotAfter(slots: string[], time: string): string | undefined {
+  return slots.find((slot) => timeToMinutes(slot) > timeToMinutes(time));
+}
+
+function defaultLaunch(slots: string[], liftTime: string): string {
+  const sixHoursLater = slots.find((slot) => timeToMinutes(slot) >= timeToMinutes(liftTime) + 360);
+  return sixHoursLater ?? firstSlotAfter(slots, liftTime) ?? liftTime;
+}
+
+const WORK_BY_LABEL: Record<WorkBy, string> = {
+  marina: "Marina",
+  diy: "DIY",
+  contractor: "Contractor",
+};
+
+export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModalProps) {
+  const { state, addLaunchTask, addYardStay } = useMarina();
+  const isYard = module === "boatyard";
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const types = state.taskTypes.filter((item) => {
@@ -36,9 +61,24 @@ export function AddTaskModal({ date, module, asRequest = false, initialTime, onC
     if (module === "other") return item.kind === "other" || item.module === "other";
     return item.module === module;
   });
-  const [taskTypeId, setTaskTypeId] = useState(() => types.find((item) => item.kind === "launch")?.id ?? types[0]?.id ?? "");
+  const jobTypes = useMemo(
+    () => workJobTypes(state.jobTypes).filter((item) => item.active),
+    [state.jobTypes]
+  );
+  const [taskTypeId, setTaskTypeId] = useState(
+    () => types.find((item) => item.kind === "launch")?.id ?? types[0]?.id ?? ""
+  );
+  const [jobTypeId, setJobTypeId] = useState(
+    () => jobTypes.find((item) => item.id === "jt-antifoul")?.id ?? jobTypes[0]?.id ?? ""
+  );
+  const [workBy, setWorkBy] = useState<WorkBy>("marina");
+  const [contractorName, setContractorName] = useState("Marine Works");
+  const [notes, setNotes] = useState("");
+  const [yardStep, setYardStep] = useState<1 | 2>(1);
   const machine = equipmentForModule(state.equipment, module);
   const slots = machine ? buildDaySlots(machine) : [];
+  const [liftTime, setLiftTime] = useState(initialTime ?? slots[2] ?? slots[0] ?? "09:00");
+  const [launchTime, setLaunchTime] = useState(() => defaultLaunch(slots, initialTime ?? slots[2] ?? slots[0] ?? "09:00"));
   const [time, setTime] = useState(initialTime ?? slots[4] ?? slots[0] ?? "09:00");
   const [equipmentConflict, setEquipmentConflict] = useState<ReturnType<typeof conflictDetailsForEquipment>>(null);
 
@@ -69,7 +109,7 @@ export function AddTaskModal({ date, module, asRequest = false, initialTime, onC
         if (module === "boatyard" || coversDate(reservation, date)) consider(reservation);
       }
     }
-    if (module !== "other") {
+    if (module !== "other" && module !== "boatyard") {
       for (const reservation of state.reservations) {
         if (reservation.status === "archived" || !coversDate(reservation, date)) continue;
         const berth = state.berths.find((item) => item.id === reservation.berthId);
@@ -89,10 +129,112 @@ export function AddTaskModal({ date, module, asRequest = false, initialTime, onC
   }, [clients, query]);
 
   const selected = clients.find((item) => item.reservation.id === selectedKey) ?? null;
-  const canSave = Boolean(selected && taskTypeId && time);
+  const selectedJobType = jobTypes.find((item) => item.id === jobTypeId);
+  const ownTaskIds = useMemo(() => {
+    if (!selected) return new Set<string>();
+    return new Set(
+      state.launchTasks
+        .filter(
+          (item) =>
+            item.reservationId === selected.reservation.id &&
+            item.date === date &&
+            item.module === module &&
+            item.status !== "declined"
+        )
+        .map((item) => item.id)
+    );
+  }, [date, module, selected, state.launchTasks]);
+  const repairMinutes = minutesBetween(liftTime, launchTime);
+  const repairLabel = formatDurationMinutes(repairMinutes);
+  const canContinue = Boolean(selected && liftTime && launchTime && repairMinutes > 0);
+  const canSave = isYard
+    ? Boolean(canContinue && jobTypeId && (workBy !== "contractor" || contractorName.trim()))
+    : Boolean(selected && taskTypeId && time);
+
+  function slotTaken(slot: string) {
+    return state.equipmentBookings.some(
+      (booking) =>
+        booking.equipmentId === machine?.id &&
+        booking.date === date &&
+        booking.startTime === slot &&
+        !ownTaskIds.has(booking.taskId)
+    );
+  }
+
+  function onLiftChange(next: string) {
+    setLiftTime(next);
+    if (timeToMinutes(launchTime) <= timeToMinutes(next)) {
+      const later = defaultLaunch(slots, next);
+      if (later !== next) setLaunchTime(later);
+    }
+  }
 
   function onSave() {
-    if (!selected || !taskTypeId || !time) return;
+    if (!selected) return;
+    if (isYard) {
+      const liftTypeId = state.taskTypes.find((item) => item.module === "boatyard" && item.kind === "retrieval")?.id;
+      const launchTypeId = state.taskTypes.find((item) => item.module === "boatyard" && item.kind === "launch")?.id;
+      const ownLift = state.launchTasks.find(
+        (item) =>
+          item.reservationId === selected.reservation.id &&
+          item.taskTypeId === liftTypeId &&
+          item.date === date &&
+          item.status !== "declined"
+      );
+      const ownLaunch = state.launchTasks.find(
+        (item) =>
+          item.reservationId === selected.reservation.id &&
+          item.taskTypeId === launchTypeId &&
+          item.date === date &&
+          item.status !== "declined"
+      );
+      const liftConflict = conflictDetailsForEquipment(
+        state.equipmentBookings,
+        state.equipment,
+        module,
+        date,
+        liftTime,
+        ownLift?.id
+      );
+      const launchConflict = conflictDetailsForEquipment(
+        state.equipmentBookings,
+        state.equipment,
+        module,
+        date,
+        launchTime,
+        ownLaunch?.id
+      );
+      if (liftConflict || launchConflict) {
+        setEquipmentConflict(liftConflict ?? launchConflict);
+        return;
+      }
+      const ok = addYardStay({
+        customerId: selected.customer.id,
+        vesselId: selected.vessel.id,
+        berthId: selected.berth.id,
+        reservationId: selected.reservation.id,
+        date,
+        liftTime,
+        launchTime,
+        jobTypeId,
+        workBy,
+        contractorName: workBy === "contractor" ? contractorName.trim() : undefined,
+        notes,
+      });
+      if (!ok) {
+        toast.error("Those travel-lift slots are already taken, or lift is already done");
+        return;
+      }
+      toast.success(
+        `${selectedJobType?.name ?? "Job"} · lift ${liftTime} · launch ${launchTime}${
+          repairLabel ? ` · ${repairLabel}` : ""
+        } — customer emailed`
+      );
+      onClose();
+      return;
+    }
+
+    if (!taskTypeId || !time) return;
     const taskType = state.taskTypes.find((item) => item.id === taskTypeId);
     if (taskType) {
       const conflict = conflictDetailsForEquipment(
@@ -115,18 +257,16 @@ export function AddTaskModal({ date, module, asRequest = false, initialTime, onC
       date,
       time,
       reservationId: selected.reservation.id,
-      asRequest,
-      source: asRequest ? "customer" : "staff",
+      source: "staff",
     });
     if (!ok) {
       toast.error("That lift slot is already taken");
       return;
     }
-    toast.success(asRequest ? "Request logged — customer emailed" : "Task booked — customer emailed");
+    toast.success("Task booked — customer emailed");
     onClose();
   }
 
-  const title = asRequest ? "Log request" : "Add task";
   const label = moduleLabel(module, state.settings);
 
   return createPortal(
@@ -136,20 +276,35 @@ export function AddTaskModal({ date, module, asRequest = false, initialTime, onC
         aria-modal="true"
         aria-labelledby="add-task-title"
         data-add-task-modal
-        className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-4 shadow-lg"
+        className="w-full max-w-lg rounded-xl border border-neutral-200 bg-white p-5 shadow-xl"
       >
         <div className="flex items-start justify-between gap-2">
-          <h2 id="add-task-title" className="text-sm font-semibold text-neutral-900">
-            {title} · {label}
-          </h2>
+          <div>
+            <h2 id="add-task-title" className="text-base font-semibold text-neutral-900">
+              Add task · {label}
+            </h2>
+            <p className="mt-0.5 text-xs text-neutral-500">
+              {isYard
+                ? yardStep === 1
+                  ? "Pick the boat, then set lift and launch."
+                  : "Describe the work that happens between lift and launch."
+                : machine
+                  ? `${machine.name} · ${machine.slotMinutes} min slots`
+                  : "Book a launch or lift."}
+            </p>
+          </div>
           <button type="button" onClick={onClose} className="text-xs text-neutral-500 hover:text-neutral-900">
             Close
           </button>
         </div>
 
-        <div className="mt-4 space-y-3">
+        {isYard ? <YardStepper step={yardStep} onBack={() => setYardStep(1)} /> : null}
+
+        <div className="mt-4 space-y-4">
+          {!isYard || yardStep === 1 ? (
+            <>
           <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-500">Search customer</span>
+            <span className="text-xs font-medium text-neutral-500">Boat or owner</span>
             <input
               type="search"
               value={query}
@@ -157,108 +312,228 @@ export function AddTaskModal({ date, module, asRequest = false, initialTime, onC
                 setQuery(event.target.value);
                 setSelectedKey(null);
               }}
-              placeholder={`Customer with ${label.toLowerCase()} reservation`}
+              placeholder={isYard ? "Search a boat on the yard" : `Search a ${label.toLowerCase()} boat`}
               data-add-task-search
               className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
             />
           </label>
 
-          <ul className="max-h-40 overflow-y-auto rounded-md border border-neutral-200" data-add-task-results>
-            {matches.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-neutral-500">No matching customers.</li>
-            ) : (
-              matches.map((item) => (
-                <li key={item.reservation.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedKey(item.reservation.id)}
-                    data-customer-name={item.customer.name}
-                    data-vessel-name={item.vessel.name}
-                    className={`flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-neutral-50 ${
-                      selectedKey === item.reservation.id ? "bg-neutral-100" : ""
-                    }`}
-                  >
-                    <span className="font-medium text-neutral-900">{item.customer.name}</span>
-                    <span className="text-xs text-neutral-500">
-                      {item.vessel.name} · {item.berth.name}
-                    </span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-500">Task type</span>
-            <select
-              value={taskTypeId}
-              onChange={(event) => setTaskTypeId(event.target.value)}
-              data-add-task-type
-              className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
-            >
-              {types.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-500">
-              Time {machine ? `(${machine.name}, ${machine.slotMinutes} min slots)` : ""}
-            </span>
-            {slots.length > 0 ? (
-              <select
-                value={time}
-                onChange={(event) => setTime(event.target.value)}
-                data-add-task-time
-                className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+          {selected ? (
+            <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+              <div>
+                <p className="text-sm font-semibold text-neutral-900">{selected.vessel.name}</p>
+                <p className="text-xs text-neutral-500">
+                  {selected.customer.name} · {selected.berth.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedKey(null)}
+                className="text-xs font-medium text-neutral-600 hover:text-neutral-900"
               >
-                {slots.map((slot) => {
-                  const taken = state.equipmentBookings.some(
-                    (booking) =>
-                      booking.equipmentId === machine?.id &&
-                      booking.date === date &&
-                      booking.startTime === slot
-                  );
-                  return (
-                    <option key={slot} value={slot} disabled={taken}>
-                      {slot}
-                      {taken ? " — taken" : ""}
+                Change
+              </button>
+            </div>
+          ) : (
+            <ul className="max-h-44 overflow-y-auto rounded-lg border border-neutral-200" data-add-task-results>
+              {matches.length === 0 ? (
+                <li className="px-3 py-3 text-sm text-neutral-500">No matching boats.</li>
+              ) : (
+                matches.map((item) => (
+                  <li key={item.reservation.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedKey(item.reservation.id);
+                        const job = item.reservation.job;
+                        if (!isYard) return;
+                        if (job?.liftTime) setLiftTime(job.liftTime);
+                        if (job?.launchTime) setLaunchTime(job.launchTime);
+                        if (job?.typeId) setJobTypeId(remapTravelLiftJobTypeId(job.typeId));
+                        if (job?.workBy) setWorkBy(job.workBy);
+                        setContractorName(job?.contractorName || "Marine Works");
+                        setNotes(job?.notes ?? "");
+                      }}
+                      data-customer-name={item.customer.name}
+                      data-vessel-name={item.vessel.name}
+                      className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-neutral-50"
+                    >
+                      <span className="text-sm font-medium text-neutral-900">{item.vessel.name}</span>
+                      <span className="text-xs text-neutral-500">
+                        {item.customer.name} · {item.berth.name}
+                      </span>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          )}
+            </>
+          ) : null}
+
+          {isYard && yardStep === 1 ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block space-y-1">
+                  <span className="text-xs font-medium text-neutral-500">Lift</span>
+                  <SlotSelect
+                    value={liftTime}
+                    slots={slots}
+                    taken={(slot) => slotTaken(slot)}
+                    onChange={onLiftChange}
+                    testId="add-task-lift"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs font-medium text-neutral-500">Launch</span>
+                  <SlotSelect
+                    value={launchTime}
+                    slots={slots}
+                    taken={(slot) => slotTaken(slot) || timeToMinutes(slot) <= timeToMinutes(liftTime)}
+                    onChange={setLaunchTime}
+                    testId="add-task-launch"
+                  />
+                </label>
+              </div>
+              <div
+                className="rounded-lg border border-[hsl(252,75%,88%)] bg-[hsl(252,75%,97%)] px-3 py-2"
+                data-repair-duration
+              >
+                <p className="text-xs font-medium uppercase tracking-wide text-[hsl(252,75%,40%)]">Repair time</p>
+                <p className="mt-0.5 text-sm font-semibold text-neutral-900">
+                  {repairLabel || "Launch must be after lift"}
+                </p>
+                {repairLabel ? (
+                  <p className="text-xs text-neutral-500">
+                    {liftTime} lift → {launchTime} launch. Next, describe the job.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {isYard && yardStep === 2 ? (
+            <div className="space-y-3">
+              {selected ? (
+                <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+                  <span className="font-semibold text-neutral-900">{selected.vessel.name}</span>
+                  {" · "}
+                  {liftTime} lift → {launchTime} launch
+                  {repairLabel ? ` · ${repairLabel}` : ""}
+                </p>
+              ) : null}
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-neutral-500">Job type</span>
+                <select
+                  value={jobTypeId}
+                  onChange={(event) => setJobTypeId(event.target.value)}
+                  data-add-task-job-type
+                  className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+                >
+                  {jobTypes.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
                     </option>
-                  );
-                })}
-              </select>
-            ) : (
-              <input
-                type="time"
-                value={time}
-                onChange={(event) => setTime(event.target.value)}
-                data-add-task-time
-                className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
-              />
-            )}
-          </label>
+                  ))}
+                </select>
+              </label>
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-neutral-500">Who does the work</span>
+                <div className="flex flex-wrap gap-3">
+                  {(["marina", "diy", "contractor"] as WorkBy[]).map((value) => (
+                    <label key={value} className="flex items-center gap-2 text-sm text-neutral-800">
+                      <input
+                        type="radio"
+                        name="add-task-work-by"
+                        checked={workBy === value}
+                        onChange={() => setWorkBy(value)}
+                      />
+                      {WORK_BY_LABEL[value]}
+                    </label>
+                  ))}
+                </div>
+                {workBy === "contractor" ? (
+                  <input
+                    value={contractorName}
+                    onChange={(event) => setContractorName(event.target.value)}
+                    placeholder="Contractor name"
+                    data-add-task-contractor
+                    className="mt-1 w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+                  />
+                ) : null}
+              </div>
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-neutral-500">Describe the job</span>
+                <textarea
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={3}
+                  placeholder="What the crew should do between lift and launch"
+                  data-add-task-notes
+                  className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+                />
+              </label>
+            </div>
+          ) : null}
+
+          {!isYard ? (
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-neutral-500">Task type</span>
+                <select
+                  value={taskTypeId}
+                  onChange={(event) => setTaskTypeId(event.target.value)}
+                  data-add-task-type
+                  className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+                >
+                  {types.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-neutral-500">Time</span>
+                <SlotSelect
+                  value={time}
+                  slots={slots}
+                  taken={(slot) => slotTaken(slot)}
+                  onChange={setTime}
+                  testId="add-task-time"
+                  fallback
+                />
+              </label>
+            </div>
+          ) : null}
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={!canSave}
-            onClick={onSave}
-            data-add-task-save
-            className="flex-1 rounded-md bg-[hsl(252,75%,70%)] px-3 py-2 text-sm font-medium text-white hover:bg-[hsl(252,75%,60%)] disabled:cursor-not-allowed disabled:bg-neutral-300"
-          >
-            Save
-          </button>
+        <div className="mt-5 flex gap-2">
+          {isYard && yardStep === 2 ? (
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setYardStep(1)}>
+              Back
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+              Cancel
+            </Button>
+          )}
+          {isYard && yardStep === 1 ? (
+            <Button
+              type="button"
+              variant="harbr"
+              className="flex-1"
+              disabled={!canContinue}
+              onClick={() => setYardStep(2)}
+              data-add-task-next
+            >
+              Next
+            </Button>
+          ) : (
+            <Button type="button" variant="harbr" className="flex-1" disabled={!canSave} onClick={onSave} data-add-task-save>
+              Save
+            </Button>
+          )}
         </div>
       </div>
       {equipmentConflict ? (
@@ -266,5 +541,111 @@ export function AddTaskModal({ date, module, asRequest = false, initialTime, onC
       ) : null}
     </div>,
     document.body
+  );
+}
+
+function YardStepper({ step, onBack }: { step: 1 | 2; onBack: () => void }) {
+  return (
+    <ol className="mt-4 grid grid-cols-2 gap-2" data-add-task-stepper>
+      <li>
+        <button
+          type="button"
+          onClick={step === 2 ? onBack : undefined}
+          disabled={step === 1}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left",
+            step === 1
+              ? "border-[hsl(252,75%,80%)] bg-[hsl(252,75%,97%)]"
+              : "border-neutral-200 bg-neutral-50 hover:bg-white"
+          )}
+        >
+          <span
+            className={cn(
+              "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+              step === 1
+                ? "bg-[hsl(252,75%,70%)] text-white"
+                : "bg-teal-600 text-white"
+            )}
+          >
+            {step === 2 ? <Check className="h-3.5 w-3.5" /> : "1"}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-neutral-900">Lift & launch</span>
+            <span className="block text-xs text-neutral-500">Travel lift times</span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <div
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lg border px-3 py-2",
+            step === 2
+              ? "border-[hsl(252,75%,80%)] bg-[hsl(252,75%,97%)]"
+              : "border-neutral-200 bg-white"
+          )}
+        >
+          <span
+            className={cn(
+              "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+              step === 2 ? "bg-[hsl(252,75%,70%)] text-white" : "bg-neutral-200 text-neutral-600"
+            )}
+          >
+            2
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-neutral-900">Describe job</span>
+            <span className="block text-xs text-neutral-500">Type, who, notes</span>
+          </span>
+        </div>
+      </li>
+    </ol>
+  );
+}
+
+function SlotSelect({
+  value,
+  slots,
+  taken,
+  onChange,
+  testId,
+  fallback = false,
+}: {
+  value: string;
+  slots: string[];
+  taken: (slot: string) => boolean;
+  onChange: (value: string) => void;
+  testId: string;
+  fallback?: boolean;
+}) {
+  if (slots.length === 0) {
+    return (
+      <input
+        type="time"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        data-add-task-time={fallback || undefined}
+        data-testid={testId}
+        className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+      />
+    );
+  }
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      data-add-task-time={fallback || testId === "add-task-time" ? true : undefined}
+      data-testid={testId}
+      className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+    >
+      {slots.map((slot) => {
+        const isTaken = taken(slot);
+        return (
+          <option key={slot} value={slot} disabled={isTaken && slot !== value}>
+            {slot}
+            {isTaken && slot !== value ? " — taken" : ""}
+          </option>
+        );
+      })}
+    </select>
   );
 }

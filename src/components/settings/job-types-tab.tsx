@@ -68,7 +68,7 @@ export function JobTypesTab() {
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem]" data-settings-tab="job-types">
       <ul className="space-y-2">
         <li className="rounded-md border border-dashed border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
-          Lift and launch are on every Dry stack, Dockyard, and Hardstand stay. They are not a job type.
+          Lift and launch are on every Dry stack and Dockyard stay. They are not a job type.
         </li>
         {workJobTypes(state.jobTypes).map((jobType) => (
           <li key={jobType.id}>

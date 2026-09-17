@@ -8,15 +8,16 @@ import { withReservationDefaults } from "./reservation-footer";
 
 export type PersistedDemoState = MarinaState & { kindFilter: SpaceKind[] };
 
-export const DEMO_STORAGE_KEY = "harbr-yard-demo:v12";
-const PREV_STORAGE_KEY = "harbr-yard-demo:v11";
+export const DEMO_STORAGE_KEY = "harbr-yard-demo:v15";
+const PREV_STORAGE_KEY = "harbr-yard-demo:v14";
 
-const DEFAULT_KIND_FILTER: SpaceKind[] = ["wet", "boatyard", "dry_storage", "hardstand"];
+const DEFAULT_KIND_FILTER: SpaceKind[] = ["wet", "boatyard", "dry_storage"];
 
 function inferTaskModule(taskType: Partial<TaskType> | undefined, fallback: TaskModule = "dry_storage"): TaskModule {
-  if (taskType?.module) return taskType.module;
+  if (taskType?.module === "boatyard" || taskType?.module === "dry_storage" || taskType?.module === "other") {
+    return taskType.module;
+  }
   if (taskType?.id?.startsWith("tt-by")) return "boatyard";
-  if (taskType?.id?.startsWith("tt-hs")) return "hardstand";
   if (taskType?.id?.startsWith("tt-ds")) return "dry_storage";
   if (taskType?.kind === "other") return "other";
   return fallback;
@@ -82,45 +83,72 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
     ...parsed,
     settings: {
       ...seed.settings,
-      ...parsed.settings,
-      hardstandEnabled: parsed.settings?.hardstandEnabled ?? seed.settings.hardstandEnabled,
-      hardstandLabel: parsed.settings?.hardstandLabel || seed.settings.hardstandLabel,
+      boatyardEnabled: parsed.settings?.boatyardEnabled ?? seed.settings.boatyardEnabled,
+      dryStorageEnabled: parsed.settings?.dryStorageEnabled ?? seed.settings.dryStorageEnabled,
+      boatyardLabel: parsed.settings?.boatyardLabel || seed.settings.boatyardLabel,
+      dryStorageLabel: parsed.settings?.dryStorageLabel || seed.settings.dryStorageLabel,
+      jobPanelTitle: parsed.settings?.jobPanelTitle || seed.settings.jobPanelTitle,
+      hidePricesForYard: parsed.settings?.hidePricesForYard ?? seed.settings.hidePricesForYard,
+      autoDnlOverdue: parsed.settings?.autoDnlOverdue ?? seed.settings.autoDnlOverdue,
+      autoDnlInsurance: parsed.settings?.autoDnlInsurance ?? seed.settings.autoDnlInsurance,
       checklistCategories:
         Array.isArray(parsed.settings?.checklistCategories) && parsed.settings.checklistCategories.length > 0
           ? parsed.settings.checklistCategories
           : [...DEFAULT_CHECKLIST_CATEGORIES],
     },
     equipment: Array.isArray(parsed.equipment) && parsed.equipment.length > 0 ? parsed.equipment : seed.equipment,
-    equipmentBookings:
-      Array.isArray(parsed.equipmentBookings) && parsed.equipmentBookings.length > 0
-        ? parsed.equipmentBookings
-        : seed.equipmentBookings,
+    equipmentBookings: mergeMissingById(
+      (parsed.equipmentBookings ?? seed.equipmentBookings)
+        .filter((booking) => !booking.taskId.startsWith("lt-hs"))
+        .map((booking) => {
+          const seeded = seed.equipmentBookings.find(
+            (item) => item.id === booking.id || item.taskId === booking.taskId
+          );
+          return seeded ?? booking;
+        })
+        .filter((booking, _index, bookings) => {
+          const seedForVessel = seed.equipmentBookings.filter(
+            (item) => item.vesselId === booking.vesselId && item.equipmentId === booking.equipmentId
+          );
+          if (seedForVessel.length > 0 && !seedForVessel.some((item) => item.id === booking.id)) return false;
+          const seedSlot = seed.equipmentBookings.find(
+            (item) =>
+              item.taskId === booking.taskId ||
+              (item.equipmentId === booking.equipmentId &&
+                item.date === booking.date &&
+                item.startTime === booking.startTime)
+          );
+          if (seedSlot && seedSlot.id !== booking.id) return false;
+          const first = bookings.find(
+            (item) =>
+              item.equipmentId === booking.equipmentId &&
+              item.date === booking.date &&
+              item.startTime === booking.startTime
+          );
+          return first?.id === booking.id;
+        }),
+      seed.equipmentBookings
+    ),
     kindFilter: (() => {
       const raw =
         Array.isArray(parsed.kindFilter) && parsed.kindFilter.length > 0
           ? parsed.kindFilter.filter(
-              (kind): kind is SpaceKind =>
-                kind === "wet" || kind === "boatyard" || kind === "dry_storage" || kind === "hardstand"
+              (kind): kind is SpaceKind => kind === "wet" || kind === "boatyard" || kind === "dry_storage"
             )
           : [...DEFAULT_KIND_FILTER];
-      if (
-        raw.length > 0 &&
-        !raw.includes("hardstand") &&
-        raw.includes("wet") &&
-        raw.includes("boatyard") &&
-        raw.includes("dry_storage")
-      ) {
-        return [...raw, "hardstand"];
-      }
       return raw.length > 0 ? raw : [...DEFAULT_KIND_FILTER];
     })(),
     selectedReservationId:
-      parsed.selectedReservationId === "res-ds5-osprey" ? "res-a10-osprey" : parsed.selectedReservationId,
+      parsed.selectedReservationId === "res-ds5-osprey"
+        ? "res-a10-osprey"
+        : parsed.selectedReservationId === "res-hs1-gannet"
+          ? null
+          : parsed.selectedReservationId,
     selectedDate: DEMO_TODAY,
     portalLinks: Array.isArray(parsed.portalLinks) ? parsed.portalLinks : seed.portalLinks,
     changeRequests: Array.isArray(parsed.changeRequests) ? parsed.changeRequests : seed.changeRequests,
-    activity: Array.isArray(parsed.activity) ? parsed.activity : seed.activity,
-    messages: Array.isArray(parsed.messages) ? parsed.messages : seed.messages,
+    activity: mergeMissingById(Array.isArray(parsed.activity) ? parsed.activity : seed.activity, seed.activity),
+    messages: mergeMissingById(Array.isArray(parsed.messages) ? parsed.messages : seed.messages, seed.messages),
     customers: mergeMissingById(
       (parsed.customers ?? seed.customers).map((customer) => {
         const seeded = seed.customers.find((item) => item.id === customer.id);
@@ -139,14 +167,15 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
         return {
           ...vessel,
           insuranceExpiry: vessel.insuranceExpiry ?? seeded?.insuranceExpiry ?? "2027-01-01",
-          storageStatus:
-            ospreyStillOnRack && vessel.id === "ves-osprey" ? "stored" : vessel.storageStatus,
+          storageStatus: seeded?.storageStatus ?? vessel.storageStatus,
         };
       }),
       seed.vessels
     ),
     berths: (() => {
-      const existing = parsed.berths ?? seed.berths;
+      const existing = (parsed.berths ?? seed.berths).filter(
+        (berth) => (berth.kind as string) !== "hardstand" && !berth.id.startsWith("berth-hs")
+      );
       const byId = new Map(existing.map((berth) => [berth.id, berth]));
       const ordered = seed.berths.map((berth) => {
         const current = byId.get(berth.id);
@@ -179,7 +208,9 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
       seed.jobTypes
     ),
     taskTypes: mergeMissingById(
-      (parsed.taskTypes ?? seed.taskTypes).map((taskType) => {
+      (parsed.taskTypes ?? seed.taskTypes)
+        .filter((taskType) => (taskType.module as string) !== "hardstand" && !taskType.id.startsWith("tt-hs"))
+        .map((taskType) => {
         const migratedId = migrateTaskTypeId(taskType.id);
         const seeded = seed.taskTypes.find((item) => item.id === migratedId);
         return {
@@ -198,7 +229,13 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
     ),
     launchTasks: mergeMissingById(
       (parsed.launchTasks ?? seed.launchTasks)
-        .filter((task) => task.id !== "lt-in-osprey")
+        .filter(
+          (task) =>
+            task.id !== "lt-in-osprey" &&
+            task.id !== "lt-hs-req" &&
+            (task.module as string) !== "hardstand" &&
+            !task.taskTypeId.startsWith("tt-hs")
+        )
         .map((task) => {
           const taskTypeId = migrateTaskTypeId(task.taskTypeId);
           const taskType = seed.taskTypes.find((item) => item.id === taskTypeId);
@@ -209,17 +246,60 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
             taskTypeId,
             module: task.module ?? inferTaskModule(taskType, "dry_storage"),
             date: seededTask?.date ?? task.date,
+            time: seededTask?.time ?? task.time,
+            status: seededTask?.status ?? task.status,
+            berthId: seededTask?.berthId ?? task.berthId,
+            reservationId: seededTask?.reservationId ?? task.reservationId,
             source: task.source ?? ("staff" as const),
             invoiceId: task.invoiceId,
-            checklist: Array.isArray(task.checklist)
-              ? task.checklist.map((item) => migrateChecklistItem(item, fallback))
-              : [],
+            checklist: (() => {
+              const migrated = Array.isArray(task.checklist)
+                ? task.checklist.map((item) => migrateChecklistItem(item, fallback))
+                : [];
+              if (seededTask && !migrated.some((item) => item.done)) return seededTask.checklist;
+              return migrated;
+            })(),
           };
+        })
+        .filter((task, _index, tasks) => {
+          if (task.module === "boatyard") {
+            const seedCanonical = seed.launchTasks.find(
+              (item) => item.vesselId === task.vesselId && item.taskTypeId === task.taskTypeId
+            );
+            if (seedCanonical && seedCanonical.id !== task.id) return false;
+          }
+          const seedSlot = seed.launchTasks.find(
+            (item) =>
+              item.vesselId === task.vesselId &&
+              item.taskTypeId === task.taskTypeId &&
+              item.date === task.date
+          );
+          if (seedSlot && seedSlot.id !== task.id) return false;
+          const first = tasks.find(
+            (item) =>
+              item.vesselId === task.vesselId &&
+              item.taskTypeId === task.taskTypeId &&
+              item.date === task.date
+          );
+          return first?.id === task.id;
         }),
       seed.launchTasks
     ),
     reservations: mergeMissingById(
-      (parsed.reservations ?? seed.reservations).map((reservation) => {
+      (parsed.reservations ?? seed.reservations)
+        .filter(
+          (reservation) =>
+            reservation.id !== "res-hs1-gannet" &&
+            !reservation.berthId.startsWith("berth-hs") &&
+            reservation.id !== "res-ds4-kingfisher" &&
+            reservation.id !== "res-b1-petrel" &&
+            reservation.id !== "res-b5-sanderling" &&
+            reservation.id !== "res-b9-teal" &&
+            reservation.id !== "res-c2-plover" &&
+            reservation.id !== "res-a08-kestrel" &&
+            reservation.id !== "res-c10-dunlin"
+        )
+        .map((reservation) => {
       const relocated =
         ospreyStillOnRack && reservation.id === "res-ds5-osprey"
           ? {
@@ -234,13 +314,24 @@ function migrateLoadedState(parsed: PersistedDemoState): PersistedDemoState {
       const dated = seeded
         ? {
             ...relocated,
+            berthId: seeded.berthId,
             startDate: seeded.startDate,
             endDate: seeded.endDate,
             job: seeded.job
               ? relocated.job
-                ? { ...relocated.job, launchDate: seeded.job.launchDate ?? relocated.job.launchDate }
+                ? {
+                    ...seeded.job,
+                    hours: relocated.job.hours?.length ? relocated.job.hours : seeded.job.hours,
+                    materials: relocated.job.materials?.length ? relocated.job.materials : seeded.job.materials,
+                    checklist: relocated.job.checklist?.some((item) => item.done)
+                      ? relocated.job.checklist
+                      : seeded.job.checklist,
+                    photos: relocated.job.photos?.some((item) => item.done)
+                      ? relocated.job.photos
+                      : seeded.job.photos,
+                  }
                 : seeded.job
-              : undefined,
+              : relocated.job,
           }
         : relocated;
       const withDefaults = withReservationDefaults(dated);
@@ -274,7 +365,10 @@ export function loadDemoState(): PersistedDemoState {
   const fallback = createInitialStoreState();
   if (typeof window === "undefined") return fallback;
   try {
-    const raw = window.localStorage.getItem(DEMO_STORAGE_KEY) ?? window.localStorage.getItem(PREV_STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(DEMO_STORAGE_KEY) ??
+      window.localStorage.getItem(PREV_STORAGE_KEY) ??
+      window.localStorage.getItem("harbr-yard-demo:v13");
     if (!raw) return fallback;
     const parsed: unknown = JSON.parse(raw);
     if (!isStoreState(parsed)) return fallback;
@@ -298,6 +392,7 @@ export function clearDemoState(): void {
   try {
     window.localStorage.removeItem(DEMO_STORAGE_KEY);
     window.localStorage.removeItem(PREV_STORAGE_KEY);
+    window.localStorage.removeItem("harbr-yard-demo:v13");
   } catch {
     // Ignore.
   }

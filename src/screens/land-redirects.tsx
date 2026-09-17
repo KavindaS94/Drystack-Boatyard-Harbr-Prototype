@@ -20,8 +20,5 @@ export function ForkLiftRedirect() {
   if (state.settings.dryStorageEnabled) {
     return <Navigate to="/operations/dry-stack?tab=fork-lift" replace />;
   }
-  if (state.settings.hardstandEnabled) {
-    return <Navigate to="/operations/hardstand?tab=fork-lift" replace />;
-  }
   return <Navigate to={firstLandModulePath(state.settings)} replace />;
 }

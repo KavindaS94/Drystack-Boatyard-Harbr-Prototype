@@ -12,7 +12,6 @@ const SCRIPT_RESERVATION_IDS: Record<string, string> = {
 export function kindFromPath(pathname: string): SpaceKind | null {
   if (pathname.startsWith("/operations/dry-stack")) return "dry_storage";
   if (pathname.startsWith("/operations/boatyard")) return "boatyard";
-  if (pathname.startsWith("/operations/hardstand")) return "hardstand";
   if (pathname.startsWith("/operations/calendar") || pathname === "/calendar") return "wet";
   return null;
 }

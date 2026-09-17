@@ -20,13 +20,13 @@ Agent / click hooks: `[data-start-story]`, `[data-story-next]`, `[data-story-bac
 
 ## Rules that apply everywhere
 
-- **Calendar is water only.** Dry stack, Dockyard, and Hardstand are Operations workspaces. The Calendar does not send a water-berth boat onto land.
+- **Calendar is water only.** Dry stack and Dockyard are Operations workspaces. The Calendar does not send a water-berth boat onto land.
 - **Land work is lift → do the work or stay → launch.** Lift and launch are not a job type. Job types are **Antifoul**, **DIY**, **Engine service**.
-- **Travel lift** (Dockyard) and **fork lift** (Dry stack / Hardstand) are machine tabs — one vessel per slot.
+- **Travel lift** (Dockyard) and **fork lift** (Dry stack) are machine tabs — one vessel per slot.
 - **Office** is Calendar and the land workspaces. **Yard crew** is `/yard` (user menu → Open yard crew) — no office sidebar, no prices, no invoices.
 - **Customer updates are email only.** There is no customer portal.
 - **Invoice after the work is Done**, not on every tap. Yard products → banner **Holding**. Lift/Launch products → banner **Marina**.
-- Settings → **Modules & words** turns Boatyard, Dry stack, and Hardstand on or off independently.
+- Settings → **Modules & words** turns Boatyard and Dry stack on or off independently.
 - Skip grey menu items (**Home**, **Map**, **Owners**, …). **Dashboard → Actions** is live.
 
 ---
@@ -35,17 +35,24 @@ Agent / click hooks: `[data-start-story]`, `[data-story-next]`, `[data-story-bac
 
 | Boat | Owner | Where | Role in the demo |
 |------|--------|--------|------------------|
-| **Sea Sprite** | Elena Voss | Dockyard **H4** | Main story — antifoul |
-| **Kingfisher** | Liam Ortiz | Dockyard **H1** | Engine service, contractor Marine Works |
-| **Riviera** | — | Dockyard **H2** | DIY job |
+| **Sea Sprite** | Elena Voss | Dockyard **H4** | Main story — antifoul. Lift **done** 08:00, launch **14:00** |
+| **Riviera** | Tom Bridger | Dockyard **H2** | DIY. Launch **in progress** 15:00 |
+| **Kingfisher** | Liam Ortiz | Dockyard **H1** | Engine service, contractor Marine Works. Launch **16:00** |
+| **Petrel** | Arun Patel | Dockyard **H3** | Arriving today — lift **scheduled** 10:00, launch Saturday |
+| **Teal** | Felix Diaz | Dockyard **H6** | Engine. Lift **in progress** 11:00, T&Cs signed |
+| **Plover** | Ruth Owens | Dockyard **H7** | DIY. Customer **requested** launch 12:00 |
+| **Sanderling** | Chloe Moore | Dockyard **H8** | DIY done. Launch **07:00** already Done |
 | **Pelican** | Priya Shah | Dry stack **DS1** | Rack → water, Saturday run |
-| **Tern** | Mark Chen | Dry stack **DS2** | Do not launch — account overdue |
-| **Heron** | Sarah Quinn | Dry stack | Do not launch — insurance expired |
-| **Gannet** | Ben Cole | Hardstand **HS1** | Ground storage, Friday launch request |
-| **Shearwater** | — | Calendar **A14** | To be approved |
+| **Tern** | Mark Chen | Dry stack **DS2** | Do not launch — account overdue. Request waiting |
+| **Heron** | Sarah Quinn | Dry stack **DS3** | Do not launch — insurance expired. Request waiting |
+| **Dunlin** | Sam Brooks | Dry stack **DS4** | Lift **done** 07:00, launch **in progress** 12:00 |
+| **Kestrel** | Maya Nguyen | Dry stack **DS5** | Launch **scheduled** 11:00 |
+| **Curlew** | Owen Reed | Dry stack **DS6** | Request waiting |
+| **Osprey** | Nora Blake | Calendar **A10** | In the water. Lift back **scheduled** 13:00 |
+| **Shearwater** | Ava Kim | Calendar **A14** | To be approved |
 | **Mako** | James Hale | Calendar **A12** | Water berth (full reservation sheet) |
 
-Empty pad for a new yard booking: Dockyard **H5**.
+Empty pad for a new yard booking: Dockyard **H5**. Empty rack: Dry stack **DS7**.
 
 ---
 
@@ -60,7 +67,7 @@ Elena Voss just rang. She wants **Sea Sprite** antifouled this week. You already
 She wants Sea Sprite antifouled this week. The job is **Antifoul** — marina crew. Every land stay lifts first, does the work, then launches.
 
 - **Do:** Confirm the job is Antifoul. **Lift then launch** shows **08:00** lift done and a **14:00** launch.
-- **Open:** Dockyard → Jobs → Sea Sprite
+- **Open:** Dockyard → Job details → Sea Sprite
 - **URL:** `/operations/boatyard?tab=jobs&res=res-h4-sea-sprite&story=antifoul&beat=call`
 
 ### 2. The lift — the travel lift is the machine
@@ -84,7 +91,7 @@ Yard crew work on a separate page. No office sidebar. No prices. They wash, mask
 After the work is logged, office creates the invoice. Labour, parts, dockyard fee. Banner **Holding**. Yard never sees `$`.
 
 - **Do:** **Create draft invoice** on Sea Sprite. Banner should say **Holding**.
-- **Open:** Dockyard → Jobs → Sea Sprite
+- **Open:** Dockyard → Job details → Sea Sprite
 - **URL:** `/operations/boatyard?tab=jobs&res=res-h4-sea-sprite&story=antifoul&beat=invoice`
 
 What is on the draft:
@@ -102,7 +109,7 @@ Elena wants her back in today. The 14:00 launch is already on the travel lift. O
 
 - **Do:** Today → **Launch** → Sea Sprite **14:00** → **Start** → **Done**.
 - **Open:** Dockyard → Today
-- **URL:** `/operations/boatyard?story=antifoul&beat=launch`
+- **URL:** `/operations/boatyard?tab=launch&story=antifoul&beat=launch`
 
 **Finish** returns to Demo story. Extra scenes below stay under **More scenes**.
 
@@ -110,7 +117,7 @@ Elena wants her back in today. The 14:00 launch is already on the travel lift. O
 
 # Extra scenes — Dry stack
 
-Racks on land. Launch back into the water from **Dry stack**. Open **Operations → Dry stack**. **Today** is Requests / Launch / Lift. **Racks** is occupancy. **Fork lift** is the hourly schedule.
+Racks on land. Launch back into the water from **Dry stack**. Open **Operations → Dry stack**. **Today** has Requests / Launch / Lift. **Racks** is occupancy. **Fork lift** is the hourly schedule.
 
 Monthly rack storage stays on the booking. It is **not** on a Lift/Launch draft.
 
@@ -120,7 +127,7 @@ Office invoices Lift and Launch after the trips are **Done**. Do not auto-invoic
 
 ## Dry stack: rack → water (Pelican)
 
-The boat is already on a rack. Launch her from Dry stack Today.
+The boat is already on a rack. Launch her from Dry stack.
 
 1. **More scenes → Dry stack: rack → water**, or Dry stack → **Racks** → **Pelican**.
 2. Dry stack → **Today** → **Add task** → search **Pelican** → task type **Launch** → pick a time (e.g. **14:00**) → **Save**.
@@ -132,12 +139,12 @@ The boat is already on a rack. Launch her from Dry stack Today.
 
 ---
 
-## Staff logs a launch request
+## Staff logs a launch
 
-The boat is already on the rack. Phone or email → marina logs it, checks the fork-lift slot → yard puts the boat in → owner is emailed.
+The boat is already on the rack. Phone or email → marina books the fork-lift slot → yard puts the boat in → owner is emailed.
 
-1. Dry stack → **Today** → **Log request**. Search **Pelican**, **Launch**, pick a free fork-lift slot → **Save**. Customer is emailed.
-2. **Requests** — Pelican. **Approve**. She moves onto the **Launch** tab. **Start**, then **Done**. Emails go out at each step.
+1. Dry stack → **Today** → **Add task**. Search **Pelican**, **Launch**, pick a free fork-lift slot → **Save**. Customer is emailed.
+2. **Launch** tab — Pelican. **Start**, then **Done**. Emails go out at each step.
 3. Boat on the row (or Racks → Pelican) → **Create draft invoice** (Launch, Marina).
 
 **Other way in:** boat workspace → **Email status** → **Send email**.
@@ -152,7 +159,7 @@ Overdue account or expired insurance blocks **Start** until office clears it. No
 
 ### Overdue (Tern)
 
-1. Dry stack → **Racks** → **Tern** (Mark Chen). Red **Do not launch** / **Overdue**. Today **Start** stays grey.
+1. Dry stack → **Racks** → **Tern** (Mark Chen). Red **Do not launch** / **Overdue**. **Start** on Launch stays grey.
 2. Status is **Stored**.
 
 ### Expired insurance (Heron)
@@ -191,24 +198,13 @@ Replaces a printed run sheet. One vessel per fork-lift slot. Invoice **after** t
 
 ---
 
-# Extra scenes — Hardstand
-
-Ground-level dry storage — not stacked. Same launch/lift as dry stack, same **fork lift**, pads **HS1–HS4**.
-
-1. Hardstand → **Pads** → **Gannet** on HS1.
-2. Hardstand → **Today** → **Requests**: Friday launch request. **Approve** (fork-lift slot held, customer emailed), or **Log request**.
-3. **Pads** → click an empty pad to book a boat that is not on a water berth.
-4. Settings → **Modules & words** → turn **Hardstand** off: the Hardstand menu disappears. Dry stack fork lift stays.
-
-**Open:** `/operations/hardstand?tab=occupancy&boat=Gannet`
-
----
-
 # Extra scenes — Dockyard
 
-Pads on land for repair. Book onto a pad from **Dockyard**, finish the job, then launch back to the water.
+The yard is for repair. Book onto it from **Dockyard**, finish the job, then launch back to the water.
 
-Open **Operations → Dockyard**. **Today** is Requests / Lift / Launch. **Pads** is occupancy. **Travel lift** is the hourly schedule. **Jobs** is repair work.
+Open **Operations → Dockyard**. Tabs: **Today**, **Travel lift**, **Yard**, **Job details**. **Today** has Requests / Launch / Lift. **Travel lift** is the hourly schedule. **Yard** is occupancy. **Job details** is the repair job list.
+
+Open **Operations → Dry stack**. Tabs: **Today**, **Fork lift**, **Racks**.
 
 Sequence: **request → lift onto pad (travel lift) → repair job → launch back to water**. Occupied pads cannot be double-booked.
 
@@ -220,7 +216,7 @@ The main story already covers Sea Sprite antifoul. These scenes cover booking a 
 
 Same job as the main story (Sea Sprite on H4), without the story bar.
 
-1. **More scenes → Yard job**, or Dockyard → **Jobs** / **Pads** → **Sea Sprite**.
+1. **More scenes → Yard job**, or Dockyard → **Job details** → **Sea Sprite**.
 2. Job is open: checklist, hours, materials, lift / launch times.
 3. User menu → **Open yard crew**. Search **Sea Sprite**. Tick checklist, **Add** hours/materials, tick photos. No `$`.
 4. Back on Dockyard, Sea Sprite → **Create draft invoice**. Labour, parts, **Dockyard fee**. Banner **Holding**.
@@ -233,18 +229,18 @@ Same job as the main story (Sea Sprite on H4), without the story bar.
 
 Book onto an empty dockyard pad. The job cannot be marked done until T&Cs are signed. A same-day lift still bills **1 × Dockyard fee** even if you skip hours.
 
-1. Dockyard → **Pads** → empty **H5**.
+1. Dockyard → **Yard** → empty **H5**.
 2. Pick a boat that is not on a water berth (**Gannet**). Job type **Engine service**, lift **09:00**. Lift and launch wrap the job — they are not a job type.
-3. Occupied pads say **unavailable** (H4 Sea Sprite, H1 Kingfisher, H2 Riviera).
+3. Occupied pads say **unavailable** (H1 Kingfisher, H2 Riviera, H3 Petrel, H4 Sea Sprite, H6 Teal, H7 Plover, H8 Sanderling).
 4. To see **Reservation Conflict**: pick **H4** → **Confirm**, then **Cancel**.
 5. **Confirm**. The bar is on the pad.
 6. T&Cs **Not sent** → **Send T&Cs** (email). **Mark job done** stays off until **Mark signed**.
 7. Shortcut: **Mark signed** on the job (no customer portal).
 8. Optional: Yard crew → tick checklist / photos, **Add** hours. No `$`.
-9. When ready: **Schedule launch / Move launch date** — pick a travel-lift slot. Completing that **Launch** puts her back in the water and frees the pad. Owner is emailed.
+9. When ready: **Schedule launch / Change launch date** — pick a travel-lift slot. Completing that **Launch** puts her back in the water and frees the pad. Owner is emailed.
 10. **Create draft invoice**. Dockyard fee is included. Berth night is not. Banner **Holding**.
 
-**Open:** `/operations/boatyard?tab=occupancy`
+**Open:** `/operations/boatyard?tab=yard`
 
 ---
 
@@ -252,24 +248,24 @@ Book onto an empty dockyard pad. The job cannot be marked done until T&Cs are si
 
 **Move** from a water berth stays on water. From Dockyard you can move between pads. Occupied spaces are **unavailable**. Same **Reservation Conflict** dialog as live Harbr.
 
-1. Dockyard → **Pads** → Sea Sprite → **Move**.
+1. Dockyard → **Job details** → Sea Sprite → **Move**.
 2. Pick **H1 · Dockyard** (Kingfisher is there) → **Move**. Conflict dialog. **Cancel**.
-3. Pick a free pad (**H3** or **H5**) → **Move**. The bar moves.
+3. Pick a free pad (**H5**) → **Move**. The bar moves.
 
 **Edit** (same-type berth only) uses the same check.
 
 Land boat workspaces hide reservation chrome (Edit / Move / Archive). Use the Calendar sheet for a water boat, or **More scenes** if Move is on that flow.
 
-**Open:** `/operations/boatyard?tab=occupancy&script=yard-job`
+**Open:** `/operations/boatyard?tab=jobs&script=yard-job`
 
 ---
 
 ## Contractor, relaunch, photos
 
-1. Dockyard → **Jobs** → **Kingfisher**. Job type is **Engine service**. Who does the work = **Contractor** (**Marine Works**).
+1. Dockyard → **Job details** → **Kingfisher**. Job type is **Engine service**. Who does the work = **Contractor** (**Marine Works**).
 2. **Notify** — simulated email (shows under Messages on the Calendar sheet).
 3. Change to **DIY** or **Marina** — the calendar bar tag updates.
-4. **Move launch date** — later date and a free travel-lift slot. Owner is emailed.
+4. **Change launch date** — later date and a free travel-lift slot. Owner is emailed.
 5. Travel lift tab shows the booked hours.
 6. Yard crew → **Kingfisher** → tick the two photo boxes. **Mark job done** waits until T&Cs are signed.
 7. Back Office → **Create draft invoice**.
@@ -314,7 +310,7 @@ Contact and insurance do not apply instantly. Staff review the diff on **Actions
 Add a boat onto an empty rack or pad from that module. Water berth boats stay on the Calendar.
 
 1. Dry stack → **Racks** → empty **DS7**. Pick a boat that is not on a water berth → **Confirm**.
-2. Dockyard → **Pads** → empty **H5**. Job type required. Occupied pads show **Reservation Conflict**.
+2. Dockyard → **Yard** → empty **H5**. Job type required. Occupied pads show **Reservation Conflict**.
 3. Boat workspace **Book another** — from a water berth you only get other berths. From Dockyard you can book another pad.
 
 **Open:** `/operations/dry-stack?tab=occupancy`
@@ -340,8 +336,8 @@ Left menu **Settings → General Info**.
 
 | Tab | Try this |
 |-----|----------|
-| **Modules & words** | Turn **Boatyard**, **Dry stack**, or **Hardstand** off — that module disappears. Rename the labels. Turn off auto-block for overdue / insurance — Tern / Heron unblock. |
-| **Berths** | Change a space’s kind (Berth / Dockyard / Dry stack / Hardstand). |
+| **Modules & words** | Turn **Boatyard** or **Dry stack** off — that module disappears. Rename the labels. Turn off auto-block for overdue / insurance — Tern / Heron unblock. |
+| **Berths** | Change a space’s kind (Berth / Dockyard / Dry stack). |
 | **Job types** | Antifoul, DIY, Engine service. Lift and launch are not a job type. |
 | **Launch / lift task types** | Per-module Launch / Lift, checklists, and **Invoice product**. |
 | **Equipment** | Travel lift and fork lift hours and slot length. One vessel per slot. |

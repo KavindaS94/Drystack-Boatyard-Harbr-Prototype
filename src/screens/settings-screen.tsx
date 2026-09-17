@@ -48,13 +48,13 @@ export function SettingsScreen() {
       id: "words",
       label: "Modules & words",
       title: "Modules & words",
-      description: "Turn Boatyard, Dry stack and Hardstand on or off, and set the words this marina uses on screen.",
+      description: "Turn Boatyard and Dry stack on or off, and set the words this marina uses on screen.",
     },
     {
       id: "berths",
       label: "Berths",
       title: "Berths",
-      description: "Every space has a Kind — Berth, Boatyard, Dry stack or Hardstand — which drives its screens and rules.",
+      description: "Every space has a Kind — Berth, Boatyard or Dry stack — which drives its screens and rules.",
     },
     ...(boatyardEnabled
       ? [

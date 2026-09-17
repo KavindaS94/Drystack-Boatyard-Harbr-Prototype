@@ -11,7 +11,6 @@ function crumbsForPath(pathname: string): { pages: string[]; page: string } {
   if (pathname.startsWith("/dashboard/actions")) return { pages: ["Dashboard"], page: "Actions" };
   if (pathname.startsWith("/operations/dry-stack")) return { pages: ["Operations"], page: "Dry stack" };
   if (pathname.startsWith("/operations/boatyard")) return { pages: ["Operations"], page: "Boatyard" };
-  if (pathname.startsWith("/operations/hardstand")) return { pages: ["Operations"], page: "Hardstand" };
   if (pathname.startsWith("/settings/demo-routines")) return { pages: ["Settings"], page: "Demo story" };
   if (pathname.startsWith("/settings")) return { pages: ["Settings"], page: "General Info" };
   if (pathname.startsWith("/invoices")) return { pages: ["Accounting"], page: "Draft invoice" };
@@ -29,9 +28,7 @@ export function AppShell() {
       ? state.settings.dryStorageLabel
       : location.pathname.startsWith("/operations/boatyard")
         ? state.settings.boatyardLabel
-        : location.pathname.startsWith("/operations/hardstand")
-          ? state.settings.hardstandLabel
-          : crumbs.page;
+        : crumbs.page;
   const pages = crumbs.pages;
   const roleForPath = "office";
 

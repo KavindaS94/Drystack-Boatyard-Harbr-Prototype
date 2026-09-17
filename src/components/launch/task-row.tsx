@@ -41,6 +41,14 @@ const TASK_STATUS_LABEL: Record<LaunchTask["status"], string> = {
   declined: "Declined",
 };
 
+const TASK_STATUS_BADGE: Record<LaunchTask["status"], string> = {
+  requested: "bg-amber-100 text-amber-900",
+  open: "bg-violet-50 text-violet-800",
+  in_progress: "bg-sky-100 text-sky-900",
+  done: "bg-teal-50 text-teal-800",
+  declined: "bg-neutral-100 text-neutral-600",
+};
+
 function illegalDoneMessage(kind: TaskType["kind"], current: VesselStorageStatus): string | null {
   if (kind === "other") return null;
   if (statusAfterTaskDone(kind, current) !== null) return null;
@@ -56,7 +64,7 @@ function illegalDoneMessage(kind: TaskType["kind"], current: VesselStorageStatus
 function spaceWord(kind: string | undefined): string {
   if (kind === "dry_storage") return "Rack";
   if (kind === "wet") return "Berth";
-  return "Pad";
+  return "Yard";
 }
 
 export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowProps) {
@@ -174,11 +182,17 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
           aria-expanded={isOpen}
           className="flex min-w-0 items-start gap-4 text-left"
         >
-          <div className="w-[4.5rem] shrink-0">
+          <div className="min-w-[5.5rem] shrink-0">
             <p className="text-2xl font-semibold tabular-nums leading-none tracking-tight text-neutral-900">
               {task.time}
             </p>
             <p className="mt-1.5 text-xs font-medium text-neutral-500">{taskType.name}</p>
+            <span
+              data-task-status-tag
+              className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium leading-none ${TASK_STATUS_BADGE[task.status]}`}
+            >
+              {TASK_STATUS_LABEL[task.status]}
+            </span>
           </div>
 
           <div className="min-w-0 flex-1">
@@ -189,9 +203,6 @@ export function TaskRow({ task, isOpen, error, onToggleOpen, onError }: TaskRowP
                 className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[storageStatus]}`}
               >
                 {STATUS_LABEL[storageStatus]}
-              </span>
-              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-800">
-                {TASK_STATUS_LABEL[task.status]}
               </span>
               <DnlBadge status={dnl} />
             </div>

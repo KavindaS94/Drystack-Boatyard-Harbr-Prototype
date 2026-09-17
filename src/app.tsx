@@ -31,7 +31,7 @@ function App() {
             <Route path="/operations/calendar" element={<CalendarScreen />} />
             <Route path="/operations/dry-stack" element={<LandModuleScreen module="dry_storage" />} />
             <Route path="/operations/boatyard" element={<LandModuleScreen module="boatyard" />} />
-            <Route path="/operations/hardstand" element={<LandModuleScreen module="hardstand" />} />
+            <Route path="/operations/hardstand" element={<Navigate to="/operations/dry-stack" replace />} />
             <Route path="/operations/launch-board" element={<LaunchBoardRedirect />} />
             <Route path="/operations/tablet" element={<Navigate to="/yard" replace />} />
             <Route path="/operations/travel-lift" element={<TravelLiftRedirect />} />

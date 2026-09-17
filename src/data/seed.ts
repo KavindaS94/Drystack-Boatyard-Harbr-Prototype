@@ -4,6 +4,7 @@ import { itemsFromOptions, photosFromOptions } from "../lib/checklist";
 import type {
   ActivityEvent,
   Berth,
+  ChecklistItem,
   Customer,
   Equipment,
   EquipmentBooking,
@@ -23,10 +24,8 @@ import type {
 const SETTINGS: Settings = {
   boatyardEnabled: true,
   dryStorageEnabled: true,
-  hardstandEnabled: true,
   boatyardLabel: "Dockyard",
   dryStorageLabel: "Dry stack",
-  hardstandLabel: "Hardstand",
   jobPanelTitle: "Job",
   hidePricesForYard: true,
   autoDnlOverdue: true,
@@ -149,7 +148,6 @@ function launchLiftTypes(module: TaskModule, prefix: string): TaskType[] {
 
 const TASK_TYPES: TaskType[] = [
   ...launchLiftTypes("dry_storage", "tt-ds"),
-  ...launchLiftTypes("hardstand", "tt-hs"),
   ...launchLiftTypes("boatyard", "tt-by"),
   {
     id: "tt-other",
@@ -208,22 +206,6 @@ function dryBerth(id: string, name: string): Berth {
   };
 }
 
-function hardstandBerth(id: string, name: string): Berth {
-  return {
-    id,
-    name,
-    pier: "Hardstand",
-    kind: "hardstand",
-    lengthM: 12,
-    beamM: 4,
-    maxWeightT: 12,
-    hasPower: true,
-    underCover: false,
-    blocksTravelLift: false,
-    priceClassName: "Hardstand",
-  };
-}
-
 const BERTHS: Berth[] = [
   wetBerth("berth-a08", "A08", "A", 12, 4),
   wetBerth("berth-a10", "A10", "A", 12, 4),
@@ -256,10 +238,6 @@ const BERTHS: Berth[] = [
   dryBerth("berth-ds5", "DS5"),
   dryBerth("berth-ds6", "DS6"),
   dryBerth("berth-ds7", "DS7"),
-  hardstandBerth("berth-hs1", "HS1"),
-  hardstandBerth("berth-hs2", "HS2"),
-  hardstandBerth("berth-hs3", "HS3"),
-  hardstandBerth("berth-hs4", "HS4"),
 ];
 
 function customer(
@@ -317,7 +295,7 @@ const VESSELS: Vessel[] = [
   vessel("ves-tern", "Tern", "cust-chen", 7.8, 2.6, 2.5, "stored", "2027-02-01"),
   vessel("ves-heron", "Heron", "cust-quinn", 9, 2.9, 3.2, "stored", addDays(DEMO_TODAY, -45)),
   vessel("ves-kingfisher", "Kingfisher", "cust-ortiz", 8.2, 2.7, 2.8, "stored", "2027-04-01"),
-  vessel("ves-osprey", "Osprey", "cust-blake", 9.4, 3.1, 3.6, "stored", "2027-05-01"),
+  vessel("ves-osprey", "Osprey", "cust-blake", 9.4, 3.1, 3.6, "launched", "2027-05-01"),
   vessel("ves-curlew", "Curlew", "cust-reed", 7.5, 2.5, 2.2, "stored", "2027-08-01"),
   vessel("ves-shearwater", "Shearwater", "cust-kim", 8.8, 2.9, 3, "stored", "2027-09-01"),
   vessel("ves-gannet", "Gannet", "cust-cole", 8, 2.7, 2.6, "stored", "2027-10-01"),
@@ -348,6 +326,25 @@ function jobFromType(typeId: string, extras: Partial<Job> = {}): Job {
     status: "open",
     ...extras,
   };
+}
+
+function ticked(kind: "lift" | "launch"): ChecklistItem[] {
+  const taskType = TASK_TYPES.find((item) => item.id === `tt-by-${kind}`);
+  return itemsFromOptions(taskType?.checklist ?? []).map((item) => ({ ...item, done: true }));
+}
+
+function jobItems(typeId: string, doneThrough: number): ChecklistItem[] {
+  return itemsFromOptions(JOB_TYPES.find((item) => item.id === typeId)?.checklist ?? []).map((item, index) => ({
+    ...item,
+    done: index < doneThrough,
+  }));
+}
+
+function jobPhotos(doneThrough: number): ReturnType<typeof photosFromOptions> {
+  return photosFromOptions(QA_PHOTOS).map((photo, index) => ({
+    ...photo,
+    done: index < doneThrough,
+  }));
 }
 
 const WEEK_MON = DEMO_WEEK_START;
@@ -399,8 +396,12 @@ const RESERVATIONS: Reservation[] = [
     startDate: WEEK_TUE,
     endDate: DEMO_WEEK_END,
     job: jobFromType("jt-diy", {
+      liftTime: "09:00",
+      launchTime: "15:00",
+      launchDate: DEMO_TODAY,
       workBy: "diy",
       tcStatus: "sent",
+      checklist: jobItems("jt-diy", 1),
     }),
   },
   {
@@ -418,6 +419,76 @@ const RESERVATIONS: Reservation[] = [
       workBy: "contractor",
       contractorName: "Marine Works",
       tcStatus: "sent",
+      checklist: jobItems("jt-engine", 1),
+    }),
+  },
+  {
+    id: "res-h3-petrel",
+    status: "approved",
+    berthId: "berth-h3",
+    customerId: "cust-patel",
+    vesselId: "ves-petrel",
+    startDate: DEMO_TODAY,
+    endDate: DEMO_WEEK_END,
+    job: jobFromType("jt-antifoul", {
+      liftTime: "10:00",
+      launchTime: "14:00",
+      launchDate: DEMO_SATURDAY,
+      workBy: "marina",
+    }),
+  },
+  {
+    id: "res-h6-teal",
+    status: "approved",
+    berthId: "berth-h6",
+    customerId: "cust-diaz",
+    vesselId: "ves-teal",
+    startDate: DEMO_TODAY,
+    endDate: DEMO_WEEK_END,
+    job: jobFromType("jt-engine", {
+      liftTime: "11:00",
+      launchTime: "11:00",
+      launchDate: DEMO_SATURDAY,
+      workBy: "marina",
+      tcStatus: "signed",
+      tcSignedAt: `${WEEK_WED}T16:00:00.000Z`,
+      checklist: jobItems("jt-engine", 2),
+    }),
+  },
+  {
+    id: "res-h7-plover",
+    status: "approved",
+    berthId: "berth-h7",
+    customerId: "cust-owens",
+    vesselId: "ves-plover",
+    startDate: WEEK_WED,
+    endDate: DEMO_WEEK_END,
+    job: jobFromType("jt-diy", {
+      liftTime: "10:00",
+      launchTime: "12:00",
+      launchDate: DEMO_TODAY,
+      workBy: "diy",
+      checklist: jobItems("jt-diy", 2),
+      photos: jobPhotos(1),
+    }),
+  },
+  {
+    id: "res-h8-sanderling",
+    status: "approved",
+    berthId: "berth-h8",
+    customerId: "cust-moore",
+    vesselId: "ves-sanderling",
+    startDate: WEEK_WED,
+    endDate: DEMO_WEEK_END,
+    job: jobFromType("jt-diy", {
+      liftTime: "08:00",
+      launchTime: "07:00",
+      launchDate: DEMO_TODAY,
+      workBy: "diy",
+      status: "done",
+      checklist: jobItems("jt-diy", 2),
+      photos: jobPhotos(2),
+      hours: [{ id: "line-h8-labour", productId: "prod-labour-hour", qty: 2, staffName: "Yard" }],
     }),
   },
   {
@@ -448,11 +519,20 @@ const RESERVATIONS: Reservation[] = [
     endDate: MONTH_END,
   },
   {
-    id: "res-ds4-kingfisher",
+    id: "res-ds4-dunlin",
     status: "approved",
     berthId: "berth-ds4",
-    customerId: "cust-ortiz",
-    vesselId: "ves-kingfisher",
+    customerId: "cust-brooks",
+    vesselId: "ves-dunlin",
+    startDate: MONTH_START,
+    endDate: MONTH_END,
+  },
+  {
+    id: "res-ds5-kestrel",
+    status: "approved",
+    berthId: "berth-ds5",
+    customerId: "cust-nguyen",
+    vesselId: "ves-kestrel",
     startDate: MONTH_START,
     endDate: MONTH_END,
   },
@@ -475,29 +555,11 @@ const RESERVATIONS: Reservation[] = [
     endDate: MONTH_END,
   },
   {
-    id: "res-hs1-gannet",
-    status: "approved",
-    berthId: "berth-hs1",
-    customerId: "cust-cole",
-    vesselId: "ves-gannet",
-    startDate: MONTH_START,
-    endDate: MONTH_END,
-  },
-  {
     id: "res-a14-shearwater",
     status: "to_be_approved",
     berthId: "berth-a14",
     customerId: "cust-kim",
     vesselId: "ves-shearwater",
-    startDate: WEEK_MON,
-    endDate: DEMO_WEEK_END,
-  },
-  {
-    id: "res-a08-kestrel",
-    status: "approved",
-    berthId: "berth-a08",
-    customerId: "cust-nguyen",
-    vesselId: "ves-kestrel",
     startDate: WEEK_MON,
     endDate: DEMO_WEEK_END,
   },
@@ -508,42 +570,6 @@ const RESERVATIONS: Reservation[] = [
     customerId: "cust-ross",
     vesselId: "ves-albatross",
     startDate: WEEK_TUE,
-    endDate: DEMO_WEEK_END,
-  },
-  {
-    id: "res-b1-petrel",
-    status: "approved",
-    berthId: "berth-b1",
-    customerId: "cust-patel",
-    vesselId: "ves-petrel",
-    startDate: WEEK_MON,
-    endDate: DEMO_WEEK_END,
-  },
-  {
-    id: "res-b5-sanderling",
-    status: "approved",
-    berthId: "berth-b5",
-    customerId: "cust-moore",
-    vesselId: "ves-sanderling",
-    startDate: DEMO_TODAY,
-    endDate: DEMO_WEEK_END,
-  },
-  {
-    id: "res-b9-teal",
-    status: "approved",
-    berthId: "berth-b9",
-    customerId: "cust-diaz",
-    vesselId: "ves-teal",
-    startDate: WEEK_MON,
-    endDate: DEMO_WEEK_END,
-  },
-  {
-    id: "res-c2-plover",
-    status: "approved",
-    berthId: "berth-c2",
-    customerId: "cust-owens",
-    vesselId: "ves-plover",
-    startDate: WEEK_MON,
     endDate: DEMO_WEEK_END,
   },
   {
@@ -564,15 +590,6 @@ const RESERVATIONS: Reservation[] = [
     startDate: WEEK_MON,
     endDate: DEMO_WEEK_END,
   },
-  {
-    id: "res-c10-dunlin",
-    status: "approved",
-    berthId: "berth-c10",
-    customerId: "cust-brooks",
-    vesselId: "ves-dunlin",
-    startDate: WEEK_MON,
-    endDate: DEMO_WEEK_END,
-  },
 ];
 
 const SATURDAY = DEMO_SATURDAY;
@@ -582,8 +599,6 @@ const LAUNCH_FLEET: { customerId: string; vesselId: string; berthId: string }[] 
   { customerId: "cust-shah", vesselId: "ves-pelican", berthId: "berth-ds1" },
   { customerId: "cust-chen", vesselId: "ves-tern", berthId: "berth-ds2" },
   { customerId: "cust-quinn", vesselId: "ves-heron", berthId: "berth-ds3" },
-  { customerId: "cust-ortiz", vesselId: "ves-kingfisher", berthId: "berth-ds4" },
-  { customerId: "cust-blake", vesselId: "ves-osprey", berthId: "berth-a10" },
   { customerId: "cust-reed", vesselId: "ves-curlew", berthId: "berth-ds6" },
   { customerId: "cust-kim", vesselId: "ves-shearwater", berthId: "berth-ds1" },
   { customerId: "cust-cole", vesselId: "ves-gannet", berthId: "berth-ds2" },
@@ -616,109 +631,169 @@ function makeLaunchTask(
   };
 }
 
-function buildSaturdayTasks(): LaunchTask[] {
-  const launchType = TASK_TYPES.find((t) => t.id === "tt-ds-launch");
-  const retrievalType = TASK_TYPES.find((t) => t.id === "tt-ds-lift");
-  const hsLaunch = TASK_TYPES.find((t) => t.id === "tt-hs-launch");
+function buildLaunchTasks(): LaunchTask[] {
+  const dsLaunch = TASK_TYPES.find((t) => t.id === "tt-ds-launch");
+  const dsLift = TASK_TYPES.find((t) => t.id === "tt-ds-lift");
   const byLift = TASK_TYPES.find((t) => t.id === "tt-by-lift");
   const byLaunch = TASK_TYPES.find((t) => t.id === "tt-by-launch");
   const otherType = TASK_TYPES.find((t) => t.id === "tt-other");
-  if (!launchType || !retrievalType || !hsLaunch || !byLift || !byLaunch || !otherType) {
+  if (!dsLaunch || !dsLift || !byLift || !byLaunch || !otherType) {
     throw new Error("Launch and Lift task types are required");
   }
 
+  const seaSprite = { customerId: "cust-voss", vesselId: "ves-sea-sprite", berthId: "berth-h4" };
+  const riviera = { customerId: "cust-bridger", vesselId: "ves-riviera", berthId: "berth-h2" };
+  const kingfisher = { customerId: "cust-ortiz", vesselId: "ves-kingfisher", berthId: "berth-h1" };
+  const petrel = { customerId: "cust-patel", vesselId: "ves-petrel", berthId: "berth-h3" };
+  const teal = { customerId: "cust-diaz", vesselId: "ves-teal", berthId: "berth-h6" };
+  const plover = { customerId: "cust-owens", vesselId: "ves-plover", berthId: "berth-h7" };
+  const sanderling = { customerId: "cust-moore", vesselId: "ves-sanderling", berthId: "berth-h8" };
   const pelican = LAUNCH_FLEET[0];
-  const tasks: LaunchTask[] = [
-    makeLaunchTask("lt-01", launchType, pelican, "09:00"),
-    makeLaunchTask("lt-02", retrievalType, pelican, "15:00"),
+  const kestrel = { customerId: "cust-nguyen", vesselId: "ves-kestrel", berthId: "berth-ds5" };
+  const dunlin = { customerId: "cust-brooks", vesselId: "ves-dunlin", berthId: "berth-ds4" };
+  const osprey = { customerId: "cust-blake", vesselId: "ves-osprey", berthId: "berth-a10" };
+
+  const todayDockyard: LaunchTask[] = [
+    makeLaunchTask("lt-by-sanderling-lift", byLift, sanderling, "08:00", {
+      date: WEEK_WED,
+      status: "done",
+      reservationId: "res-h8-sanderling",
+      checklist: ticked("lift"),
+    }),
+    makeLaunchTask("lt-by-sanderling-launch", byLaunch, sanderling, "07:00", {
+      date: FRIDAY,
+      status: "done",
+      reservationId: "res-h8-sanderling",
+      checklist: ticked("launch"),
+    }),
+    makeLaunchTask("lt-by-sea-sprite-lift", byLift, seaSprite, "08:00", {
+      date: FRIDAY,
+      status: "done",
+      reservationId: "res-h4-sea-sprite",
+      checklist: ticked("lift"),
+    }),
+    makeLaunchTask("lt-by-sea-sprite-launch", byLaunch, seaSprite, "14:00", {
+      date: FRIDAY,
+      reservationId: "res-h4-sea-sprite",
+    }),
+    makeLaunchTask("lt-by-riviera-lift", byLift, riviera, "09:00", {
+      date: WEEK_TUE,
+      status: "done",
+      reservationId: "res-h2-riviera",
+      checklist: ticked("lift"),
+    }),
+    makeLaunchTask("lt-by-riviera-launch", byLaunch, riviera, "15:00", {
+      date: FRIDAY,
+      status: "in_progress",
+      reservationId: "res-h2-riviera",
+    }),
+    makeLaunchTask("lt-by-kingfisher-lift", byLift, kingfisher, "09:00", {
+      date: WEEK_WED,
+      status: "done",
+      reservationId: "res-h1-travel-lift",
+      checklist: ticked("lift"),
+    }),
+    makeLaunchTask("lt-by-kingfisher-launch", byLaunch, kingfisher, "16:00", {
+      date: FRIDAY,
+      reservationId: "res-h1-travel-lift",
+    }),
+    makeLaunchTask("lt-by-petrel-lift", byLift, petrel, "10:00", {
+      date: FRIDAY,
+      reservationId: "res-h3-petrel",
+    }),
+    makeLaunchTask("lt-by-petrel-launch", byLaunch, petrel, "14:00", {
+      date: SATURDAY,
+      reservationId: "res-h3-petrel",
+    }),
+    makeLaunchTask("lt-by-teal-lift", byLift, teal, "11:00", {
+      date: FRIDAY,
+      status: "in_progress",
+      reservationId: "res-h6-teal",
+      checklist: itemsFromOptions(byLift.checklist).map((item, index) => ({ ...item, done: index === 0 })),
+    }),
+    makeLaunchTask("lt-by-teal-launch", byLaunch, teal, "11:00", {
+      date: SATURDAY,
+      reservationId: "res-h6-teal",
+    }),
+    makeLaunchTask("lt-by-plover-lift", byLift, plover, "10:00", {
+      date: WEEK_WED,
+      status: "done",
+      reservationId: "res-h7-plover",
+      checklist: ticked("lift"),
+    }),
+    makeLaunchTask("lt-by-plover-launch", byLaunch, plover, "12:00", {
+      date: FRIDAY,
+      status: "requested",
+      source: "customer",
+      reservationId: "res-h7-plover",
+    }),
   ];
 
-  // One fork-lift vessel per 30-minute slot. Mix remaining dry-stack boats
-  // into unique Saturday times so the busy-day board still looks full.
-  const others = LAUNCH_FLEET.filter(
-    (client) => client.vesselId !== "ves-pelican" && client.vesselId !== "ves-osprey"
-  );
+  const todayDry: LaunchTask[] = [
+    makeLaunchTask("lt-req-02", dsLaunch, LAUNCH_FLEET[2], "08:30", {
+      date: FRIDAY,
+      status: "requested",
+      source: "customer",
+    }),
+    makeLaunchTask("lt-req-04", dsLaunch, LAUNCH_FLEET[3], "09:30", {
+      date: FRIDAY,
+      status: "requested",
+      source: "customer",
+    }),
+    makeLaunchTask("lt-req-05", dsLaunch, LAUNCH_FLEET[1], "10:00", {
+      date: FRIDAY,
+      status: "requested",
+      source: "customer",
+    }),
+    makeLaunchTask("lt-ds-dunlin-lift", dsLift, dunlin, "07:00", {
+      date: FRIDAY,
+      status: "done",
+      reservationId: "res-ds4-dunlin",
+      checklist: itemsFromOptions(dsLift.checklist).map((item) => ({ ...item, done: true })),
+    }),
+    makeLaunchTask("lt-ds-dunlin-launch", dsLaunch, dunlin, "12:00", {
+      date: FRIDAY,
+      status: "in_progress",
+      reservationId: "res-ds4-dunlin",
+      checklist: itemsFromOptions(dsLaunch.checklist).map((item, index) => ({ ...item, done: index === 0 })),
+    }),
+    makeLaunchTask("lt-ds-kestrel-launch", dsLaunch, kestrel, "11:00", {
+      date: FRIDAY,
+      reservationId: "res-ds5-kestrel",
+    }),
+    makeLaunchTask("lt-ds-osprey-lift", dsLift, osprey, "13:00", {
+      date: FRIDAY,
+      reservationId: "res-a10-osprey",
+    }),
+  ];
+
+  const pelicanSaturday: LaunchTask[] = [
+    makeLaunchTask("lt-01", dsLaunch, pelican, "09:00"),
+    makeLaunchTask("lt-02", dsLift, pelican, "15:00"),
+  ];
+
+  const saturdayBusy: LaunchTask[] = [];
   let serial = 3;
   let slotIndex = 0;
   for (let hour = 7; hour < 17; hour += 1) {
     for (const minutes of [0, 30]) {
       const time = padTime(hour, minutes);
       if (time === "09:00" || time === "15:00") continue;
-      const client = others[slotIndex % others.length];
-      const taskType = slotIndex % 2 === 0 ? launchType : retrievalType;
-      tasks.push(makeLaunchTask(`lt-${String(serial).padStart(2, "0")}`, taskType, client, time));
+      const client = LAUNCH_FLEET[slotIndex % LAUNCH_FLEET.length];
+      const taskType = slotIndex % 2 === 0 ? dsLaunch : dsLift;
+      saturdayBusy.push(makeLaunchTask(`lt-${String(serial).padStart(2, "0")}`, taskType, client, time));
       serial += 1;
       slotIndex += 1;
     }
   }
 
-  const fridayRequests: LaunchTask[] = [
-    makeLaunchTask("lt-req-02", launchType, LAUNCH_FLEET[2], "08:30", {
-      date: FRIDAY,
-      status: "requested",
-      source: "customer",
-    }),
-    makeLaunchTask("lt-req-04", launchType, LAUNCH_FLEET[5], "09:30", {
-      date: FRIDAY,
-      status: "requested",
-      source: "customer",
-    }),
-    makeLaunchTask("lt-req-05", launchType, LAUNCH_FLEET[1], "10:00", {
-      date: FRIDAY,
-      status: "requested",
-      source: "customer",
-    }),
-    makeLaunchTask(
-      "lt-hs-req",
-      hsLaunch,
-      { customerId: "cust-cole", vesselId: "ves-gannet", berthId: "berth-hs1" },
-      "11:00",
-      { date: FRIDAY, status: "requested", source: "customer" }
-    ),
-    makeLaunchTask(
-      "lt-by-sea-sprite-lift",
-      byLift,
-      { customerId: "cust-voss", vesselId: "ves-sea-sprite", berthId: "berth-h4" },
-      "08:00",
-      {
-        date: FRIDAY,
-        status: "done",
-        source: "staff",
-        reservationId: "res-h4-sea-sprite",
-        checklist: itemsFromOptions(byLift.checklist).map((item) => ({ ...item, done: true })),
-      }
-    ),
-    makeLaunchTask(
-      "lt-by-sea-sprite-launch",
-      byLaunch,
-      { customerId: "cust-voss", vesselId: "ves-sea-sprite", berthId: "berth-h4" },
-      "14:00",
-      { date: FRIDAY, status: "open", source: "staff", reservationId: "res-h4-sea-sprite" }
-    ),
-    makeLaunchTask(
-      "lt-by-kingfisher-lift",
-      byLift,
-      { customerId: "cust-ortiz", vesselId: "ves-kingfisher", berthId: "berth-h1" },
-      "09:00",
-      {
-        date: FRIDAY,
-        status: "done",
-        source: "staff",
-        reservationId: "res-h1-travel-lift",
-        checklist: itemsFromOptions(byLift.checklist).map((item) => ({ ...item, done: true })),
-      }
-    ),
-    makeLaunchTask(
-      "lt-by-kingfisher-launch",
-      byLaunch,
-      { customerId: "cust-ortiz", vesselId: "ves-kingfisher", berthId: "berth-h1" },
-      "16:00",
-      { date: FRIDAY, status: "open", source: "staff", reservationId: "res-h1-travel-lift" }
-    ),
+  return [
+    ...todayDockyard,
+    ...todayDry,
+    ...pelicanSaturday,
+    ...saturdayBusy,
     makeLaunchTask("lt-other-wash", otherType, pelican, "13:00", { date: FRIDAY }),
   ];
-
-  return [...fridayRequests, ...tasks];
 }
 
 function booking(
@@ -756,6 +831,69 @@ const ACTIVITY: ActivityEvent[] = [
     vesselId: "ves-kingfisher",
     customerId: "cust-ortiz",
   },
+  {
+    id: "act-3",
+    at: `${WEEK_WED}T16:00:00.000Z`,
+    actor: "customer",
+    message: "T&Cs signed",
+    reservationId: "res-h6-teal",
+    vesselId: "ves-teal",
+    customerId: "cust-diaz",
+  },
+  {
+    id: "act-4",
+    at: `${DEMO_TODAY}T07:05:00.000Z`,
+    actor: "yard",
+    message: "Lift done — back on the rack",
+    reservationId: "res-ds4-dunlin",
+    vesselId: "ves-dunlin",
+    customerId: "cust-brooks",
+  },
+  {
+    id: "act-5",
+    at: `${DEMO_TODAY}T08:10:00.000Z`,
+    actor: "yard",
+    message: "Lift done — on pad H4",
+    reservationId: "res-h4-sea-sprite",
+    vesselId: "ves-sea-sprite",
+    customerId: "cust-voss",
+  },
+  {
+    id: "act-6",
+    at: `${DEMO_TODAY}T07:12:00.000Z`,
+    actor: "yard",
+    message: "Launch done — DIY complete",
+    reservationId: "res-h8-sanderling",
+    vesselId: "ves-sanderling",
+    customerId: "cust-moore",
+  },
+  {
+    id: "act-7",
+    at: `${DEMO_TODAY}T10:02:00.000Z`,
+    actor: "office",
+    message: "Petrel booked onto H3 — lift 10:00, launch Saturday 14:00",
+    reservationId: "res-h3-petrel",
+    vesselId: "ves-petrel",
+    customerId: "cust-patel",
+  },
+  {
+    id: "act-8",
+    at: `${DEMO_TODAY}T11:05:00.000Z`,
+    actor: "yard",
+    message: "Lift started on H6",
+    reservationId: "res-h6-teal",
+    vesselId: "ves-teal",
+    customerId: "cust-diaz",
+  },
+  {
+    id: "act-9",
+    at: `${DEMO_TODAY}T07:00:00.000Z`,
+    actor: "customer",
+    message: "Requested launch at 12:00",
+    reservationId: "res-h7-plover",
+    vesselId: "ves-plover",
+    customerId: "cust-owens",
+  },
 ];
 
 const MESSAGES: Message[] = [
@@ -769,10 +907,30 @@ const MESSAGES: Message[] = [
     body: "Please reply to this email to confirm you accept the yard terms before we lift your boat.",
     read: false,
   },
+  {
+    id: "msg-3",
+    at: `${DEMO_TODAY}T08:12:00.000Z`,
+    customerId: "cust-voss",
+    channel: "email",
+    template: "launch_confirmed",
+    subject: "Launch booked",
+    body: "Sea Sprite is on H4. Lift was 08:00. Launch is booked for 14:00 today.",
+    read: false,
+  },
+  {
+    id: "msg-4",
+    at: `${DEMO_TODAY}T07:00:00.000Z`,
+    customerId: "cust-owens",
+    channel: "email",
+    template: "custom",
+    subject: "Launch request received",
+    body: "We received your launch request for Plover at 12:00 today. The marina will confirm shortly.",
+    read: false,
+  },
 ];
 
 export function createSeedState(): MarinaState {
-  const launchTasks = buildSaturdayTasks();
+  const launchTasks = buildLaunchTasks();
   return {
     settings: SETTINGS,
     role: "office",

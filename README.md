@@ -1,6 +1,6 @@
 # Harbr yard prototype
 
-Frontend-only prototype for **boatyard**, **dry stack**, **hardstand**, and **email customer communication**. It is **not** the live Harbr app.
+Frontend-only prototype for **boatyard**, **dry stack**, and **email customer communication**. It is **not** the live Harbr app.
 
 All data in this app is **fake**. Nothing here writes to production, talks to the Harbr API, or changes marina records.
 

@@ -4,18 +4,19 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { EditableChecklist } from "../checklist/editable-checklist";
 import { itemsFromOptions, photosFromOptions } from "../../lib/checklist";
-import { buildDaySlots, equipmentForModule } from "../../lib/equipment";
+import { buildDaySlots, equipmentForModule, formatDurationMinutes, minutesBetween } from "../../lib/equipment";
 import { draftFromJob, invoiceBannerText } from "../../lib/invoice";
 import { remapTravelLiftJobTypeId, workJobTypes } from "../../lib/job-types";
 import { spaceKindToModule } from "../../lib/modules";
 import { useMarina } from "../../store/marina-store";
-import type { Job, JobType, TcStatus, WorkBy } from "../../types/domain";
+import type { Job, JobType, LaunchTask, TcStatus, WorkBy } from "../../types/domain";
 import { Button } from "../ui/button";
 import { JobLines } from "./job-lines";
 
 interface JobPanelProps {
   reservationId: string;
   plain?: boolean;
+  heading?: boolean;
 }
 
 const TC_LABEL: Record<TcStatus, string> = {
@@ -30,12 +31,51 @@ const WORK_BY_LABEL: Record<WorkBy, string> = {
   contractor: "Contractor",
 };
 
+function stayKind(task: LaunchTask, taskTypes: { id: string; kind: string }[]): string | undefined {
+  return taskTypes.find((type) => type.id === task.taskTypeId)?.kind;
+}
+
+function stayTasksForJob(
+  tasks: LaunchTask[],
+  taskTypes: { id: string; kind: string }[],
+  reservationId: string,
+  vesselId: string | undefined,
+  module: string | null,
+  kind: "retrieval" | "launch"
+) {
+  return tasks.filter((item) => {
+    if (item.status === "declined") return false;
+    if (module && item.module !== module) return false;
+    if (item.reservationId !== reservationId && item.vesselId !== vesselId) return false;
+    return stayKind(item, taskTypes) === kind;
+  });
+}
+
+function pickStayTask(
+  candidates: LaunchTask[],
+  reservationId: string,
+  preferredDate?: string
+): LaunchTask | undefined {
+  return candidates.slice().sort((a, b) => {
+    const aRes = a.reservationId === reservationId ? 0 : 1;
+    const bRes = b.reservationId === reservationId ? 0 : 1;
+    if (aRes !== bRes) return aRes - bRes;
+    if (preferredDate) {
+      const aDay = a.date === preferredDate ? 0 : 1;
+      const bDay = b.date === preferredDate ? 0 : 1;
+      if (aDay !== bDay) return aDay - bDay;
+    }
+    return b.date.localeCompare(a.date) || b.time.localeCompare(a.time);
+  })[0];
+}
+
 function jobFromType(jobType: JobType, previous?: Job): Job {
   return {
     typeId: jobType.id,
     location: previous?.location ?? "dockyard",
     workBy: previous?.workBy ?? "marina",
     contractorName: previous?.contractorName,
+    notes: previous?.notes,
     liftTime: previous?.liftTime,
     launchTime: previous?.launchTime,
     launchDate: previous?.launchDate,
@@ -49,7 +89,7 @@ function jobFromType(jobType: JobType, previous?: Job): Job {
   };
 }
 
-export function JobPanel({ reservationId, plain = false }: JobPanelProps) {
+export function JobPanel({ reservationId, plain = false, heading = true }: JobPanelProps) {
   const navigate = useNavigate();
   const {
     state,
@@ -74,21 +114,28 @@ export function JobPanel({ reservationId, plain = false }: JobPanelProps) {
   const module = reservationBerth ? spaceKindToModule(reservationBerth.kind) : "boatyard";
   const liftMachine = module ? equipmentForModule(state.equipment, module) : undefined;
   const liftSlots = liftMachine ? buildDaySlots(liftMachine) : [];
-  const liftTask = state.launchTasks.find(
-    (item) =>
-      item.reservationId === reservationId &&
-      (!module || item.module === module) &&
-      state.taskTypes.find((type) => type.id === item.taskTypeId)?.kind === "retrieval"
+  const liftTask = pickStayTask(
+    stayTasksForJob(state.launchTasks, state.taskTypes, reservationId, reservation?.vesselId, module, "retrieval"),
+    reservationId,
+    reservation?.startDate
   );
-  const launchTask = state.launchTasks.find(
-    (item) =>
-      item.reservationId === reservationId &&
-      (!module || item.module === module) &&
-      item.status !== "declined" &&
-      item.status !== "done" &&
-      state.taskTypes.find((type) => type.id === item.taskTypeId)?.kind === "launch"
+  const launchCandidates = stayTasksForJob(
+    state.launchTasks,
+    state.taskTypes,
+    reservationId,
+    reservation?.vesselId,
+    module,
+    "launch"
   );
-  const liftTimeLabel = liftTask?.time ?? job?.liftTime;
+  const scheduledLaunch = pickStayTask(launchCandidates, reservationId, job?.launchDate);
+  const liftTimeLabel = job?.liftTime || liftTask?.time;
+  const launchTimeLabel = job?.launchTime || scheduledLaunch?.time;
+  const launchScheduled = Boolean(launchTimeLabel);
+  const ownLaunchIds = new Set(launchCandidates.map((item) => item.id));
+  const repairLabel =
+    liftTimeLabel && launchTimeLabel
+      ? formatDurationMinutes(minutesBetween(liftTimeLabel, launchTimeLabel))
+      : "";
 
   const [open, setOpen] = useState(true);
   const [relaunchDate, setRelaunchDate] = useState(job?.launchDate ?? reservation?.endDate ?? "");
@@ -97,8 +144,8 @@ export function JobPanel({ reservationId, plain = false }: JobPanelProps) {
   useEffect(() => {
     setOpen(true);
     setRelaunchDate(job?.launchDate ?? reservation?.endDate ?? "");
-    setRelaunchTime(job?.launchTime ?? launchTask?.time ?? "");
-  }, [reservationId, job?.launchDate, job?.launchTime, launchTask?.time, reservation?.endDate]);
+    setRelaunchTime(job?.launchTime || scheduledLaunch?.time || "");
+  }, [reservationId, job?.launchDate, job?.launchTime, scheduledLaunch?.time, reservation?.endDate]);
 
   useEffect(() => {
     if (!relaunchTime && liftSlots[0]) setRelaunchTime(liftSlots[0]);
@@ -139,28 +186,30 @@ export function JobPanel({ reservationId, plain = false }: JobPanelProps) {
       className={plain ? "min-w-0 space-y-4" : "min-w-0 rounded-lg border border-gray-200 bg-gray-50/80"}
       data-job-section
     >
-      {plain ? (
-        <h3 className="text-sm font-semibold text-neutral-900">{state.settings.jobPanelTitle}</h3>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setOpen((current) => !current)}
-          className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-gray-100/80"
-          aria-expanded={open}
-        >
-          {open ? (
-            <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="font-medium text-foreground text-sm">{state.settings.jobPanelTitle}</div>
-            {!open ? (
-              <p className="mt-0.5 line-clamp-2 break-words text-muted-foreground text-xs">{preview}</p>
-            ) : null}
-          </div>
-        </button>
-      )}
+      {heading ? (
+        plain ? (
+          <h3 className="text-sm font-semibold text-neutral-900">{state.settings.jobPanelTitle}</h3>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setOpen((current) => !current)}
+            className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-gray-100/80"
+            aria-expanded={open}
+          >
+            {open ? (
+              <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-foreground text-sm">{state.settings.jobPanelTitle}</div>
+              {!open ? (
+                <p className="mt-0.5 line-clamp-2 break-words text-muted-foreground text-xs">{preview}</p>
+              ) : null}
+            </div>
+          </button>
+        )
+      ) : null}
 
       {plain || open ? (
         <div className={plain ? "space-y-4" : "space-y-4 border-gray-200 border-t bg-white px-3 py-3"}>
@@ -169,21 +218,36 @@ export function JobPanel({ reservationId, plain = false }: JobPanelProps) {
             data-lift-then-launch
             data-relaunch-reschedule
           >
-            <div>
-              <p className="text-xs font-medium text-neutral-500">Lift then launch</p>
-              <p className="mt-0.5 text-xs text-neutral-500">
-                Every land stay lifts first, does the job, then launches.
-              </p>
-            </div>
-            <p className="text-xs text-neutral-600">
-              Lift{" "}
-              <span className="font-medium text-neutral-900">
-                {liftTimeLabel ? liftTimeLabel : "not yet scheduled"}
-              </span>
-              {liftTask?.status === "done" ? " · done" : liftTask ? " · scheduled" : ""}
-            </p>
+            {heading ? (
+              <div>
+                <p className="text-xs font-medium text-neutral-500">Lift then launch</p>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  Every land stay lifts first, does the job, then launches.
+                </p>
+                <p className="mt-2 text-xs text-neutral-600">
+                  Lift{" "}
+                  <span className="font-medium text-neutral-900">
+                    {liftTimeLabel ? liftTimeLabel : "not yet scheduled"}
+                  </span>
+                  {liftTask?.status === "done" ? " · done" : liftTask ? " · scheduled" : ""}
+                </p>
+                {repairLabel ? (
+                  <p className="text-xs text-neutral-600">
+                    Repair{" "}
+                    <span className="font-medium text-neutral-900">{repairLabel}</span>
+                    <span className="text-neutral-500"> on the yard</span>
+                  </p>
+                ) : null}
+                <p className="text-xs text-neutral-600">
+                  Launch{" "}
+                  <span className="font-medium text-neutral-900">
+                    {launchTimeLabel ? launchTimeLabel : "not yet scheduled"}
+                  </span>
+                </p>
+              </div>
+            ) : null}
             <p className="text-xs font-medium text-neutral-500">
-              {launchTask ? "Move launch date" : "Schedule launch"}
+              {launchScheduled ? "Change launch date" : "Schedule launch"}
             </p>
             <div className="grid grid-cols-2 gap-2">
               <input
@@ -204,7 +268,7 @@ export function JobPanel({ reservationId, plain = false }: JobPanelProps) {
                         booking.equipmentId === liftMachine?.id &&
                         booking.date === relaunchDate &&
                         booking.startTime === slot &&
-                        booking.taskId !== launchTask?.id
+                        !ownLaunchIds.has(booking.taskId)
                     );
                     return (
                       <option key={slot} value={slot} disabled={taken}>
@@ -235,11 +299,11 @@ export function JobPanel({ reservationId, plain = false }: JobPanelProps) {
                   return;
                 }
                 toast.success(
-                  launchTask ? "Launch moved — customer emailed" : "Launch scheduled — customer emailed"
+                  launchScheduled ? "Launch date changed — customer emailed" : "Launch scheduled — customer emailed"
                 );
               }}
             >
-              {launchTask ? "Move launch date" : "Schedule launch"}
+              {launchScheduled ? "Change launch date" : "Schedule launch"}
             </Button>
           </div>
 
@@ -299,6 +363,17 @@ export function JobPanel({ reservationId, plain = false }: JobPanelProps) {
               </div>
             ) : null}
           </div>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-neutral-500">Job notes</span>
+            <textarea
+              value={job.notes ?? ""}
+              onChange={(event) => applyJob({ ...job, notes: event.target.value })}
+              rows={3}
+              placeholder="What the crew should do"
+              className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+            />
+          </label>
 
           {jobType.requiresTc ? (
             <div className="space-y-2">

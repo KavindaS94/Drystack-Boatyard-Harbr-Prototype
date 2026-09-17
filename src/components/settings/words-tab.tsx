@@ -9,7 +9,7 @@ export function WordsTab() {
       <section className="space-y-3 rounded-md border border-border p-3">
         <h2 className="text-sm font-semibold text-neutral-900">Modules</h2>
         <p className="text-xs text-muted-foreground">
-          Not every marina has all three. Turn off what you do not use — those screens and tabs disappear.
+          Not every marina has both. Turn off what you do not use — those screens and tabs disappear.
         </p>
         <label className="flex items-center gap-2 text-sm text-neutral-800">
           <input
@@ -28,15 +28,6 @@ export function WordsTab() {
             data-dry-storage-enabled
           />
           Dry stack
-        </label>
-        <label className="flex items-center gap-2 text-sm text-neutral-800">
-          <input
-            type="checkbox"
-            checked={settings.hardstandEnabled}
-            onChange={(event) => updateSettings({ hardstandEnabled: event.target.checked })}
-            data-hardstand-enabled
-          />
-          Hardstand
         </label>
       </section>
 
@@ -57,15 +48,6 @@ export function WordsTab() {
             value={settings.dryStorageLabel}
             onChange={(event) => updateSettings({ dryStorageLabel: event.target.value })}
             data-dry-storage-label
-            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
-          />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Hardstand label</span>
-          <input
-            value={settings.hardstandLabel}
-            onChange={(event) => updateSettings({ hardstandLabel: event.target.value })}
-            data-hardstand-label
             className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
         </label>
