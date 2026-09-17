@@ -75,6 +75,17 @@ export interface AddYardStayInput {
   notes?: string;
 }
 
+export interface AddDryStackOutingInput {
+  customerId: string;
+  vesselId: string;
+  berthId: string;
+  reservationId: string;
+  launchDate: string;
+  launchTime: string;
+  liftDate: string;
+  liftTime: string;
+}
+
 export interface RequestLaunchInput {
   taskTypeId: string;
   customerId: string;
@@ -127,6 +138,7 @@ export interface MarinaStore {
   placeBooking: (input: PlaceBookingInput) => boolean;
   addLaunchTask: (input: AddLaunchTaskInput) => boolean;
   addYardStay: (input: AddYardStayInput) => boolean;
+  addDryStackOuting: (input: AddDryStackOutingInput) => boolean;
   toggleTaskCheck: (taskId: string, index: number) => void;
   setTaskChecklist: (taskId: string, checklist: { label: string; category: string; done: boolean }[]) => void;
   markTaskDone: (taskId: string) => void;
@@ -365,7 +377,7 @@ function applyStayTask(
     return { launchTasks: prev.launchTasks, equipmentBookings: prev.equipmentBookings };
   }
   const task = input.existing
-    ? { ...input.existing, time: input.time, date: input.date, status: "open" as const }
+    ? { ...input.existing, time: input.time, date: input.date, berthId: input.berthId, status: "open" as const }
     : openLiftTask({
         taskType: input.type,
         customerId: input.customerId,
@@ -871,8 +883,21 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       const launchType = taskTypeFor(prev.taskTypes, "boatyard", "launch");
       const reservation = prev.reservations.find((item) => item.id === input.reservationId);
       const jobType = prev.jobTypes.find((item) => item.id === input.jobTypeId);
-      if (!liftType || !launchType || !reservation || !jobType) return prev;
+      const pad = prev.berths.find((item) => item.id === input.berthId);
+      if (!liftType || !launchType || !reservation || !jobType || pad?.kind !== "boatyard") return prev;
       if (input.workBy === "contractor" && !input.contractorName?.trim()) return prev;
+      if (
+        conflictDetailsForBerth(
+          prev.reservations,
+          prev.berths,
+          input.berthId,
+          input.liftDate,
+          input.launchDate,
+          input.reservationId
+        )
+      ) {
+        return prev;
+      }
 
       const withLift = applyStayTask(prev, {
         existing: stayTaskForReservation(prev.launchTasks, input.reservationId, liftType.id),
@@ -938,7 +963,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
         equipmentBookings: withLaunch.equipmentBookings,
         reservations: prev.reservations.map((item) =>
           item.id === input.reservationId
-            ? { ...item, startDate: liftDate, endDate: launchDate, job }
+            ? { ...item, berthId: input.berthId, startDate: liftDate, endDate: launchDate, job }
             : item
         ),
         activity: [
@@ -946,7 +971,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
             actorFromRole(prev.role),
             `Lift ${liftTime} and launch ${launchTime} booked · ${jobType.name}${
               repair ? ` · ${repair} repair` : ""
-            }`,
+            } · ${pad.name}`,
             {
               reservationId: input.reservationId,
               vesselId: input.vesselId,
@@ -963,6 +988,89 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
             subject: "Lift and launch booked",
             body: `Your ${jobType.name.toLowerCase()} is booked: lift at ${liftTime} and launch at ${launchTime} ${when}${
               repair ? ` (${repair} on the yard)` : ""
+            }.`,
+          }),
+          ...prev.messages,
+        ],
+      };
+    });
+    return applied;
+  }, []);
+
+  const addDryStackOuting = useCallback((input: AddDryStackOutingInput): boolean => {
+    let applied = false;
+    setState((prev) => {
+      const outingMinutes = minutesBetweenSlots(
+        input.launchDate,
+        input.launchTime,
+        input.liftDate,
+        input.liftTime
+      );
+      if (outingMinutes <= 0) return prev;
+      const launchType = taskTypeFor(prev.taskTypes, "dry_storage", "launch");
+      const liftType = taskTypeFor(prev.taskTypes, "dry_storage", "retrieval");
+      const reservation = prev.reservations.find((item) => item.id === input.reservationId);
+      const rack = prev.berths.find((item) => item.id === input.berthId);
+      if (!launchType || !liftType || !reservation || rack?.kind !== "dry_storage") return prev;
+
+      const launchTask = openLiftTask({
+        taskType: launchType,
+        customerId: input.customerId,
+        vesselId: input.vesselId,
+        berthId: input.berthId,
+        date: input.launchDate,
+        time: input.launchTime,
+        reservationId: input.reservationId,
+      });
+      const bookedLaunch = tryBookSlot(prev.equipmentBookings, prev.equipment, launchTask);
+      if (!bookedLaunch.ok) return prev;
+      const savedLaunch = { ...launchTask, time: bookedLaunch.time };
+
+      const liftTask = openLiftTask({
+        taskType: liftType,
+        customerId: input.customerId,
+        vesselId: input.vesselId,
+        berthId: input.berthId,
+        date: input.liftDate,
+        time: input.liftTime,
+        reservationId: input.reservationId,
+      });
+      const bookedLift = tryBookSlot(bookedLaunch.bookings, prev.equipment, liftTask);
+      if (!bookedLift.ok) return prev;
+      const savedLift = { ...liftTask, time: bookedLift.time };
+
+      applied = true;
+      const outing = formatDurationMinutes(
+        minutesBetweenSlots(savedLaunch.date, savedLaunch.time, savedLift.date, savedLift.time)
+      );
+      const when =
+        savedLaunch.date === savedLift.date
+          ? `on ${savedLaunch.date}`
+          : `launch ${savedLaunch.date} · lift ${savedLift.date}`;
+      return {
+        ...prev,
+        launchTasks: [...prev.launchTasks, savedLaunch, savedLift],
+        equipmentBookings: bookedLift.bookings,
+        activity: [
+          makeActivity(
+            actorFromRole(prev.role),
+            `Launch ${savedLaunch.time} and lift ${savedLift.time} booked${outing ? ` · ${outing} in the water` : ""}`,
+            {
+              reservationId: input.reservationId,
+              vesselId: input.vesselId,
+              customerId: input.customerId,
+            }
+          ),
+          ...prev.activity,
+        ],
+        messages: [
+          makeMessage({
+            customerId: input.customerId,
+            channel: "email",
+            template: "launch_confirmed",
+            subject: "Launch and lift booked",
+            body: `Your launch is booked at ${savedLaunch.time} and your lift back at ${savedLift.time} ${when}${
+              outing ? ` (${outing} in the water)` : ""
             }.`,
           }),
           ...prev.messages,
@@ -1813,6 +1921,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       placeBooking,
       addLaunchTask,
       addYardStay,
+      addDryStackOuting,
       toggleTaskCheck,
       setTaskChecklist,
       markTaskDone,
@@ -1863,6 +1972,7 @@ export function MarinaProvider({ children }: { children: ReactNode }) {
       placeBooking,
       addLaunchTask,
       addYardStay,
+      addDryStackOuting,
       toggleTaskCheck,
       setTaskChecklist,
       markTaskDone,

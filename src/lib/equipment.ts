@@ -23,8 +23,16 @@ export function minutesBetweenSlots(
 
 export function formatDurationMinutes(mins: number): string {
   if (!Number.isFinite(mins) || mins <= 0) return "";
-  const hours = Math.floor(mins / 60);
-  const minutes = mins % 60;
+  const days = Math.floor(mins / (24 * 60));
+  const remainder = mins % (24 * 60);
+  const hours = Math.floor(remainder / 60);
+  const minutes = remainder % 60;
+  if (days > 0) {
+    const parts = [days === 1 ? "1 day" : `${days} days`];
+    if (hours) parts.push(hours === 1 ? "1 hour" : `${hours} hours`);
+    if (minutes) parts.push(`${minutes} min`);
+    return parts.join(" ");
+  }
   if (hours === 0) return `${minutes} min`;
   if (minutes === 0) return hours === 1 ? "1 hour" : `${hours} hours`;
   return `${hours} h ${minutes} min`;

@@ -37,7 +37,7 @@ interface TimedEvent {
 
 export function YardWeekCalendar() {
   const { state, setSelectedDate, setSelectedReservationId } = useMarina();
-  const [view, setView] = useState<"week" | "occupancy">("week");
+  const [view, setView] = useState<"week" | "occupancy">("occupancy");
   const [weekStart, setWeekStart] = useState(() => mondayOf(state.selectedDate));
   const [now, setNow] = useState(() => new Date());
   const [addTarget, setAddTarget] = useState<{ berthId: string; start: string } | null>(null);

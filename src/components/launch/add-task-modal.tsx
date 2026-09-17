@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
+import { conflictDetailsForBerth } from "../../lib/availability";
 import {
   buildDaySlots,
   conflictDetailsForEquipment,
@@ -11,10 +13,12 @@ import {
   timeToMinutes,
 } from "../../lib/equipment";
 import { remapTravelLiftJobTypeId, workJobTypes } from "../../lib/job-types";
-import { moduleLabel } from "../../lib/modules";
+import { addDays } from "../../lib/iso-date";
+import { moduleLabel, modulePath, occupancyTabId } from "../../lib/modules";
 import { cn } from "../../lib/utils";
 import { useMarina } from "../../store/marina-store";
 import type { Berth, Customer, Reservation, TaskModule, Vessel, WorkBy } from "../../types/domain";
+import { ConflictModal } from "../reservation-panel/conflict-modal";
 import { EquipmentConflictModal } from "../reservation-panel/equipment-conflict-modal";
 import { Button } from "../ui/button";
 
@@ -45,6 +49,12 @@ function defaultLaunch(slots: string[], liftTime: string): string {
   return sixHoursLater ?? firstSlotAfter(slots, liftTime) ?? liftTime;
 }
 
+function defaultReturn(slots: string[], startDate: string, startTime: string): { date: string; time: string } {
+  const later = defaultLaunch(slots, startTime);
+  if (later !== startTime) return { date: startDate, time: later };
+  return { date: addDays(startDate, 1), time: slots[0] ?? startTime };
+}
+
 const WORK_BY_LABEL: Record<WorkBy, string> = {
   marina: "Marina",
   diy: "DIY",
@@ -52,8 +62,10 @@ const WORK_BY_LABEL: Record<WorkBy, string> = {
 };
 
 export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModalProps) {
-  const { state, addLaunchTask, addYardStay } = useMarina();
+  const navigate = useNavigate();
+  const { state, addLaunchTask, addYardStay, addDryStackOuting } = useMarina();
   const isYard = module === "boatyard";
+  const isDry = module === "dry_storage";
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const types = state.taskTypes.filter((item) => {
@@ -75,12 +87,23 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
   const [contractorName, setContractorName] = useState("Marine Works");
   const [notes, setNotes] = useState("");
   const [yardStep, setYardStep] = useState<1 | 2>(1);
+  const [padId, setPadId] = useState("");
+  const [berthConflict, setBerthConflict] = useState<ReturnType<typeof conflictDetailsForBerth>>(null);
   const machine = equipmentForModule(state.equipment, module);
+  const pads = useMemo(
+    () =>
+      state.berths
+        .filter((berth) => berth.kind === "boatyard")
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+    [state.berths]
+  );
   const slots = machine ? buildDaySlots(machine) : [];
-  const [liftDate, setLiftDate] = useState(date);
+  const seedTime = initialTime ?? slots[isDry ? 4 : 2] ?? slots[0] ?? "09:00";
+  const dryReturn = isDry ? defaultReturn(slots, date, seedTime) : null;
+  const [liftDate, setLiftDate] = useState(dryReturn?.date ?? date);
   const [launchDate, setLaunchDate] = useState(date);
-  const [liftTime, setLiftTime] = useState(initialTime ?? slots[2] ?? slots[0] ?? "09:00");
-  const [launchTime, setLaunchTime] = useState(() => defaultLaunch(slots, initialTime ?? slots[2] ?? slots[0] ?? "09:00"));
+  const [liftTime, setLiftTime] = useState(dryReturn?.time ?? seedTime);
+  const [launchTime, setLaunchTime] = useState(isDry ? seedTime : defaultLaunch(slots, seedTime));
   const [taskDate, setTaskDate] = useState(date);
   const [time, setTime] = useState(initialTime ?? slots[4] ?? slots[0] ?? "09:00");
   const [equipmentConflict, setEquipmentConflict] = useState<ReturnType<typeof conflictDetailsForEquipment>>(null);
@@ -109,18 +132,18 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
         continue;
       }
       if (berth.kind === module) {
-        if (module === "boatyard" || coversDate(reservation, taskDate)) consider(reservation);
+        if (module === "boatyard" || coversDate(reservation, isDry ? launchDate : taskDate)) consider(reservation);
       }
     }
     if (module !== "other" && module !== "boatyard") {
       for (const reservation of state.reservations) {
-        if (reservation.status === "archived" || !coversDate(reservation, taskDate)) continue;
+        if (reservation.status === "archived" || !coversDate(reservation, isDry ? launchDate : taskDate)) continue;
         const berth = state.berths.find((item) => item.id === reservation.berthId);
         if (berth?.kind === "wet") consider(reservation);
       }
     }
     return out;
-  }, [module, state.berths, state.customers, state.reservations, state.vessels, taskDate]);
+  }, [isDry, launchDate, module, state.berths, state.customers, state.reservations, state.vessels, taskDate]);
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -133,6 +156,7 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
 
   const selected = clients.find((item) => item.reservation.id === selectedKey) ?? null;
   const selectedJobType = jobTypes.find((item) => item.id === jobTypeId);
+  const selectedPad = pads.find((item) => item.id === padId);
   const ownTaskIds = useMemo(() => {
     if (!selected) return new Set<string>();
     return new Set(
@@ -148,14 +172,38 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
   }, [module, selected, state.launchTasks]);
   const repairMinutes = minutesBetweenSlots(liftDate, liftTime, launchDate, launchTime);
   const repairLabel = formatDurationMinutes(repairMinutes);
+  const outingMinutes = minutesBetweenSlots(launchDate, launchTime, liftDate, liftTime);
+  const outingLabel = formatDurationMinutes(outingMinutes);
   const stayRange =
     liftDate === launchDate
       ? `${liftTime} lift → ${launchTime} launch`
       : `${liftDate} ${liftTime} lift → ${launchDate} ${launchTime} launch`;
+  const outingRange =
+    launchDate === liftDate
+      ? `${launchTime} launch → ${liftTime} lift`
+      : `${launchDate} ${launchTime} launch → ${liftDate} ${liftTime} lift`;
   const canContinue = Boolean(selected && liftTime && launchTime && repairMinutes > 0);
   const canSave = isYard
-    ? Boolean(canContinue && jobTypeId && (workBy !== "contractor" || contractorName.trim()))
-    : Boolean(selected && taskTypeId && time);
+    ? Boolean(canContinue && padId && jobTypeId && (workBy !== "contractor" || contractorName.trim()))
+    : isDry
+      ? Boolean(selected && launchTime && liftTime && outingMinutes > 0)
+      : Boolean(selected && taskTypeId && time);
+
+  function padUnavailable(id: string) {
+    if (!selected) return true;
+    return Boolean(
+      conflictDetailsForBerth(state.reservations, state.berths, id, liftDate, launchDate, selected.reservation.id)
+    );
+  }
+
+  function defaultPadFor(client: ModuleClient, start = liftDate, end = launchDate) {
+    if (client.berth.kind === "boatyard") return client.berth.id;
+    return (
+      pads.find((pad) => !conflictDetailsForBerth(state.reservations, state.berths, pad.id, start, end))?.id ??
+      pads[0]?.id ??
+      ""
+    );
+  }
 
   function slotTaken(slot: string, onDate: string) {
     return state.equipmentBookings.some(
@@ -163,7 +211,7 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
         booking.equipmentId === machine?.id &&
         booking.date === onDate &&
         booking.startTime === slot &&
-        !ownTaskIds.has(booking.taskId)
+        (isDry || !ownTaskIds.has(booking.taskId))
     );
   }
 
@@ -177,6 +225,20 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
     if (launchDate === liftDate && timeToMinutes(launchTime) <= timeToMinutes(next)) {
       const later = defaultLaunch(slots, next);
       if (later !== next) setLaunchTime(later);
+    }
+  }
+
+  function onLaunchDateChange(next: string) {
+    setLaunchDate(next);
+    if (liftDate < next || liftDate === launchDate) setLiftDate(next);
+  }
+
+  function onLaunchTimeChange(next: string) {
+    setLaunchTime(next);
+    if (liftDate === launchDate && timeToMinutes(liftTime) <= timeToMinutes(next)) {
+      const later = defaultReturn(slots, launchDate, next);
+      setLiftDate(later.date);
+      setLiftTime(later.time);
     }
   }
 
@@ -217,10 +279,22 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
         setEquipmentConflict(liftConflict ?? launchConflict);
         return;
       }
+      const padConflict = conflictDetailsForBerth(
+        state.reservations,
+        state.berths,
+        padId,
+        liftDate,
+        launchDate,
+        selected.reservation.id
+      );
+      if (padConflict) {
+        setBerthConflict(padConflict);
+        return;
+      }
       const ok = addYardStay({
         customerId: selected.customer.id,
         vesselId: selected.vessel.id,
-        berthId: selected.berth.id,
+        berthId: padId,
         reservationId: selected.reservation.id,
         liftDate,
         launchDate,
@@ -232,13 +306,64 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
         notes,
       });
       if (!ok) {
-        toast.error("Those travel-lift slots are already taken, or lift is already done");
+        toast.error("That pad or travel-lift slot is already taken, or lift is already done");
         return;
       }
       toast.success(
-        `${selectedJobType?.name ?? "Job"} · lift ${liftTime} · launch ${launchTime}${
+        `${selectedJobType?.name ?? "Job"} · ${selectedPad?.name ?? "pad"} · lift ${liftTime} · launch ${launchTime}${
           repairLabel ? ` · ${repairLabel}` : ""
         } — customer emailed`
+      );
+      onClose();
+      return;
+    }
+
+    if (isDry) {
+      const launchConflict = conflictDetailsForEquipment(
+        state.equipmentBookings,
+        state.equipment,
+        module,
+        launchDate,
+        launchTime
+      );
+      const liftConflict = conflictDetailsForEquipment(
+        state.equipmentBookings,
+        state.equipment,
+        module,
+        liftDate,
+        liftTime
+      );
+      if (launchConflict || liftConflict) {
+        setEquipmentConflict(launchConflict ?? liftConflict);
+        return;
+      }
+      const rackReservation =
+        selected.berth.kind === "dry_storage"
+          ? selected.reservation
+          : state.reservations.find((item) => {
+              if (item.status === "archived" || item.vesselId !== selected.vessel.id) return false;
+              return state.berths.find((berth) => berth.id === item.berthId)?.kind === "dry_storage";
+            });
+      if (!rackReservation) {
+        toast.error("This boat needs a dry stack rack first");
+        return;
+      }
+      const ok = addDryStackOuting({
+        customerId: selected.customer.id,
+        vesselId: selected.vessel.id,
+        berthId: rackReservation.berthId,
+        reservationId: rackReservation.id,
+        launchDate,
+        launchTime,
+        liftDate,
+        liftTime,
+      });
+      if (!ok) {
+        toast.error("Those fork-lift slots are already taken");
+        return;
+      }
+      toast.success(
+        `Launch ${launchTime} · lift ${liftTime}${outingLabel ? ` · ${outingLabel} in the water` : ""} — customer emailed`
       );
       onClose();
       return;
@@ -297,10 +422,14 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
               {isYard
                 ? yardStep === 1
                   ? "Pick the boat, then set lift and launch."
-                  : "Describe the work that happens between lift and launch."
-                : machine
-                  ? `${machine.name} · ${machine.slotMinutes} min slots`
-                  : "Book a launch or lift."}
+                  : "Pick the pad, then describe the work that happens between lift and launch."
+                : isDry
+                  ? machine
+                    ? `${machine.name} · ${machine.slotMinutes} min slots · set launch and lift`
+                    : "Book a launch out and a lift back."
+                  : machine
+                    ? `${machine.name} · ${machine.slotMinutes} min slots`
+                    : "Book a launch or lift."}
             </p>
           </div>
           <button type="button" onClick={onClose} className="text-xs text-neutral-500 hover:text-neutral-900">
@@ -321,6 +450,7 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
               onChange={(event) => {
                 setQuery(event.target.value);
                 setSelectedKey(null);
+                setPadId("");
               }}
               placeholder={isYard ? "Search a boat on the yard" : `Search a ${label.toLowerCase()} boat`}
               data-add-task-search
@@ -338,7 +468,10 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedKey(null)}
+                onClick={() => {
+                  setSelectedKey(null);
+                  setPadId("");
+                }}
                 className="text-xs font-medium text-neutral-600 hover:text-neutral-900"
               >
                 Change
@@ -357,6 +490,13 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
                         setSelectedKey(item.reservation.id);
                         const job = item.reservation.job;
                         if (!isYard) return;
+                        setPadId(
+                          defaultPadFor(
+                            item,
+                            item.reservation.startDate,
+                            item.reservation.job?.launchDate ?? item.reservation.endDate
+                          )
+                        );
                         if (job?.liftTime) setLiftTime(job.liftTime);
                         if (job?.launchTime) setLaunchTime(job.launchTime);
                         setLiftDate(item.reservation.startDate);
@@ -447,9 +587,35 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
               {selected ? (
                 <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
                   <span className="font-semibold text-neutral-900">{selected.vessel.name}</span>
+                  {selectedPad ? ` · ${selectedPad.name}` : ""}
                   {" · "}
                   {stayRange}
                   {repairLabel ? ` · ${repairLabel}` : ""}
+                </p>
+              ) : null}
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-neutral-500">{label} slot</span>
+                <select
+                  value={padId}
+                  onChange={(event) => setPadId(event.target.value)}
+                  data-add-task-pad
+                  className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+                >
+                  {pads.length === 0 ? (
+                    <option value="">No pads configured</option>
+                  ) : (
+                    pads.map((pad) => (
+                      <option key={pad.id} value={pad.id}>
+                        {pad.name}
+                        {padUnavailable(pad.id) && pad.id !== padId ? " — unavailable" : ""}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              {selected && selectedPad && selected.vessel.lengthM > selectedPad.lengthM ? (
+                <p className="rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
+                  Vessel length ({selected.vessel.lengthM} m) is greater than this pad ({selectedPad.lengthM} m).
                 </p>
               ) : null}
               <label className="block space-y-1">
@@ -506,7 +672,62 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
             </div>
           ) : null}
 
-          {!isYard ? (
+          {isDry ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-neutral-500">Launch</span>
+                  <input
+                    type="date"
+                    value={launchDate}
+                    onChange={(event) => onLaunchDateChange(event.target.value)}
+                    data-add-task-launch-date
+                    className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+                  />
+                  <SlotSelect
+                    value={launchTime}
+                    slots={slots}
+                    taken={(slot) => slotTaken(slot, launchDate)}
+                    onChange={onLaunchTimeChange}
+                    testId="add-task-launch"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-neutral-500">Lift</span>
+                  <input
+                    type="date"
+                    value={liftDate}
+                    min={launchDate}
+                    onChange={(event) => setLiftDate(event.target.value)}
+                    data-add-task-lift-date
+                    className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
+                  />
+                  <SlotSelect
+                    value={liftTime}
+                    slots={slots}
+                    taken={(slot) =>
+                      slotTaken(slot, liftDate) ||
+                      (liftDate === launchDate && timeToMinutes(slot) <= timeToMinutes(launchTime))
+                    }
+                    onChange={setLiftTime}
+                    testId="add-task-lift"
+                  />
+                </div>
+              </div>
+              <div
+                className="rounded-lg border border-[hsl(252,75%,88%)] bg-[hsl(252,75%,97%)] px-3 py-2"
+                data-outing-duration
+              >
+                <p className="text-xs font-medium uppercase tracking-wide text-[hsl(252,75%,40%)]">Time in the water</p>
+                <p className="mt-0.5 text-sm font-semibold text-neutral-900">
+                  {outingLabel || "Lift must be after launch"}
+                </p>
+                {outingLabel ? <p className="text-xs text-neutral-500">{outingRange}.</p> : null}
+              </div>
+            </div>
+          ) : null}
+
+          {!isYard && !isDry ? (
             <div className="grid grid-cols-2 gap-3">
               <label className="block space-y-1">
                 <span className="text-xs font-medium text-neutral-500">Date</span>
@@ -564,7 +785,10 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
               variant="harbr"
               className="flex-1"
               disabled={!canContinue}
-              onClick={() => setYardStep(2)}
+              onClick={() => {
+                if (selected && !padId) setPadId(defaultPadFor(selected));
+                setYardStep(2);
+              }}
               data-add-task-next
             >
               Next
@@ -576,6 +800,17 @@ export function AddTaskModal({ date, module, initialTime, onClose }: AddTaskModa
           )}
         </div>
       </div>
+      {berthConflict ? (
+        <ConflictModal
+          conflict={berthConflict}
+          onClose={() => setBerthConflict(null)}
+          onViewCalendar={() => {
+            setBerthConflict(null);
+            onClose();
+            navigate(`${modulePath("boatyard")}?tab=${occupancyTabId("boatyard")}`);
+          }}
+        />
+      ) : null}
       {equipmentConflict ? (
         <EquipmentConflictModal conflict={equipmentConflict} onClose={() => setEquipmentConflict(null)} />
       ) : null}
@@ -634,7 +869,7 @@ function YardStepper({ step, onBack }: { step: 1 | 2; onBack: () => void }) {
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-medium text-neutral-900">Describe job</span>
-            <span className="block text-xs text-neutral-500">Type, who, notes</span>
+            <span className="block text-xs text-neutral-500">Slot, type, who</span>
           </span>
         </div>
       </li>
